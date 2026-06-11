@@ -1,0 +1,12 @@
+node_modules/
+.env
+dist/
+build/
+*.log
+.DS_Store
+uploads/vehicle-photos/*
+uploads/inspection-photos/*
+uploads/repair-photos/*
+!uploads/vehicle-photos/.gitkeep
+!uploads/inspection-photos/.gitkeep
+!uploads/repair-photos/.gitkeep

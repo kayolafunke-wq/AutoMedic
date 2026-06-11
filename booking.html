@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Appointment â€” AutoMedic</title>
+  <script>
+    // Auth guard â€” runs immediately before page renders
+    (function() {
+      try {
+        var _u = JSON.parse(localStorage.getItem('ac_user') || 'null');
+        if (!_u || _u.role !== 'customer') {
+          // Clear any stale user session
+          localStorage.removeItem('ac_user');
+          // Pass destination via URL param so login page knows it's a real redirect
+          window.location.replace('login.html?from=booking');
+        }
+      } catch (e) {
+        localStorage.removeItem('ac_user');
+        window.location.replace('login.html?from=booking');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+<nav class="navbar" id="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="nav-logo"><div class="logo-icon">AC</div><span>AutoMedic</span></a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="index.html">Home</a></li><li><a href="services.html">Services</a></li><li><a href="products.html">Products</a></li>
+      <li><a href="booking.html" class="active">Book Appointment</a></li><li><a href="tracking.html">Track Vehicle</a></li>
+    </ul>
+    <div class="nav-actions"><a href="login.html" class="btn-ghost">Login</a><a href="booking.html" class="btn-primary">Book Now</a></div>
+    <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<section class="page-hero short"><div class="page-hero-bg"><img src="images/hero-booking.jpg" alt="Garage" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;" /><div class="page-hero-overlay"></div></div>
+  <div class="page-hero-content">
+    <div class="section-label light">Book Online</div>
+    <h1>Book an Appointment</h1>
+    <p>Fill in your details and we'll confirm within 1 hour</p>
+  </div>
+</section>
+
+<section class="booking-section">
+  <div class="section-container">
+    <div class="booking-layout">
+      <div class="booking-form-wrap">
+        <div class="form-card">
+          <h2>Your Appointment Details</h2>
+          <p class="form-subtitle">We'll confirm your booking via WhatsApp within 1 hour.</p>
+          <div class="success-banner" id="successBanner" style="display:none;">
+            <i class="fas fa-check-circle"></i>
+            <div><strong>Appointment Submitted!</strong><span>We'll confirm via WhatsApp within 1 hour. Your tracking number is <strong id="trackingNum"></strong></span></div>
+          </div>
+          <form id="bookingForm">
+            <div class="form-row">
+              <div class="form-group"><label>Full Name <span class="req">*</span></label><input type="text" id="fullName" placeholder="e.g. John Banda" required /></div>
+              <div class="form-group"><label>Phone (WhatsApp) <span class="req">*</span></label><input type="tel" id="phone" placeholder="+265 999 000 000" required /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Vehicle Make <span class="req">*</span></label><input type="text" id="vehicleMake" placeholder="e.g. Toyota" required /></div>
+              <div class="form-group"><label>Vehicle Model <span class="req">*</span></label><input type="text" id="vehicleModel" placeholder="e.g. Corolla" required /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Registration Number <span class="req">*</span></label><input type="text" id="regNumber" placeholder="e.g. MK 1234" required /></div>
+              <div class="form-group"><label>Preferred Date <span class="req">*</span></label><input type="date" id="prefDate" required /></div>
+            </div>
+            <div class="form-group full">
+              <label>Service Needed <span class="req">*</span></label>
+              <select id="serviceNeeded" required>
+                <option value="">-- Select a service --</option>
+                <option>Engine Repair</option><option>Brake Repair</option><option>Oil Change</option>
+                <option>Wheel Alignment</option><option>Car Diagnostics</option><option>Battery Replacement</option>
+                <option>Suspension Repair</option><option>Air Conditioning Service</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Problem Description</label>
+              <textarea id="description" rows="4" placeholder="Describe the issue with your vehicle..."></textarea>
+            </div>
+            <button type="submit" class="btn-primary full large"><i class="fas fa-calendar-check"></i> Submit Appointment</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="booking-info">
+        <div class="info-hero-img"><img src="images/booking-mechanic.jpg" alt="Mechanic" /></div>
+        <h3>Quick &amp; Easy</h3>
+        <p class="info-tagline">Book in Under 2 Minutes</p>
+        <p>Our online booking system means you don't have to call or drive to the garage just to schedule a service.</p>
+        <div class="info-features">
+          <div class="info-feature"><div class="info-icon"><i class="fas fa-check-circle"></i></div><div><strong>Instant Confirmation</strong><span>Get a WhatsApp confirmation within 1 hour of booking</span></div></div>
+          <div class="info-feature"><div class="info-icon"><i class="fas fa-satellite-dish"></i></div><div><strong>Track Progress</strong><span>After booking, track your vehicle's repair status live</span></div></div>
+          <div class="info-feature"><div class="info-icon"><i class="fab fa-whatsapp"></i></div><div><strong>WhatsApp Updates</strong><span>Get notified at every stage of your vehicle's repair</span></div></div>
+          <div class="info-feature"><div class="info-icon"><i class="fas fa-tags"></i></div><div><strong>Transparent Pricing</strong><span>All prices shown upfront â€” no surprise bills</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-brand"><div class="footer-logo"><div class="logo-icon">AC</div><span>AutoMedic</span></div><p>Lilongwe's most trusted garage management platform.</p><div class="footer-social"><a href="#"><i class="fab fa-facebook"></i></a><a href="#"><i class="fab fa-whatsapp"></i></a><a href="#"><i class="fab fa-instagram"></i></a></div></div>
+    <div class="footer-links"><h4>Platform</h4><ul><li><a href="services.html">Services</a></li><li><a href="products.html">Products</a></li><li><a href="booking.html">Book Appointment</a></li><li><a href="tracking.html">Track Vehicle</a></li></ul></div>
+    <div class="footer-links"><h4>Account</h4><ul><li><a href="login.html">Customer Login</a></li><li><a href="login.html">Technician Login</a></li><li><a href="login.html">Admin Login</a></li></ul></div>
+    <div class="footer-contact"><h4>Contact</h4><p><i class="fas fa-map-marker-alt"></i> Area 47, Lilongwe, Malawi</p><p><i class="fas fa-phone"></i> +265 999 000 000</p><p><i class="fas fa-clock"></i> Monâ€“Sat: 7am â€“ 6pm</p></div>
+  </div>
+  <div class="footer-bottom"><p>Â© 2024 AutoMedic Garage Management Platform. Lilongwe, Malawi.</p></div>
+</footer>
+<script src="js/main.js"></script>
+<script src="js/booking.js"></script>
+
+</body>
+</html>
+
+
+
+
+

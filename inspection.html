@@ -1,0 +1,443 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vehicle Reception &amp; Inspection &mdash; AutoMedic</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/inspection.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="dash-body">
+
+<header class="dash-topbar">
+  <a href="index.html" class="dash-logo"><div class="logo-icon sm">AC</div><span>AutoMedic</span></a>
+  <div class="dash-topbar-right">
+    <a href="dashboard-admin.html" class="btn-ghost sm"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    <div class="dash-avatar admin-av">AD</div>
+  </div>
+</header>
+
+<div class="insp-layout">
+
+  <!-- PROGRESS STEPS -->
+  <div class="insp-steps-bar">
+    <div class="insp-step active" id="step-btn-1" onclick="gotoStep(1)">
+      <div class="step-num">1</div><span>Vehicle Info</span>
+    </div>
+    <div class="insp-step-line"></div>
+    <div class="insp-step" id="step-btn-2" onclick="gotoStep(2)">
+      <div class="step-num">2</div><span>Condition Check</span>
+    </div>
+    <div class="insp-step-line"></div>
+    <div class="insp-step" id="step-btn-3" onclick="gotoStep(3)">
+      <div class="step-num">3</div><span>Photos</span>
+    </div>
+    <div class="insp-step-line"></div>
+    <div class="insp-step" id="step-btn-4" onclick="gotoStep(4)">
+      <div class="step-num">4</div><span>Accessories</span>
+    </div>
+    <div class="insp-step-line"></div>
+    <div class="insp-step" id="step-btn-5" onclick="gotoStep(5)">
+      <div class="step-num">5</div><span>Customer Sign-Off</span>
+    </div>
+  </div>
+
+  <div class="insp-main">
+
+    <!-- ===== STEP 1: VEHICLE INFO ===== -->
+    <div class="insp-section active" id="step-1">
+      <div class="insp-section-header">
+        <div class="insp-section-icon"><i class="fas fa-car"></i></div>
+        <div>
+          <h1>Vehicle Reception</h1>
+          <p>Record vehicle and customer details upon arrival</p>
+        </div>
+        <div class="insp-ref-badge">REF: <span id="inspRefDisplay">INS-0001</span></div>
+      </div>
+
+      <div class="insp-card">
+        <h3><i class="fas fa-user"></i> Customer Information</h3>
+        <div class="form-row">
+          <div class="form-group"><label>Customer Name <span class="req">*</span></label><input type="text" id="custName" placeholder="Full name" /></div>
+          <div class="form-group"><label>Phone (WhatsApp) <span class="req">*</span></label><input type="tel" id="custPhone" placeholder="+265 999 000 000" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>ID / Passport Number</label><input type="text" id="custId" placeholder="National ID or Passport" /></div>
+          <div class="form-group"><label>Email Address</label><input type="email" id="custEmail" placeholder="email@example.com" /></div>
+        </div>
+      </div>
+
+      <div class="insp-card">
+        <h3><i class="fas fa-car"></i> Vehicle Information</h3>
+        <div class="form-row">
+          <div class="form-group"><label>Vehicle Make <span class="req">*</span></label><input type="text" id="vMake" placeholder="e.g. Toyota" /></div>
+          <div class="form-group"><label>Vehicle Model <span class="req">*</span></label><input type="text" id="vModel" placeholder="e.g. Corolla" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Year</label><input type="text" id="vYear" placeholder="e.g. 2018" /></div>
+          <div class="form-group"><label>Color</label><input type="text" id="vColor" placeholder="e.g. Silver" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Registration Number <span class="req">*</span></label><input type="text" id="vReg" placeholder="e.g. MK 1234" /></div>
+          <div class="form-group"><label>Chassis / VIN Number</label><input type="text" id="vChassis" placeholder="e.g. JT2AE..." /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Odometer / Mileage (km) <span class="req">*</span></label><input type="number" id="vMileage" placeholder="e.g. 87500" /></div>
+          <div class="form-group">
+            <label>Fuel Level <span class="req">*</span></label>
+            <div class="fuel-selector">
+              <button class="fuel-btn" data-val="E" onclick="setFuel(this)">E</button>
+              <button class="fuel-btn" data-val="1/4" onclick="setFuel(this)">1/4</button>
+              <button class="fuel-btn active" data-val="1/2" onclick="setFuel(this)">1/2</button>
+              <button class="fuel-btn" data-val="3/4" onclick="setFuel(this)">3/4</button>
+              <button class="fuel-btn" data-val="F" onclick="setFuel(this)">F</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Service Requested <span class="req">*</span></label>
+            <select id="vService">
+              <option value="">-- Select Service --</option>
+              <option>Engine Repair</option><option>Brake Repair</option><option>Oil Change</option>
+              <option>Wheel Alignment</option><option>Car Diagnostics</option><option>Battery Replacement</option>
+              <option>Suspension Repair</option><option>Air Conditioning Service</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Assigned Technician</label>
+            <select id="vTech">
+              <option>Peter Nkosi</option><option>Charles Banda</option><option>Eric Phiri</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group full"><label>Customer's Complaint / Problem Description</label>
+          <textarea id="vComplaint" rows="3" placeholder="Describe the problem the customer is reporting..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Reception Date &amp; Time</label><input type="datetime-local" id="vDateTime" /></div>
+          <div class="form-group"><label>Expected Completion Date</label><input type="date" id="vExpComplete" /></div>
+        </div>
+      </div>
+
+      <div class="insp-nav"><button class="btn-primary large" onclick="gotoStep(2)">Next: Condition Check <i class="fas fa-arrow-right"></i></button></div>
+    </div>
+
+    <!-- ===== STEP 2: CONDITION CHECK ===== -->
+    <div class="insp-section" id="step-2">
+      <div class="insp-section-header">
+        <div class="insp-section-icon" style="background:#FFF3E0;color:#E65100"><i class="fas fa-clipboard-check"></i></div>
+        <div><h1>Condition Inspection</h1><p>Record all existing damage and vehicle condition</p></div>
+      </div>
+
+      <!-- VEHICLE DIAGRAM -->
+      <div class="insp-card">
+        <h3><i class="fas fa-car-crash"></i> Damage Map &mdash; Click areas to mark damage</h3>
+        <div class="vehicle-diagram">
+          <div class="veh-diagram-wrap">
+            <svg viewBox="0 0 400 200" class="car-svg">
+              <!-- Car body outline -->
+              <rect x="50" y="80" width="300" height="80" rx="8" fill="#E8ECF0" stroke="#B0BEC5" stroke-width="2"/>
+              <rect x="100" y="50" width="200" height="60" rx="8" fill="#D0D8E4" stroke="#B0BEC5" stroke-width="2"/>
+              <!-- Wheels -->
+              <circle cx="110" cy="165" r="20" fill="#37474F" stroke="#263238" stroke-width="2"/>
+              <circle cx="110" cy="165" r="10" fill="#607D8B"/>
+              <circle cx="290" cy="165" r="20" fill="#37474F" stroke="#263238" stroke-width="2"/>
+              <circle cx="290" cy="165" r="10" fill="#607D8B"/>
+              <!-- Windows -->
+              <rect x="110" y="55" width="75" height="45" rx="4" fill="#90CAF9" opacity="0.7"/>
+              <rect x="215" y="55" width="75" height="45" rx="4" fill="#90CAF9" opacity="0.7"/>
+              <!-- Lights -->
+              <rect x="50" y="90" width="20" height="15" rx="3" fill="#FFF176"/>
+              <rect x="330" y="90" width="20" height="15" rx="3" fill="#EF9A9A"/>
+              <!-- Labels -->
+              <text x="200" y="175" text-anchor="middle" font-size="10" fill="#666">Click to mark damage</text>
+            </svg>
+            <div class="damage-zones">
+              <button class="dmg-zone" id="dmg-front" onclick="toggleDamage(this,'Front Bumper')" style="left:5%;top:40%">Front</button>
+              <button class="dmg-zone" id="dmg-rear" onclick="toggleDamage(this,'Rear Bumper')" style="right:5%;top:40%">Rear</button>
+              <button class="dmg-zone" id="dmg-roof" onclick="toggleDamage(this,'Roof')" style="left:40%;top:5%">Roof</button>
+              <button class="dmg-zone" id="dmg-hood" onclick="toggleDamage(this,'Hood/Bonnet')" style="left:10%;top:20%">Hood</button>
+              <button class="dmg-zone" id="dmg-trunk" onclick="toggleDamage(this,'Boot/Trunk')" style="right:10%;top:20%">Boot</button>
+              <button class="dmg-zone" id="dmg-left" onclick="toggleDamage(this,'Left Side')" style="left:40%;top:80%">Left Side</button>
+              <button class="dmg-zone" id="dmg-right" onclick="toggleDamage(this,'Right Side')" style="left:40%;bottom:5%">Right Side</button>
+            </div>
+          </div>
+        </div>
+        <div class="damage-notes-list" id="damageList"><p class="no-damage-msg"><i class="fas fa-check-circle" style="color:#2E7D32"></i> No damage marked yet</p></div>
+      </div>
+
+      <!-- CHECKLIST -->
+      <div class="insp-card">
+        <h3><i class="fas fa-list-check"></i> Inspection Checklist</h3>
+        <div class="checklist-grid">
+
+          <div class="check-section">
+            <h4><i class="fas fa-car"></i> Exterior</h4>
+            <div class="check-items">
+              <div class="check-item"><label><input type="checkbox" id="c-scratches" /><span></span> Scratches</label><select class="check-severity"><option>None</option><option>Minor</option><option>Moderate</option><option>Severe</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-dents" /><span></span> Dents</label><select class="check-severity"><option>None</option><option>Minor</option><option>Moderate</option><option>Severe</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-windshield" /><span></span> Cracked Windshield</label><select class="check-severity"><option>None</option><option>Minor</option><option>Moderate</option><option>Severe</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-lights" /><span></span> Broken Lights</label><select class="check-severity"><option>None</option><option>Minor</option><option>Moderate</option><option>Severe</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-mirrors" /><span></span> Missing/Broken Mirrors</label><select class="check-severity"><option>None</option><option>Minor</option><option>Moderate</option><option>Severe</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-tyres" /><span></span> Tyre Condition</label><select class="check-severity"><option>Good</option><option>Fair</option><option>Poor</option><option>Bald</option></select></div>
+            </div>
+          </div>
+
+          <div class="check-section">
+            <h4><i class="fas fa-couch"></i> Interior</h4>
+            <div class="check-items">
+              <div class="check-item"><label><input type="checkbox" id="c-seats" /><span></span> Seat Condition</label><select class="check-severity"><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-dashboard" /><span></span> Dashboard Damage</label><select class="check-severity"><option>None</option><option>Minor</option><option>Moderate</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-radio" /><span></span> Radio/Infotainment</label><select class="check-severity"><option>Working</option><option>Not Working</option><option>Missing</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-ac-int" /><span></span> Air Conditioning</label><select class="check-severity"><option>Working</option><option>Not Working</option><option>Partial</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-carpet" /><span></span> Floor Mats/Carpet</label><select class="check-severity"><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+            </div>
+          </div>
+
+          <div class="check-section">
+            <h4><i class="fas fa-cogs"></i> Mechanical</h4>
+            <div class="check-items">
+              <div class="check-item"><label><input type="checkbox" id="c-engine-noise" /><span></span> Engine Noise</label><select class="check-severity"><option>None</option><option>Minor</option><option>Loud</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-oil-leak" /><span></span> Oil Leak</label><select class="check-severity"><option>None</option><option>Minor</option><option>Severe</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-battery-st" /><span></span> Battery Status</label><select class="check-severity"><option>Good</option><option>Weak</option><option>Dead</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-brakes-st" /><span></span> Brake Feel</label><select class="check-severity"><option>Good</option><option>Soft</option><option>Hard</option><option>Grinding</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-warning" /><span></span> Warning Lights On</label><select class="check-severity"><option>None</option><option>1-2 Lights</option><option>Multiple</option></select></div>
+            </div>
+          </div>
+
+          <div class="check-section">
+            <h4><i class="fas fa-tools"></i> Under Bonnet</h4>
+            <div class="check-items">
+              <div class="check-item"><label><input type="checkbox" id="c-coolant" /><span></span> Coolant Level</label><select class="check-severity"><option>Full</option><option>Low</option><option>Empty</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-oil-level" /><span></span> Engine Oil Level</label><select class="check-severity"><option>Full</option><option>Low</option><option>Empty</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-brake-fluid" /><span></span> Brake Fluid</label><select class="check-severity"><option>Full</option><option>Low</option><option>Empty</option></select></div>
+              <div class="check-item"><label><input type="checkbox" id="c-airfilter" /><span></span> Air Filter</label><select class="check-severity"><option>Clean</option><option>Dirty</option><option>Blocked</option></select></div>
+            </div>
+          </div>
+
+        </div>
+        <div class="form-group" style="margin-top:20px;">
+          <label>Additional Notes on Condition</label>
+          <textarea id="conditionNotes" rows="3" placeholder="Any other observations about the vehicle condition..."></textarea>
+        </div>
+      </div>
+
+      <div class="insp-nav">
+        <button class="btn-outline large" onclick="gotoStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button class="btn-primary large" onclick="gotoStep(3)">Next: Photos <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- ===== STEP 3: PHOTOS ===== -->
+    <div class="insp-section" id="step-3">
+      <div class="insp-section-header">
+        <div class="insp-section-icon" style="background:#E3F2FD;color:#1565C0"><i class="fas fa-camera"></i></div>
+        <div><h1>Photo Documentation</h1><p>Upload vehicle photos as digital evidence</p></div>
+      </div>
+
+      <div class="photo-categories">
+
+        <div class="photo-cat-card">
+          <div class="photo-cat-header"><i class="fas fa-car"></i><h3>Before Repair Photos</h3><span class="photo-count" id="cnt-before">0 photos</span></div>
+          <p class="photo-cat-desc">Capture all sides of the vehicle, existing damage, and overall condition</p>
+          <div class="photo-upload-area" onclick="triggerUpload('before')">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Click to upload or drag &amp; drop</p>
+            <small>Front, Rear, Left Side, Right Side, Interior, Dashboard</small>
+            <input type="file" id="upload-before" accept="image/*" multiple onchange="handlePhotoUpload(this,'before')" style="display:none" />
+          </div>
+          <div class="photo-preview-grid" id="preview-before"></div>
+        </div>
+
+        <div class="photo-cat-card">
+          <div class="photo-cat-header"><i class="fas fa-cogs"></i><h3>Damage Evidence Photos</h3><span class="photo-count" id="cnt-damage">0 photos</span></div>
+          <p class="photo-cat-desc">Close-up photos of all identified damages and faults</p>
+          <div class="photo-upload-area" onclick="triggerUpload('damage')">
+            <i class="fas fa-camera-retro"></i>
+            <p>Click to upload damage photos</p>
+            <small>Scratches, dents, broken parts, warning lights</small>
+            <input type="file" id="upload-damage" accept="image/*" multiple onchange="handlePhotoUpload(this,'damage')" style="display:none" />
+          </div>
+          <div class="photo-preview-grid" id="preview-damage"></div>
+        </div>
+
+        <div class="photo-cat-card">
+          <div class="photo-cat-header"><i class="fas fa-tachometer-alt"></i><h3>Dashboard &amp; Odometer</h3><span class="photo-count" id="cnt-dash">0 photos</span></div>
+          <p class="photo-cat-desc">Photo proof of fuel level, odometer reading and warning lights</p>
+          <div class="photo-upload-area" onclick="triggerUpload('dash')">
+            <i class="fas fa-tachometer-alt"></i>
+            <p>Click to upload dashboard photo</p>
+            <small>Odometer, fuel gauge, warning lights visible</small>
+            <input type="file" id="upload-dash" accept="image/*" multiple onchange="handlePhotoUpload(this,'dash')" style="display:none" />
+          </div>
+          <div class="photo-preview-grid" id="preview-dash"></div>
+        </div>
+
+      </div>
+
+      <div class="insp-nav">
+        <button class="btn-outline large" onclick="gotoStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button class="btn-primary large" onclick="gotoStep(4)">Next: Accessories <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- ===== STEP 4: ACCESSORIES ===== -->
+    <div class="insp-section" id="step-4">
+      <div class="insp-section-header">
+        <div class="insp-section-icon" style="background:#E8F5E9;color:#2E7D32"><i class="fas fa-box-open"></i></div>
+        <div><h1>Accessories &amp; Valuables</h1><p>Record all items handed over with the vehicle</p></div>
+      </div>
+
+      <div class="insp-card">
+        <h3><i class="fas fa-key"></i> Keys &amp; Documents</h3>
+        <div class="accessories-grid">
+          <label class="acc-item"><input type="checkbox" id="acc-keys" checked /><span class="acc-check"></span><i class="fas fa-key"></i> Car Keys</label>
+          <label class="acc-item"><input type="checkbox" id="acc-spare-key" /><span class="acc-check"></span><i class="fas fa-key"></i> Spare Key</label>
+          <label class="acc-item"><input type="checkbox" id="acc-logbook" /><span class="acc-check"></span><i class="fas fa-book"></i> Vehicle Logbook</label>
+          <label class="acc-item"><input type="checkbox" id="acc-insurance" /><span class="acc-check"></span><i class="fas fa-file-alt"></i> Insurance Card</label>
+          <label class="acc-item"><input type="checkbox" id="acc-roadtax" /><span class="acc-check"></span><i class="fas fa-file-invoice"></i> Road Tax</label>
+          <label class="acc-item"><input type="checkbox" id="acc-fitness" /><span class="acc-check"></span><i class="fas fa-certificate"></i> Fitness Certificate</label>
+        </div>
+      </div>
+
+      <div class="insp-card">
+        <h3><i class="fas fa-tools"></i> Equipment &amp; Accessories</h3>
+        <div class="accessories-grid">
+          <label class="acc-item"><input type="checkbox" id="acc-spare-tyre" /><span class="acc-check"></span><i class="fas fa-circle"></i> Spare Tyre</label>
+          <label class="acc-item"><input type="checkbox" id="acc-jack" /><span class="acc-check"></span><i class="fas fa-tools"></i> Car Jack</label>
+          <label class="acc-item"><input type="checkbox" id="acc-triangle" /><span class="acc-check"></span><i class="fas fa-exclamation-triangle"></i> Warning Triangle</label>
+          <label class="acc-item"><input type="checkbox" id="acc-radio-rem" /><span class="acc-check"></span><i class="fas fa-satellite-dish"></i> Radio Remote</label>
+          <label class="acc-item"><input type="checkbox" id="acc-mats" /><span class="acc-check"></span><i class="fas fa-border-all"></i> Floor Mats</label>
+          <label class="acc-item"><input type="checkbox" id="acc-charger" /><span class="acc-check"></span><i class="fas fa-charging-station"></i> Phone Charger</label>
+          <label class="acc-item"><input type="checkbox" id="acc-dash-cam" /><span class="acc-check"></span><i class="fas fa-video"></i> Dash Camera</label>
+          <label class="acc-item"><input type="checkbox" id="acc-child-seat" /><span class="acc-check"></span><i class="fas fa-baby"></i> Child Seat</label>
+        </div>
+      </div>
+
+      <div class="insp-card">
+        <h3><i class="fas fa-gem"></i> Valuables Left in Vehicle</h3>
+        <div class="alert-warning"><i class="fas fa-exclamation-triangle"></i> <strong>Important:</strong> AutoMedic is not responsible for valuables left in the vehicle. Please advise the customer to remove all valuables.</div>
+        <div class="form-group" style="margin-top:16px;">
+          <label>List any valuables the customer insists on leaving (and customer acknowledges risk)</label>
+          <textarea id="valuablesNotes" rows="3" placeholder="e.g. Sunglasses in glove box, USB cables..."></textarea>
+        </div>
+      </div>
+
+      <div class="insp-card">
+        <h3><i class="fas fa-sticky-note"></i> Additional Notes</h3>
+        <textarea id="accNotes" rows="3" placeholder="Any other items or special instructions from the customer..."></textarea>
+      </div>
+
+      <div class="insp-nav">
+        <button class="btn-outline large" onclick="gotoStep(3)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button class="btn-primary large" onclick="gotoStep(5)">Next: Customer Sign-Off <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- ===== STEP 5: CUSTOMER SIGN-OFF ===== -->
+    <div class="insp-section" id="step-5">
+      <div class="insp-section-header">
+        <div class="insp-section-icon" style="background:#F3E5F5;color:#6A1B9A"><i class="fas fa-signature"></i></div>
+        <div><h1>Customer Sign-Off</h1><p>Customer reviews and digitally confirms the inspection report</p></div>
+      </div>
+
+      <!-- SUMMARY -->
+      <div class="insp-card" id="inspSummary">
+        <h3><i class="fas fa-file-alt"></i> Inspection Summary</h3>
+        <div class="summary-2col">
+          <div>
+            <div class="summary-row"><span>Reference</span><strong id="sumRef">INS-0001</strong></div>
+            <div class="summary-row"><span>Customer</span><strong id="sumCust">â€”</strong></div>
+            <div class="summary-row"><span>Phone</span><strong id="sumPhone">â€”</strong></div>
+            <div class="summary-row"><span>Vehicle</span><strong id="sumVehicle">â€”</strong></div>
+            <div class="summary-row"><span>Registration</span><strong id="sumReg">â€”</strong></div>
+          </div>
+          <div>
+            <div class="summary-row"><span>Mileage</span><strong id="sumMileage">â€”</strong></div>
+            <div class="summary-row"><span>Fuel Level</span><strong id="sumFuel">â€”</strong></div>
+            <div class="summary-row"><span>Service</span><strong id="sumService">â€”</strong></div>
+            <div class="summary-row"><span>Technician</span><strong id="sumTech">â€”</strong></div>
+            <div class="summary-row"><span>Date</span><strong id="sumDate">â€”</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DECLARATION -->
+      <div class="insp-card">
+        <h3><i class="fas fa-file-contract"></i> Customer Declaration</h3>
+        <div class="declaration-box">
+          <p>I, <strong id="declName">the customer</strong>, hereby confirm that:</p>
+          <ul>
+            <li>I have reviewed the vehicle inspection report and the details recorded are accurate.</li>
+            <li>The damage recorded above existed before the vehicle was handed over to AutoMedic.</li>
+            <li>The accessories and items listed have been handed over to AutoMedic.</li>
+            <li>The fuel level and odometer reading recorded are correct.</li>
+            <li>I authorise AutoMedic to proceed with the requested service.</li>
+            <li>I understand AutoMedic is not responsible for valuables left in the vehicle.</li>
+          </ul>
+        </div>
+
+        <!-- SIGNATURE PAD -->
+        <div class="signature-section">
+          <h4>Customer Signature</h4>
+          <p class="sig-instruction">Please sign in the box below using your mouse or touchscreen</p>
+          <div class="sig-pad-wrap">
+            <canvas id="sigCanvas" width="600" height="160"></canvas>
+            <div class="sig-actions">
+              <button class="btn-outline sm" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
+            </div>
+          </div>
+          <div class="sig-meta">
+            <div class="form-group"><label>Customer Full Name (Print)</label><input type="text" id="sigName" placeholder="Print name here" /></div>
+            <div class="form-group"><label>Date &amp; Time</label><input type="datetime-local" id="sigDate" /></div>
+          </div>
+        </div>
+
+        <!-- SERVICE ADVISOR -->
+        <div class="signature-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
+          <h4>Service Advisor Signature</h4>
+          <div class="sig-pad-wrap">
+            <canvas id="sigCanvasAdvisor" width="600" height="120"></canvas>
+            <div class="sig-actions">
+              <button class="btn-outline sm" onclick="clearSignatureAdvisor()"><i class="fas fa-eraser"></i> Clear</button>
+            </div>
+          </div>
+          <div class="sig-meta">
+            <div class="form-group"><label>Advisor Name</label><input type="text" id="advisorName" value="Peter Nkosi" /></div>
+            <div class="form-group"><label>Staff ID</label><input type="text" id="advisorId" value="TECH-001" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="insp-nav" style="justify-content:center;gap:16px;">
+        <button class="btn-outline large" onclick="gotoStep(4)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button class="btn-primary large" onclick="submitInspection()"><i class="fas fa-check-circle"></i> Complete &amp; Save Inspection</button>
+        <button class="btn-outline large" onclick="printInspectionReport()"><i class="fas fa-print"></i> Print Report</button>
+      </div>
+    </div>
+
+    <!-- ===== SUCCESS ===== -->
+    <div class="insp-section" id="step-success">
+      <div class="insp-success">
+        <div class="success-circle"><i class="fas fa-check"></i></div>
+        <h1>Inspection Complete!</h1>
+        <p>Vehicle reception and inspection has been saved successfully.</p>
+        <div class="success-ref">Inspection Reference: <strong id="successRef">INS-0001</strong></div>
+        <div class="success-actions">
+          <button class="btn-primary large" onclick="printInspectionReport()"><i class="fas fa-print"></i> Print Report</button>
+          <a href="dashboard-admin.html" class="btn-outline large"><i class="fas fa-home"></i> Back to Dashboard</a>
+          <button class="btn-outline large" onclick="newInspection()"><i class="fas fa-plus"></i> New Inspection</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script src="js/inspection.js"></script>
+</body>
+</html>
+

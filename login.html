@@ -1,0 +1,110 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login â€” AutoMedic</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;1,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="login-body">
+<div class="login-page">
+  <!-- LEFT PANEL â€” CSS gradient, no image needed -->
+  <div class="login-image"><img src="images/login-garage.jpg" alt="Garage" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;" />
+    <div class="login-image-content">
+      <a href="index.html" class="login-logo">
+        <div class="logo-icon large">AC</div>
+        <span>AutoMedic</span>
+      </a>
+      <!-- Decorative icons -->
+      <div class="login-deco-icons">
+        <div class="login-deco-row">
+          <div class="login-deco-item"><i class="fas fa-car"></i></div>
+          <div class="login-deco-item"><i class="fas fa-wrench"></i></div>
+          <div class="login-deco-item"><i class="fas fa-cogs"></i></div>
+        </div>
+        <div class="login-deco-row">
+          <div class="login-deco-item"><i class="fas fa-oil-can"></i></div>
+          <div class="login-deco-item main-icon"><i class="fas fa-shield-alt"></i></div>
+          <div class="login-deco-item"><i class="fas fa-bolt"></i></div>
+        </div>
+        <div class="login-deco-row">
+          <div class="login-deco-item"><i class="fas fa-tools"></i></div>
+          <div class="login-deco-item"><i class="fas fa-battery-full"></i></div>
+          <div class="login-deco-item"><i class="fas fa-satellite-dish"></i></div>
+        </div>
+      </div>
+      <h2>Lilongwe's Premier<br/><em>Garage Platform</em></h2>
+      <p>Professional service. Full digital transparency.</p>
+    </div>
+  </div>
+
+  <!-- RIGHT â€” FORM -->
+  <div class="login-form-side">
+    <div class="login-form-wrap">
+      <h2>Sign in to your account</h2>
+      <div id="loginRedirectMsg" style="display:none;background:#FFF3E0;border:1px solid #FFB74D;color:#E65100;padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:0.88rem;align-items:center;gap:8px;">
+        <i class="fas fa-lock"></i> <span id="loginRedirectText">Please log in as a customer to continue.</span>
+      </div>
+      <div class="role-tabs">
+        <button class="role-tab active" data-role="customer" onclick="setRole('customer')"><i class="fas fa-user"></i> Customer</button>
+        <button class="role-tab" data-role="technician" onclick="setRole('technician')"><i class="fas fa-wrench"></i> Technician</button>
+        <button class="role-tab" data-role="admin" onclick="setRole('admin')"><i class="fas fa-shield-alt"></i> Admin</button>
+      </div>
+      <div class="login-error" id="loginError" style="display:none;"><i class="fas fa-exclamation-circle"></i> Incorrect credentials. Try again.</div>
+      <form id="loginForm" onsubmit="doLogin(event)">
+        <div class="form-group">
+          <label>Username</label>
+          <div class="input-icon"><i class="fas fa-user"></i><input type="text" id="loginUsername" placeholder="Enter your username" required /></div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <div class="input-icon"><i class="fas fa-lock"></i><input type="password" id="loginPassword" placeholder="Enter your password" required /><button type="button" class="eye-toggle" onclick="togglePwd()"><i class="fas fa-eye" id="eyeIcon"></i></button></div>
+        </div>
+        <button type="submit" class="btn-primary full large">Sign In</button>
+      </form>
+      <div class="login-demo">
+        <p><strong>Demo credentials:</strong></p>
+        <div class="demo-pills">
+          <button onclick="fillDemo('customer','customer123')"><i class="fas fa-user"></i> customer / customer123</button>
+          <button onclick="fillDemo('tech','tech123')"><i class="fas fa-wrench"></i> tech / tech123</button>
+          <button onclick="fillDemo('admin','admin123')"><i class="fas fa-shield-alt"></i> admin / admin123</button>
+        </div>
+      </div>
+      <div class="login-back"><a href="index.html"><i class="fas fa-arrow-left"></i> Back to Website</a></div>
+    </div>
+  </div>
+</div>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  // Read ?from= URL parameter â€” only show message if genuinely redirected
+  (function() {
+    // Always clear stale redirect data first
+    localStorage.removeItem('ac_redirect_after_login');
+
+    var params = new URLSearchParams(window.location.search);
+    var from = params.get('from');
+
+    if (from === 'booking' || from === 'tracking') {
+      var destination = from + '.html';
+      var pageName = from === 'booking' ? 'Book Appointment' : 'Track Vehicle';
+
+      // Store the intended destination for post-login redirect
+      localStorage.setItem('ac_redirect_after_login', destination);
+
+      var msg = document.getElementById('loginRedirectMsg');
+      var txt = document.getElementById('loginRedirectText');
+      if (msg && txt) {
+        txt.textContent = 'Please log in as a customer to access ' + pageName + '.';
+        msg.style.display = 'flex';
+        setRole('customer');
+      }
+    }
+  })();
+</script>
+</body>
+</html>
+
+
