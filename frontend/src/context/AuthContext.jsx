@@ -1,71 +1,120 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import {
+  auth, googleProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+  sendPasswordResetEmail,
+} from '../config/firebase'
 import api from '../services/api'
 
 const AuthContext = createContext(null)
 
-// Demo users for when backend is not connected
-const DEMO_USERS = {
-  'john@example.com':      { id:'1', name:'John Banda',    email:'john@example.com',      role:'customer',    password:'password123' },
-  'peter@automedic.mw':    { id:'2', name:'Peter Nkosi',   email:'peter@automedic.mw',    role:'technician',  password:'password123' },
-  'admin@automedic.mw':    { id:'3', name:'Administrator', email:'admin@automedic.mw',    role:'admin',       password:'password123' },
-}
-
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
+  const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Listen to Firebase auth state
   useEffect(() => {
-    const token = localStorage.getItem('am_token')
-    const storedUser = localStorage.getItem('am_user')
-    if (token && storedUser) {
-      try {
-        // Try real API first
-        api.get('/auth/me')
-          .then(res => setUser(res.data.user))
-          .catch(() => {
-            // Fallback to stored demo user
-            setUser(JSON.parse(storedUser))
-          })
-          .finally(() => setLoading(false))
-      } catch {
-        setLoading(false)
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const idToken = await firebaseUser.getIdToken()
+          localStorage.setItem('am_fb_token', idToken)
+          // Sync with backend — creates user in SQLite if needed
+          const res = await api.post('/auth/firebase-sync', { idToken })
+          const appUser = {
+            ...res.data.user,
+            photoURL:    firebaseUser.photoURL,
+            displayName: firebaseUser.displayName,
+          }
+          setUser(appUser)
+          localStorage.setItem('am_user', JSON.stringify(appUser))
+          localStorage.setItem('am_token', res.data.token) // store backend JWT
+        } catch {
+          // Backend not available — use Firebase user directly
+          const appUser = {
+            id:       firebaseUser.uid,
+            name:     firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            email:    firebaseUser.email,
+            role:     'customer',
+            photoURL: firebaseUser.photoURL,
+          }
+          setUser(appUser)
+          localStorage.setItem('am_user', JSON.stringify(appUser))
+        }
+      } else {
+        // Check for stored demo user (email/password backend login)
+        const stored = localStorage.getItem('am_user')
+        const token  = localStorage.getItem('am_token')
+        if (stored && token) {
+          try {
+            setUser(JSON.parse(stored))
+          } catch {}
+        } else {
+          setUser(null)
+        }
       }
-    } else {
       setLoading(false)
-    }
+    })
+    return () => unsub()
   }, [])
 
-  const login = async (email, password) => {
-    try {
-      // Try real backend first
-      const res = await api.post('/auth/login', { email, password })
-      localStorage.setItem('am_token', res.data.token)
-      localStorage.setItem('am_user', JSON.stringify(res.data.user))
-      setUser(res.data.user)
-      return res.data.user
-    } catch (err) {
-      // If backend unavailable, use demo credentials
-      const demo = DEMO_USERS[email.toLowerCase()]
-      if (demo && demo.password === password) {
-        const { password: _, ...safeUser } = demo
-        localStorage.setItem('am_token', 'demo_token_' + demo.role)
-        localStorage.setItem('am_user', JSON.stringify(safeUser))
-        setUser(safeUser)
-        return safeUser
-      }
-      // Re-throw original error or generic message
-      throw new Error('Invalid credentials')
-    }
+  // Sign in with Google
+  const loginWithGoogle = async () => {
+    const result = await signInWithPopup(auth, googleProvider)
+    return result.user
   }
 
-  const logout = () => {
-    localStorage.removeItem('am_token')
+  // Sign in with email + password
+  const login = async (email, password) => {
+    const result = await signInWithEmailAndPassword(auth, email, password)
+    return result.user
+  }
+
+  // Register new account
+  const register = async (name, email, password, phone) => {
+    const result = await createUserWithEmailAndPassword(auth, email, password)
+    // Set display name
+    await updateProfile(result.user, { displayName: name })
+    // Sync phone to backend
+    if (phone) {
+      try {
+        const idToken = await result.user.getIdToken()
+        await api.post('/auth/firebase-sync', { idToken, phone, name })
+      } catch {}
+    }
+    return result.user
+  }
+
+  // Password reset email
+  const resetPassword = async (email) => {
+    await sendPasswordResetEmail(auth, email)
+  }
+
+  // Logout
+  const logout = async () => {
+    await signOut(auth)
     localStorage.removeItem('am_user')
+    localStorage.removeItem('am_token')
+    localStorage.removeItem('am_fb_token')
     setUser(null)
   }
 
+  // Get fresh token for API calls
+  const getToken = async () => {
+    const firebaseUser = auth.currentUser
+    if (firebaseUser) {
+      return await firebaseUser.getIdToken()
+    }
+    return localStorage.getItem('am_token')
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, resetPassword, logout, getToken }}>
       {children}
     </AuthContext.Provider>
   )

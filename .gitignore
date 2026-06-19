@@ -10,3 +10,9 @@ uploads/repair-photos/*
 !uploads/vehicle-photos/.gitkeep
 !uploads/inspection-photos/.gitkeep
 !uploads/repair-photos/.gitkeep
+
+backend/automedic.db
+backend/automedic.db-shm
+backend/automedic.db-wal
+frontend/.env
+backend/.env

@@ -6,15 +6,17 @@ import { CheckCircle, Circle, ArrowRight, Search, MessageCircle, User, Wrench, C
 import api from '../services/api'
 
 const STEPS = [
-  { key: 'pending', label: 'Appointment Confirmed' },
-  { key: 'confirmed', label: 'Vehicle Received' },
-  { key: 'in_progress', label: 'Repair In Progress' },
-  { key: 'quality_check', label: 'Quality Inspection' },
-  { key: 'completed', label: 'Ready for Collection' },
+  { key: 'pending',        label: 'Appointment Confirmed' },
+  { key: 'confirmed',      label: 'Vehicle Received' },
+  { key: 'inspection',     label: 'Physical Inspection' },
+  { key: 'diagnosis',      label: 'Diagnosis Complete' },
+  { key: 'in_progress',    label: 'Repair In Progress' },
+  { key: 'quality_check',  label: 'Quality Inspection' },
+  { key: 'completed',      label: 'Ready for Collection' },
 ]
 
 const stepIndex = (status) => {
-  const map = { pending:0, confirmed:1, in_progress:2, quality_check:3, completed:4 }
+  const map = { pending:0, confirmed:1, inspection:2, diagnosis:3, in_progress:4, quality_check:5, completed:6 }
   return map[status] ?? 0
 }
 
@@ -33,6 +35,7 @@ export default function TrackingPage() {
     const q = (val || input).trim().toUpperCase()
     if (!q) return
     setLoading(true); setError(''); setData(null)
+
     try {
       const res = await api.get(`/appointments/track/${q}`)
       setData(res.data.data)
@@ -42,7 +45,7 @@ export default function TrackingPage() {
   }
 
   const currentIdx = data ? stepIndex(data.job_status || data.status) : 0
-  const progress = data?.progress || [0, 20, 65, 85, 100][currentIdx] || 0
+  const progress = data?.progress || [0, 15, 30, 50, 65, 85, 100][currentIdx] || 0
 
   return (
     <div>
@@ -74,7 +77,6 @@ export default function TrackingPage() {
               </button>
             </div>
             {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
-            <p className="mt-2 text-xs text-gray-400">Try: <button onClick={()=>search('AC-2847')} className="text-primary underline">AC-2847</button></p>
           </div>
 
           {/* Result */}
@@ -160,3 +162,4 @@ export default function TrackingPage() {
     </div>
   )
 }
+

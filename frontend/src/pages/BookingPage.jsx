@@ -19,9 +19,22 @@ export default function BookingPage() {
   })
 
   useEffect(() => {
+    // Sync with backend on mount to ensure token is valid
+    const syncUser = async () => {
+      try {
+        const { auth } = await import('../config/firebase')
+        const firebaseUser = auth.currentUser
+        if (firebaseUser) {
+          const idToken = await firebaseUser.getIdToken(true)
+          const res = await api.post('/auth/firebase-sync', { idToken })
+          localStorage.setItem('am_token', res.data.token)
+        }
+      } catch {}
+    }
+    syncUser()
+
     api.get('/services').then(r => setServices(r.data.data)).catch(() => {})
     api.get('/vehicles/my').then(r => setVehicles(r.data.data)).catch(() => {})
-    // Set min date to today
     const today = new Date().toISOString().split('T')[0]
     setForm(f => ({ ...f, preferred_date: today }))
   }, [])
@@ -32,28 +45,49 @@ export default function BookingPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      // First create vehicle if new
+      // Step 1: Get/refresh backend token
+      const { auth } = await import('../config/firebase')
+      const firebaseUser = auth.currentUser
+      if (firebaseUser) {
+        const idToken = await firebaseUser.getIdToken(true)
+        const syncRes = await api.post('/auth/firebase-sync', { idToken })
+        // Store backend JWT so subsequent calls use it
+        if (syncRes.data.token) {
+          localStorage.setItem('am_token', syncRes.data.token)
+          localStorage.setItem('am_user', JSON.stringify(syncRes.data.user))
+        }
+      }
+
+      // Step 2: Create/find vehicle
       let vehicleId
       const existingVeh = vehicles.find(v => v.registration_number === form.registration_number)
       if (existingVeh) {
         vehicleId = existingVeh.id
       } else {
-        const vRes = await api.post('/vehicles', { make: form.make, model: form.model, year: form.year, registration_number: form.registration_number })
+        const vRes = await api.post('/vehicles', {
+          make: form.make, model: form.model,
+          year: form.year || null, registration_number: form.registration_number
+        })
         vehicleId = vRes.data.data.id
       }
-      // Create appointment
+
+      // Step 3: Create appointment
       const res = await api.post('/appointments', {
-        vehicle_id: vehicleId,
-        service_id: form.service_id,
-        preferred_date: form.preferred_date,
+        vehicle_id:          vehicleId,
+        service_id:          form.service_id || null,
+        preferred_date:      form.preferred_date,
         problem_description: form.problem_description
       })
       setSubmitted(res.data.data)
 
       // WhatsApp notification
-      const msg = encodeURIComponent(`Hello AutoMedic!\n\nNew Appointment:\nName: ${user.name}\nVehicle: ${form.make} ${form.model}\nReg: ${form.registration_number}\nService: ${services.find(s=>s.id===form.service_id)?.name}\nDate: ${form.preferred_date}\nTracking: ${res.data.data.tracking_number}`)
+      const svcName = services.find(s => s.id === form.service_id)?.name || form.service_id
+      const msg = encodeURIComponent(
+        `Hello AutoMedic!\n\nNew Appointment:\nName: ${user?.name}\nVehicle: ${form.make} ${form.model}\nReg: ${form.registration_number}\nService: ${svcName}\nDate: ${form.preferred_date}\nTracking: ${res.data.data.tracking_number}`
+      )
       window.open(`https://wa.me/265999000000?text=${msg}`, '_blank')
     } catch (err) {
+      console.error('Booking error:', err)
       alert(err.response?.data?.message || 'Booking failed. Please try again.')
     } finally {
       setLoading(false)

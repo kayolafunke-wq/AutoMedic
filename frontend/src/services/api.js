@@ -1,24 +1,56 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' }
+  baseURL: 'http://localhost:5000/api',
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// Attach JWT token to every request
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('am_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+api.interceptors.request.use(async (config) => {
+  // Use stored backend JWT (most reliable — set after firebase-sync)
+  const stored = localStorage.getItem('am_token')
+  if (stored) {
+    config.headers.Authorization = `Bearer ${stored}`
+    return config
+  }
+
+  // Fallback: get fresh Firebase token and use it directly
+  try {
+    const { auth } = await import('../config/firebase')
+    const firebaseUser = auth.currentUser
+    if (firebaseUser) {
+      const token = await firebaseUser.getIdToken()
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  } catch {}
+
   return config
 })
 
-// Handle 401 globally
 api.interceptors.response.use(
   res => res,
-  err => {
+  async err => {
+    // If 401 with stored token, try refreshing via Firebase
     if (err.response?.status === 401) {
-      localStorage.removeItem('am_token')
-      window.location.href = '/login'
+      const stored = localStorage.getItem('am_token')
+      if (stored) {
+        try {
+          const { auth } = await import('../config/firebase')
+          const firebaseUser = auth.currentUser
+          if (firebaseUser) {
+            const idToken = await firebaseUser.getIdToken(true)
+            const syncRes = await api.post('/auth/firebase-sync', { idToken })
+            if (syncRes.data.token) {
+              localStorage.setItem('am_token', syncRes.data.token)
+              // Retry original request with new token
+              err.config.headers.Authorization = `Bearer ${syncRes.data.token}`
+              return axios(err.config)
+            }
+          }
+        } catch {}
+        // If refresh failed, clear token
+        localStorage.removeItem('am_token')
+        localStorage.removeItem('am_user')
+      }
     }
     return Promise.reject(err)
   }

@@ -1,160 +1,153 @@
--- AutoMedic Database Schema
--- PostgreSQL
+-- AutoMedic SQLite Schema
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+PRAGMA foreign_keys = ON;
 
--- USERS (all roles)
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(100) NOT NULL,
-  email VARCHAR(150) UNIQUE,
-  phone VARCHAR(20) NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('customer', 'technician', 'admin')),
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  name          TEXT NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
+  phone         TEXT,
+  password_hash TEXT,
+  google_id     TEXT UNIQUE,
+  avatar_url    TEXT,
+  role          TEXT NOT NULL DEFAULT 'customer' CHECK(role IN ('customer','technician','admin')),
+  is_active     INTEGER DEFAULT 1,
+  last_login    TEXT,
+  created_at    TEXT DEFAULT (datetime('now')),
+  updated_at    TEXT DEFAULT (datetime('now'))
 );
 
--- VEHICLES
-CREATE TABLE vehicles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  customer_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  make VARCHAR(50) NOT NULL,
-  model VARCHAR(50) NOT NULL,
-  year INTEGER,
-  color VARCHAR(30),
-  registration_number VARCHAR(20) UNIQUE NOT NULL,
-  chassis_number VARCHAR(50),
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS vehicles (
+  id                  TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  customer_id         TEXT REFERENCES users(id) ON DELETE CASCADE,
+  make                TEXT NOT NULL,
+  model               TEXT NOT NULL,
+  year                INTEGER,
+  color               TEXT,
+  registration_number TEXT UNIQUE NOT NULL,
+  chassis_number      TEXT,
+  created_at          TEXT DEFAULT (datetime('now'))
 );
 
--- SERVICES
-CREATE TABLE services (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(100) NOT NULL,
-  description TEXT,
-  base_price DECIMAL(10,2),
-  duration_hours DECIMAL(4,1),
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS services (
+  id             TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  name           TEXT NOT NULL,
+  description    TEXT,
+  category       TEXT DEFAULT 'general',
+  base_price     REAL,
+  duration_hours REAL,
+  is_active      INTEGER DEFAULT 1,
+  created_at     TEXT DEFAULT (datetime('now'))
 );
 
--- PRODUCTS
-CREATE TABLE products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(150) NOT NULL,
-  description TEXT,
-  category VARCHAR(50),
-  price DECIMAL(10,2),
+CREATE TABLE IF NOT EXISTS products (
+  id             TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  name           TEXT NOT NULL,
+  description    TEXT,
+  category       TEXT,
+  price          REAL,
   stock_quantity INTEGER DEFAULT 0,
-  image_url VARCHAR(255),
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW()
+  image_url      TEXT,
+  is_active      INTEGER DEFAULT 1,
+  created_at     TEXT DEFAULT (datetime('now'))
 );
 
--- APPOINTMENTS
-CREATE TABLE appointments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tracking_number VARCHAR(20) UNIQUE NOT NULL,
-  customer_id UUID REFERENCES users(id),
-  vehicle_id UUID REFERENCES vehicles(id),
-  service_id UUID REFERENCES services(id),
-  technician_id UUID REFERENCES users(id),
-  preferred_date DATE NOT NULL,
+CREATE TABLE IF NOT EXISTS appointments (
+  id                  TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  tracking_number     TEXT UNIQUE NOT NULL,
+  customer_id         TEXT REFERENCES users(id),
+  vehicle_id          TEXT REFERENCES vehicles(id),
+  service_id          TEXT REFERENCES services(id),
+  technician_id       TEXT REFERENCES users(id),
+  preferred_date      TEXT NOT NULL,
   problem_description TEXT,
-  status VARCHAR(30) DEFAULT 'pending' CHECK (status IN ('pending','confirmed','in_progress','completed','cancelled')),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  status              TEXT DEFAULT 'pending' CHECK(status IN ('pending','confirmed','in_progress','completed','cancelled')),
+  created_at          TEXT DEFAULT (datetime('now')),
+  updated_at          TEXT DEFAULT (datetime('now'))
 );
 
--- INSPECTIONS
-CREATE TABLE inspections (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  reference_number VARCHAR(20) UNIQUE NOT NULL,
-  appointment_id UUID REFERENCES appointments(id),
-  vehicle_id UUID REFERENCES vehicles(id),
-  customer_id UUID REFERENCES users(id),
-  advisor_id UUID REFERENCES users(id),
-  odometer_reading INTEGER,
-  fuel_level VARCHAR(10),
-  damage_notes JSONB DEFAULT '[]',
-  checklist JSONB DEFAULT '{}',
-  accessories JSONB DEFAULT '{}',
-  valuables_notes TEXT,
+CREATE TABLE IF NOT EXISTS inspections (
+  id                 TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  reference_number   TEXT UNIQUE NOT NULL,
+  appointment_id     TEXT REFERENCES appointments(id),
+  vehicle_id         TEXT REFERENCES vehicles(id),
+  customer_id        TEXT REFERENCES users(id),
+  advisor_id         TEXT REFERENCES users(id),
+  odometer_reading   INTEGER,
+  fuel_level         TEXT,
+  damage_notes       TEXT DEFAULT '[]',
+  checklist          TEXT DEFAULT '{}',
+  accessories        TEXT DEFAULT '{}',
+  valuables_notes    TEXT,
   customer_signature TEXT,
-  advisor_signature TEXT,
-  customer_signed_at TIMESTAMP,
-  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','customer_signed','completed')),
-  created_at TIMESTAMP DEFAULT NOW()
+  advisor_signature  TEXT,
+  customer_signed_at TEXT,
+  status             TEXT DEFAULT 'pending' CHECK(status IN ('pending','customer_signed','completed')),
+  created_at         TEXT DEFAULT (datetime('now'))
 );
 
--- INSPECTION PHOTOS
-CREATE TABLE inspection_photos (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  inspection_id UUID REFERENCES inspections(id) ON DELETE CASCADE,
-  photo_type VARCHAR(30) CHECK (photo_type IN ('before','during','after','damage','dashboard')),
-  file_url VARCHAR(255) NOT NULL,
-  uploaded_by UUID REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS inspection_photos (
+  id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  inspection_id TEXT REFERENCES inspections(id) ON DELETE CASCADE,
+  photo_type    TEXT CHECK(photo_type IN ('before','during','after','damage','dashboard')),
+  file_url      TEXT NOT NULL,
+  uploaded_by   TEXT REFERENCES users(id),
+  created_at    TEXT DEFAULT (datetime('now'))
 );
 
--- JOB CARDS
-CREATE TABLE job_cards (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  appointment_id UUID REFERENCES appointments(id),
-  technician_id UUID REFERENCES users(id),
-  progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
-  status VARCHAR(30) DEFAULT 'pending' CHECK (status IN ('pending','diagnosis','parts_ordered','in_progress','quality_check','ready','completed')),
+CREATE TABLE IF NOT EXISTS job_cards (
+  id               TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  appointment_id   TEXT REFERENCES appointments(id),
+  technician_id    TEXT REFERENCES users(id),
+  progress         INTEGER DEFAULT 0,
+  status           TEXT DEFAULT 'pending',
   technician_notes TEXT,
-  parts_used JSONB DEFAULT '[]',
-  estimated_cost DECIMAL(10,2),
-  final_cost DECIMAL(10,2),
-  started_at TIMESTAMP,
-  completed_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  parts_used       TEXT DEFAULT '[]',
+  estimated_cost   REAL,
+  final_cost       REAL,
+  started_at       TEXT,
+  completed_at     TEXT,
+  created_at       TEXT DEFAULT (datetime('now')),
+  updated_at       TEXT DEFAULT (datetime('now'))
 );
 
--- REPAIR UPDATES (timeline)
-CREATE TABLE repair_updates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  job_card_id UUID REFERENCES job_cards(id) ON DELETE CASCADE,
-  updated_by UUID REFERENCES users(id),
-  status VARCHAR(50) NOT NULL,
-  note TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS repair_updates (
+  id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  job_card_id TEXT REFERENCES job_cards(id) ON DELETE CASCADE,
+  updated_by  TEXT REFERENCES users(id),
+  status      TEXT NOT NULL,
+  note        TEXT,
+  created_at  TEXT DEFAULT (datetime('now'))
 );
 
--- NOTIFICATIONS
-CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  title VARCHAR(150) NOT NULL,
-  message TEXT NOT NULL,
-  type VARCHAR(30),
-  is_read BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS notifications (
+  id         TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  user_id    TEXT REFERENCES users(id) ON DELETE CASCADE,
+  title      TEXT NOT NULL,
+  message    TEXT NOT NULL,
+  type       TEXT,
+  is_read    INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
 );
 
--- INVOICES
-CREATE TABLE invoices (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  invoice_number VARCHAR(20) UNIQUE NOT NULL,
-  appointment_id UUID REFERENCES appointments(id),
-  customer_id UUID REFERENCES users(id),
-  items JSONB NOT NULL,
-  subtotal DECIMAL(10,2),
-  tax DECIMAL(10,2),
-  total DECIMAL(10,2),
-  status VARCHAR(20) DEFAULT 'unpaid' CHECK (status IN ('unpaid','paid','partial')),
-  created_at TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS invoices (
+  id             TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  invoice_number TEXT UNIQUE NOT NULL,
+  appointment_id TEXT REFERENCES appointments(id),
+  customer_id    TEXT REFERENCES users(id),
+  items          TEXT NOT NULL DEFAULT '[]',
+  subtotal       REAL DEFAULT 0,
+  tax            REAL DEFAULT 0,
+  total          REAL DEFAULT 0,
+  status         TEXT DEFAULT 'unpaid' CHECK(status IN ('unpaid','paid','partial')),
+  created_at     TEXT DEFAULT (datetime('now'))
 );
 
--- Indexes for performance
-CREATE INDEX idx_appointments_customer ON appointments(customer_id);
-CREATE INDEX idx_appointments_status ON appointments(status);
-CREATE INDEX idx_job_cards_technician ON job_cards(technician_id);
-CREATE INDEX idx_job_cards_status ON job_cards(status);
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_vehicles_customer ON vehicles(customer_id);
+CREATE INDEX IF NOT EXISTS idx_users_email    ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role     ON users(role);
+CREATE INDEX IF NOT EXISTS idx_appts_customer ON appointments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_appts_tracking ON appointments(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_appts_status   ON appointments(status);
+CREATE INDEX IF NOT EXISTS idx_jc_tech        ON job_cards(technician_id);
+CREATE INDEX IF NOT EXISTS idx_notifs_user    ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_reg   ON vehicles(registration_number);

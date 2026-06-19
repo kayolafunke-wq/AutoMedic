@@ -11,7 +11,7 @@ import TrackingPage from './pages/TrackingPage'
 import LoginPage from './pages/LoginPage'
 import InspectionPage from './pages/InspectionPage'
 
-// Dashboards
+import AuthCallback from './pages/AuthCallback'
 import CustomerDashboard from './pages/customer/CustomerDashboard'
 import TechnicianDashboard from './pages/technician/TechnicianDashboard'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -38,6 +38,7 @@ export default function App() {
           <Route path="/track" element={<TrackingPage />} />
           <Route path="/track/:ref" element={<TrackingPage />} />
 
+          <Route path="/auth/callback" element={<AuthCallback />} />
           {/* Protected - Customer */}
           <Route path="/booking" element={<Protected roles={['customer']}><BookingPage /></Protected>} />
           <Route path="/dashboard" element={<Protected roles={['customer']}><CustomerDashboard /></Protected>} />

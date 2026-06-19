@@ -1,23 +1,30 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const Database = require('better-sqlite3')
+const path     = require('path')
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
+const dbPath = path.join(__dirname, '../automedic.db')
+const db     = new Database(dbPath)
 
-pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
-});
+// Enable WAL for better performance
+db.pragma('journal_mode = WAL')
+db.pragma('foreign_keys = ON')
 
-pool.on('error', (err) => {
-  console.error('Database error:', err);
-});
-
+// Promise-like wrapper so routes work the same way
 module.exports = {
-  query: (text, params) => pool.query(text, params),
-  pool
-};
+  query: (sql, params = []) => {
+    try {
+      const stmt = db.prepare(sql)
+
+      const upper = sql.trim().toUpperCase()
+      if (upper.startsWith('SELECT') || upper.startsWith('WITH')) {
+        const rows = stmt.all(...params)
+        return Promise.resolve({ rows })
+      } else {
+        const info = stmt.run(...params)
+        return Promise.resolve({ rows: [], rowCount: info.changes, lastInsertRowid: info.lastInsertRowid })
+      }
+    } catch (err) {
+      return Promise.reject(err)
+    }
+  },
+  db, // expose raw db for transactions
+}
