@@ -19,6 +19,13 @@ export const AuthProvider = ({ children }) => {
 
   // Listen to Firebase auth state
   useEffect(() => {
+    // Restore backend-only session first (admin/technician)
+    const stored = localStorage.getItem('am_user')
+    const token  = localStorage.getItem('am_token')
+    if (stored && token) {
+      try { setUser(JSON.parse(stored)) } catch {}
+    }
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -47,13 +54,11 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem('am_user', JSON.stringify(appUser))
         }
       } else {
-        // Check for stored demo user (email/password backend login)
-        const stored = localStorage.getItem('am_user')
-        const token  = localStorage.getItem('am_token')
-        if (stored && token) {
-          try {
-            setUser(JSON.parse(stored))
-          } catch {}
+        // No Firebase session — keep backend-only session if present
+        const storedUser  = localStorage.getItem('am_user')
+        const storedToken = localStorage.getItem('am_token')
+        if (storedUser && storedToken) {
+          try { setUser(JSON.parse(storedUser)) } catch { setUser(null) }
         } else {
           setUser(null)
         }
@@ -62,6 +67,13 @@ export const AuthProvider = ({ children }) => {
     })
     return () => unsub()
   }, [])
+
+  // Direct backend login (admin / technician — bypasses Firebase)
+  const loginWithBackend = (userData, token) => {
+    localStorage.setItem('am_token', token)
+    localStorage.setItem('am_user', JSON.stringify(userData))
+    setUser(userData)
+  }
 
   // Sign in with Google
   const loginWithGoogle = async () => {
@@ -80,13 +92,12 @@ export const AuthProvider = ({ children }) => {
     const result = await createUserWithEmailAndPassword(auth, email, password)
     // Set display name
     await updateProfile(result.user, { displayName: name })
-    // Sync phone to backend
-    if (phone) {
-      try {
-        const idToken = await result.user.getIdToken()
-        await api.post('/auth/firebase-sync', { idToken, phone, name })
-      } catch {}
-    }
+    // Sync to backend — pass password so backend stores password_hash
+    // This allows the user to log in with email+password directly later
+    try {
+      const idToken = await result.user.getIdToken()
+      await api.post('/auth/firebase-sync', { idToken, phone, name, password })
+    } catch {}
     return result.user
   }
 
@@ -114,7 +125,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, resetPassword, logout, getToken }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, loginWithBackend, register, resetPassword, logout, getToken }}>
       {children}
     </AuthContext.Provider>
   )

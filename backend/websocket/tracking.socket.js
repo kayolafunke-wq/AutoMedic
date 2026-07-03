@@ -5,10 +5,14 @@ let io;
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        if (!origin || origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true)
+        if (origin === process.env.FRONTEND_URL) return callback(null, true)
+        callback(new Error('Not allowed by CORS'))
+      },
       methods: ['GET', 'POST'],
-      credentials: true
-    }
+      credentials: true,
+    },
   });
 
   io.on('connection', (socket) => {

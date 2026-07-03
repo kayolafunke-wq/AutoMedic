@@ -17,7 +17,7 @@ export default function Navbar() {
 
   const isActive = (path) => location.pathname === path
 
-  const dashLink = user?.role === 'admin' ? '/admin' : user?.role === 'technician' ? '/technician' : '/dashboard'
+  const dashLink = user?.role === 'admin' ? '/admin' : user?.role === 'technician' ? '/technician' : user?.role === 'stockkeeper' ? '/stockkeeper' : '/dashboard'
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 transition-shadow ${scrolled ? 'shadow-md' : ''}`}>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
@@ -14,7 +14,7 @@ export default function BookingPage() {
   const [submitted, setSubmitted] = useState(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    make: '', model: '', year: '', registration_number: '',
+    make: '', model: '', year: '', color: '', registration_number: '',
     service_id: '', preferred_date: '', problem_description: ''
   })
 
@@ -66,7 +66,8 @@ export default function BookingPage() {
       } else {
         const vRes = await api.post('/vehicles', {
           make: form.make, model: form.model,
-          year: form.year || null, registration_number: form.registration_number
+          year: form.year || null, color: form.color || null,
+          registration_number: form.registration_number
         })
         vehicleId = vRes.data.data.id
       }
@@ -79,13 +80,6 @@ export default function BookingPage() {
         problem_description: form.problem_description
       })
       setSubmitted(res.data.data)
-
-      // WhatsApp notification
-      const svcName = services.find(s => s.id === form.service_id)?.name || form.service_id
-      const msg = encodeURIComponent(
-        `Hello AutoMedic!\n\nNew Appointment:\nName: ${user?.name}\nVehicle: ${form.make} ${form.model}\nReg: ${form.registration_number}\nService: ${svcName}\nDate: ${form.preferred_date}\nTracking: ${res.data.data.tracking_number}`
-      )
-      window.open(`https://wa.me/265999000000?text=${msg}`, '_blank')
     } catch (err) {
       console.error('Booking error:', err)
       alert(err.response?.data?.message || 'Booking failed. Please try again.')
@@ -95,6 +89,15 @@ export default function BookingPage() {
   }
 
   const today = new Date().toISOString().split('T')[0]
+  const redirectTimer = useRef(null)
+
+  // Auto-redirect to dashboard after 60s on success screen
+  useEffect(() => {
+    if (submitted) {
+      redirectTimer.current = setTimeout(() => navigate('/dashboard'), 60000)
+    }
+    return () => { if (redirectTimer.current) clearTimeout(redirectTimer.current) }
+  }, [submitted, navigate])
 
   return (
     <div>
@@ -129,30 +132,70 @@ export default function BookingPage() {
                   <div className="inline-block bg-primary/10 text-primary font-bold px-5 py-2 rounded-full mb-6">
                     Tracking: {submitted.tracking_number}
                   </div>
-                  <div className="flex gap-3 justify-center">
+                   <div className="flex flex-wrap gap-3 justify-center">
                     <button onClick={() => navigate('/track/' + submitted.tracking_number)}
                       className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold rounded-full text-sm hover:bg-primary-dark transition-colors">
                       <Satellite size={15} /> Track Vehicle
                     </button>
-                    <button onClick={() => { setSubmitted(null); setForm({make:'',model:'',year:'',registration_number:'',service_id:'',preferred_date:today,problem_description:''}) }}
+                    <a href={`https://wa.me/265999000000?text=${encodeURIComponent(
+                      `Hello AutoMedic!\n\nNew Appointment:\nName: ${user?.name || 'Customer'}\nVehicle: ${form.make} ${form.model}\nReg: ${form.registration_number}\nService: ${services.find(s => s.id === form.service_id)?.name || 'Repair Service'}\nDate: ${form.preferred_date}\nTracking: ${submitted.tracking_number}`
+                    )}`}
+                      target="_blank" rel="noreferrer"
+                      onClick={() => { setTimeout(() => navigate('/dashboard'), 500) }}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white font-semibold rounded-full text-sm hover:bg-green-600 transition-colors">
+                      <MessageCircle size={15} /> Send WhatsApp Confirm
+                    </a>
+                    <button onClick={() => navigate('/dashboard')}
                       className="px-5 py-2.5 border-2 border-primary text-primary font-semibold rounded-full text-sm hover:bg-primary hover:text-white transition-colors">
-                      New Booking
+                      Go to Dashboard
                     </button>
                   </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Row 1: Make + Model */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-semibold text-gray-700 mb-1.5">Vehicle Make <span className="text-red-500">*</span></label>
-                      <input value={form.make} onChange={e=>set('make',e.target.value)} required placeholder="e.g. Toyota" className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" /></div>
-                    <div><label className="block text-sm font-semibold text-gray-700 mb-1.5">Vehicle Model <span className="text-red-500">*</span></label>
-                      <input value={form.model} onChange={e=>set('model',e.target.value)} required placeholder="e.g. Corolla" className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" /></div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vehicle Make <span className="text-red-500">*</span></label>
+                      <input value={form.make} onChange={e=>set('make',e.target.value)} required placeholder="e.g. Toyota"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vehicle Model <span className="text-red-500">*</span></label>
+                      <input value={form.model} onChange={e=>set('model',e.target.value)} required placeholder="e.g. Corolla"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                    </div>
                   </div>
+
+                  {/* Row 2: Year + Color */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-semibold text-gray-700 mb-1.5">Registration <span className="text-red-500">*</span></label>
-                      <input value={form.registration_number} onChange={e=>set('registration_number',e.target.value)} required placeholder="MK 1234" className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" /></div>
-                    <div><label className="block text-sm font-semibold text-gray-700 mb-1.5">Preferred Date <span className="text-red-500">*</span></label>
-                      <input type="date" min={today} value={form.preferred_date} onChange={e=>set('preferred_date',e.target.value)} required className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" /></div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Year</label>
+                      <input type="number" min="1990" max={new Date().getFullYear() + 1}
+                        value={form.year} onChange={e=>set('year',e.target.value)}
+                        placeholder="e.g. 2019"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vehicle Colour</label>
+                      <input value={form.color} onChange={e=>set('color',e.target.value)}
+                        placeholder="e.g. Silver, White, Black"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                    </div>
+                  </div>
+
+                  {/* Row 3: Registration + Date */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Registration <span className="text-red-500">*</span></label>
+                      <input value={form.registration_number} onChange={e=>set('registration_number',e.target.value)} required placeholder="MK 1234"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Preferred Date <span className="text-red-500">*</span></label>
+                      <input type="date" min={today} value={form.preferred_date} onChange={e=>set('preferred_date',e.target.value)} required
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Service Needed <span className="text-red-500">*</span></label>

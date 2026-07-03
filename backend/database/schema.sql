@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT,
   google_id     TEXT UNIQUE,
   avatar_url    TEXT,
-  role          TEXT NOT NULL DEFAULT 'customer' CHECK(role IN ('customer','technician','admin')),
+  role          TEXT NOT NULL DEFAULT 'customer' CHECK(role IN ('customer','technician','admin','stockkeeper')),
   is_active     INTEGER DEFAULT 1,
   last_login    TEXT,
   created_at    TEXT DEFAULT (datetime('now')),
@@ -140,14 +140,36 @@ CREATE TABLE IF NOT EXISTS invoices (
   tax            REAL DEFAULT 0,
   total          REAL DEFAULT 0,
   status         TEXT DEFAULT 'unpaid' CHECK(status IN ('unpaid','paid','partial')),
+  paid_at        TEXT,
+  updated_at     TEXT,
   created_at     TEXT DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_email    ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_role     ON users(role);
-CREATE INDEX IF NOT EXISTS idx_appts_customer ON appointments(customer_id);
-CREATE INDEX IF NOT EXISTS idx_appts_tracking ON appointments(tracking_number);
-CREATE INDEX IF NOT EXISTS idx_appts_status   ON appointments(status);
-CREATE INDEX IF NOT EXISTS idx_jc_tech        ON job_cards(technician_id);
-CREATE INDEX IF NOT EXISTS idx_notifs_user    ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_vehicles_reg   ON vehicles(registration_number);
+CREATE TABLE IF NOT EXISTS stock_checkouts (
+  id             TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  type           TEXT NOT NULL CHECK(type IN ('job_card','walkin')),
+  job_card_id    TEXT REFERENCES job_cards(id),
+  appointment_id TEXT REFERENCES appointments(id),
+  customer_id    TEXT REFERENCES users(id),
+  customer_name  TEXT,
+  items          TEXT NOT NULL DEFAULT '[]',
+  subtotal       REAL DEFAULT 0,
+  tax            REAL DEFAULT 0,
+  total          REAL DEFAULT 0,
+  invoice_id     TEXT REFERENCES invoices(id),
+  notes          TEXT,
+  created_by     TEXT REFERENCES users(id),
+  created_at     TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email         ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role          ON users(role);
+CREATE INDEX IF NOT EXISTS idx_appts_customer      ON appointments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_appts_tracking      ON appointments(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_appts_status        ON appointments(status);
+CREATE INDEX IF NOT EXISTS idx_jc_tech             ON job_cards(technician_id);
+CREATE INDEX IF NOT EXISTS idx_notifs_user         ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_reg        ON vehicles(registration_number);
+CREATE INDEX IF NOT EXISTS idx_checkouts_created_by ON stock_checkouts(created_by);
+CREATE INDEX IF NOT EXISTS idx_checkouts_customer  ON stock_checkouts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_checkouts_job_card  ON stock_checkouts(job_card_id);

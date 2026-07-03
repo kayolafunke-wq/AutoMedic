@@ -16,6 +16,7 @@ export default function AuthCallback() {
       .then(user => {
         const dest = user.role === 'admin' ? '/admin'
           : user.role === 'technician' ? '/technician'
+          : user.role === 'stockkeeper' ? '/stockkeeper'
           : '/dashboard'
         navigate(dest, { replace: true })
       })

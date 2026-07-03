@@ -3,6 +3,7 @@ const router  = express.Router()
 const crypto  = require('crypto')
 const db      = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
+const { createVehicleRules } = require('../middleware/validate')
 
 router.get('/my', authenticate, authorize('customer'), async (req, res) => {
   try {
@@ -22,7 +23,7 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, createVehicleRules, async (req, res) => {
   try {
     const { make, model, year, color, registration_number, chassis_number, customer_id } = req.body
     const owner = customer_id || req.user.id

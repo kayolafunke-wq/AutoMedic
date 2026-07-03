@@ -8,33 +8,40 @@ const authenticate = async (req, res, next) => {
 
   const token = header.split(' ')[1]
 
-  // Try our own JWT first
+  // 1. Try our own JWT first (admin / technician / stockkeeper / backend customers)
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET)
     return next()
   } catch {}
 
-  // Try Firebase ID token (for direct Firebase calls)
+  // 2. Try Firebase ID token (customers who logged in via Firebase directly)
   try {
-    const parts   = token.split('.')
+    const parts = token.split('.')
     if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1] + '==', 'base64').toString())
+      const padding = parts[1].length % 4
+      const padded  = padding ? parts[1] + '='.repeat(4 - padding) : parts[1]
+      const payload = JSON.parse(Buffer.from(padded, 'base64url').toString())
+
       // Firebase tokens have 'iss' containing googleapis.com
       if (payload.iss && payload.iss.includes('googleapis.com')) {
-        const db = require('../config/db')
-        const uid = payload.sub || payload.uid
-        const r   = await db.query('SELECT * FROM users WHERE google_id = ?', [uid])
+        // Verify with firebase-admin when configured
+        const { verifyIdToken } = require('./firebase-admin')
+        let verified
+        try {
+          verified = await verifyIdToken(token)
+        } catch {
+          return res.status(401).json({ success: false, message: 'Invalid or expired token' })
+        }
+
+        const db  = require('../config/db')
+        const uid = verified.uid || verified.sub
+        let r     = await db.query('SELECT * FROM users WHERE google_id = ?', [uid])
+        if (!r.rows.length && verified.email) {
+          r = await db.query('SELECT * FROM users WHERE email = ?', [verified.email])
+        }
         if (r.rows.length) {
           req.user = r.rows[0]
           return next()
-        }
-        // User exists by email
-        if (payload.email) {
-          const r2 = await db.query('SELECT * FROM users WHERE email = ?', [payload.email])
-          if (r2.rows.length) {
-            req.user = r2.rows[0]
-            return next()
-          }
         }
       }
     }

@@ -16,11 +16,12 @@ console.log('🌱 Seeding database...')
 // USERS
 const insUser = db.prepare('INSERT OR IGNORE INTO users (id,name,email,phone,password_hash,role) VALUES (?,?,?,?,?,?)')
 const users = [
-  { id:uid(), name:'Admin User',    email:'admin@automedic.mw',   phone:'+265 999 000 000', role:'admin' },
-  { id:uid(), name:'Peter Nkosi',   email:'peter@automedic.mw',   phone:'+265 999 001 001', role:'technician' },
-  { id:uid(), name:'Charles Banda', email:'charles@automedic.mw', phone:'+265 999 001 002', role:'technician' },
-  { id:uid(), name:'Eric Phiri',    email:'eric@automedic.mw',    phone:'+265 999 001 003', role:'technician' },
-  { id:uid(), name:'John Banda',    email:'john@example.com',     phone:'+265 999 002 001', role:'customer' },
+  { id:uid(), name:'Admin User',    email:'admin@automedic.mw',       phone:'+265 999 000 000', role:'admin' },
+  { id:uid(), name:'Peter Nkosi',   email:'peter@automedic.mw',       phone:'+265 999 001 001', role:'technician' },
+  { id:uid(), name:'Charles Banda', email:'charles@automedic.mw',     phone:'+265 999 001 002', role:'technician' },
+  { id:uid(), name:'Eric Phiri',    email:'eric@automedic.mw',        phone:'+265 999 001 003', role:'technician' },
+  { id:uid(), name:'Stock Keeper',  email:'stockkeeper@automedic.mw', phone:'+265 999 002 000', role:'stockkeeper' },
+  { id:uid(), name:'John Banda',    email:'john@example.com',         phone:'+265 999 002 001', role:'customer' },
 ]
 users.forEach(u => insUser.run(u.id, u.name, u.email, u.phone, hash, u.role))
 console.log('✅ Users seeded')
@@ -75,7 +76,8 @@ db.pragma('foreign_keys = ON')
 
 console.log('')
 console.log('🎉 Database ready!')
-console.log('   Admin:      admin@automedic.mw / automedic2024')
-console.log('   Technician: peter@automedic.mw / automedic2024')
-console.log('   Customer:   john@example.com / automedic2024')
+console.log('   Admin:       admin@automedic.mw       / automedic2024')
+console.log('   Technician:  peter@automedic.mw        / automedic2024')
+console.log('   StockKeeper: stockkeeper@automedic.mw  / automedic2024')
+console.log('   Customer:    john@example.com           / automedic2024')
 process.exit(0)

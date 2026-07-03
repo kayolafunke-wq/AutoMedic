@@ -1,4 +1,4 @@
-﻿const express    = require('express')
+const express    = require('express')
 const http       = require('http')
 const cors       = require('cors')
 const helmet     = require('helmet')
@@ -22,6 +22,9 @@ const serviceRoutes      = require('./routes/service.routes')
 const productRoutes      = require('./routes/product.routes')
 const reportRoutes       = require('./routes/report.routes')
 const notificationRoutes = require('./routes/notification.routes')
+const invoiceRoutes      = require('./routes/invoice.routes')
+const uploadRoutes       = require('./routes/upload.routes')
+const checkoutRoutes     = require('./routes/checkout.routes')
 
 const app    = express()
 const server = http.createServer(app)
@@ -29,18 +32,23 @@ const server = http.createServer(app)
 // Socket.IO
 initSocket(server)
 
-// â”€â”€â”€ MIDDLEWARE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——————————————————————————————————————————————————————
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(cors({
   origin: (origin, callback) => {
     // Allow all localhost origins in development
     if (!origin || origin.match(/^http:\/\/localhost:\d+$/)) {
-      callback(null, true)
-    } else if (origin === process.env.FRONTEND_URL) {
-      callback(null, true)
-    } else {
-      callback(new Error('Not allowed by CORS'))
+      return callback(null, true)
     }
+    // Allow LAN access — other devices on the same local network
+    if (origin.match(/^http:\/\/172\.20\.10\.\d+:\d+$/)) {
+      return callback(null, true)
+    }
+    // Allow configured frontend URL (for production)
+    if (origin === process.env.FRONTEND_URL) {
+      return callback(null, true)
+    }
+    callback(new Error('Not allowed by CORS'))
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
@@ -66,6 +74,9 @@ app.use('/api/services',      serviceRoutes)
 app.use('/api/products',      productRoutes)
 app.use('/api/reports',       reportRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/invoices',     invoiceRoutes)
+app.use('/api/upload',       uploadRoutes)
+app.use('/api/checkout',    checkoutRoutes)
 
 // â”€â”€â”€ HEALTH CHECK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/api/health', (req, res) => {

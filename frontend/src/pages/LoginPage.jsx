@@ -1,7 +1,8 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, Mail, Lock, User, Phone, AlertCircle, CheckCircle, ArrowLeft, Car, Wrench, Settings, Zap } from 'lucide-react'
+import api from '../services/api'
 
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 18 18">
@@ -28,13 +29,15 @@ function Field({ label, icon, type, value, onChange, placeholder, required, suff
 }
 
 export default function LoginPage() {
-  const { login, loginWithGoogle, register, resetPassword } = useAuth()
+  const { loginWithGoogle, loginWithBackend, register, resetPassword } = useAuth()
   const navigate  = useNavigate()
   const location  = useLocation()
-  const from      = location.state?.from
+  // Support both ?redirect= query param and location.state.from
+  const searchParams = new URLSearchParams(location.search)
+  const redirectTo   = searchParams.get('redirect')
+  const from         = redirectTo ? decodeURIComponent(redirectTo) : location.state?.from
 
   const [mode,     setMode]     = useState('login')
-  const [role,     setRole]     = useState('customer')
   const [name,     setName]     = useState('')
   const [email,    setEmail]    = useState('')
   const [phone,    setPhone]    = useState('')
@@ -43,34 +46,35 @@ export default function LoginPage() {
   const [showPwd,  setShowPwd]  = useState(false)
   const [error,    setError]    = useState('')
   const [info,     setInfo]     = useState('')
+  const [googleOnly, setGoogleOnly] = useState(false)
   const [loading,  setLoading]  = useState(false)
 
-  const goAfterLogin = (userRole) => {
-    const dest = from || (userRole === 'admin' ? '/admin' : userRole === 'technician' ? '/technician' : '/dashboard')
+  const goAfterLogin = (role) => {
+    const dest = from || (role === 'admin' ? '/admin' : role === 'technician' ? '/technician' : role === 'stockkeeper' ? '/stockkeeper' : '/dashboard')
     navigate(dest, { replace: true })
   }
 
+  // ── LOGIN: always use backend directly ──
   const handleLogin = async (e) => {
     e.preventDefault(); setError(''); setLoading(true)
     try {
-      await login(email, password)
-      setTimeout(() => {
-        const stored = JSON.parse(localStorage.getItem('am_user') || '{}')
-        goAfterLogin(stored.role || 'customer')
-      }, 1000)
+      const res = await api.post('/auth/login', { email, password })
+      loginWithBackend(res.data.user, res.data.token)
+      goAfterLogin(res.data.user.role)
     } catch (err) {
-      const c = err.code
-      setError(
-        c === 'auth/user-not-found'    ? 'No account found with this email.' :
-        c === 'auth/wrong-password'    ? 'Incorrect password.' :
-        c === 'auth/invalid-credential'? 'Invalid email or password.' :
-        c === 'auth/too-many-requests' ? 'Too many failed attempts. Try again later.' :
-        c === 'auth/invalid-email'     ? 'Invalid email address.' :
-        err.message || 'Sign in failed.'
-      )
+      const msg = err.response?.data?.message || 'Invalid email or password.'
+      const isGoogleAccount = err.response?.data?.google_account === true
+      if (isGoogleAccount) {
+        setGoogleOnly(true)
+        setError('')
+      } else {
+        setGoogleOnly(false)
+        setError(msg)
+      }
     } finally { setLoading(false) }
   }
 
+  // ── GOOGLE: customers only ──
   const handleGoogle = async () => {
     setError(''); setLoading(true)
     try {
@@ -85,6 +89,7 @@ export default function LoginPage() {
     } finally { setLoading(false) }
   }
 
+  // ── REGISTER: Firebase for customers ──
   const handleRegister = async (e) => {
     e.preventDefault(); setError('')
     if (password !== confirm) return setError('Passwords do not match.')
@@ -97,7 +102,6 @@ export default function LoginPage() {
       setError(
         err.code === 'auth/email-already-in-use' ? 'An account with this email already exists.' :
         err.code === 'auth/weak-password'        ? 'Password is too weak.' :
-        err.code === 'auth/invalid-email'        ? 'Invalid email address.' :
         err.message || 'Registration failed.'
       )
     } finally { setLoading(false) }
@@ -106,76 +110,103 @@ export default function LoginPage() {
   const handleForgot = async (e) => {
     e.preventDefault(); setError(''); setLoading(true)
     try {
-      await resetPassword(email)
-      setInfo('Password reset email sent! Check your inbox.')
+      // Use backend forgot-password — works for ALL roles (admin, technician, stockkeeper, customer)
+      await api.post('/auth/forgot-password', { email })
+      setInfo('If that email is registered, a reset link has been sent. Check your inbox.')
     } catch (err) {
-      setError(err.code === 'auth/user-not-found' ? 'No account with this email.' : 'Failed to send reset email.')
+      setError('Failed to send reset email. Please try again.')
     } finally { setLoading(false) }
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
 
-      {/* ── LEFT PANEL ─────────────────────────── */}
-      <div className="hidden lg:flex lg:w-[520px] flex-col relative overflow-hidden bg-[#1A1A2E] flex-shrink-0">
-        {/* Background gradients */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1A1A2E] via-[#16213E] to-[#0F3460]" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#B8860B]/15 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
-        <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl translate-x-1/2" />
+      {/* ── LEFT PANEL — static, never scrolls ── */}
+      <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] flex-col relative overflow-hidden flex-shrink-0 sticky top-0 h-screen">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117] via-[#1A1A2E] to-[#0F3460]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#B8860B]/20 rounded-full blur-[100px] -translate-x-1/4 translate-y-1/4 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[250px] h-[250px] bg-blue-600/10 rounded-full blur-[70px] pointer-events-none" />
 
-        {/* Content */}
         <div className="relative z-10 flex flex-col h-full p-10">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-[#B8860B] rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-xl shadow-[#B8860B]/40">AM</div>
-            <span className="font-black text-2xl text-white tracking-tight">AutoMedic</span>
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-[#B8860B] rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xl shadow-[#B8860B]/40">AM</div>
+            <span className="font-black text-xl text-white tracking-tight">AutoMedic</span>
           </Link>
 
-          {/* Main heading */}
-          <div className="flex-1 flex flex-col justify-center">
-            <h1 className="font-display text-4xl text-white leading-tight mb-4">
-              Lilongwe's Premier<br/>
-              <span className="text-[#B8860B]">Garage Platform</span>
-            </h1>
-            <p className="text-white/50 text-sm leading-relaxed mb-10">
-              Book services, track your repairs in real-time, and manage your vehicle with full digital transparency.
-            </p>
+          {/* Centre — smaller icon ring with a wrench in the middle */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative w-[200px] h-[200px]">
+              {/* Circle guide */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="72" fill="none" stroke="rgba(184,134,11,0.12)" strokeWidth="1" />
+                {[-90, 0, 90, 180].map((angle, i) => {
+                  const rad = (angle * Math.PI) / 180
+                  return (
+                    <line key={i}
+                      x1={100} y1={100}
+                      x2={100 + 68 * Math.cos(rad)}
+                      y2={100 + 68 * Math.sin(rad)}
+                      stroke="rgba(184,134,11,0.12)" strokeWidth="1" strokeDasharray="3 3"
+                    />
+                  )
+                })}
+              </svg>
 
-            {/* Feature list */}
-            <div className="space-y-4">
-              {[
-                [Car,      'Book appointments 24/7 from your phone'],
-                [Settings, 'Real-time vehicle repair tracking'],
-                [Zap,      'Instant WhatsApp & email notifications'],
-                [Wrench,   'Digital inspection & sign-off'],
-              ].map(([Icon, text], i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#B8860B]/15 border border-[#B8860B]/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon size={14} className="text-[#B8860B]" />
-                  </div>
-                  <span className="text-white/60 text-sm">{text}</span>
+              {/* Centre — single wrench icon (not AM logo) */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-[52px] h-[52px] bg-[#B8860B] rounded-2xl flex items-center justify-center shadow-2xl shadow-[#B8860B]/50">
+                  <Wrench size={26} className="text-white" />
                 </div>
-              ))}
+              </div>
+
+              {/* 4 icons at top / right / bottom / left */}
+              {[
+                { Icon: Car,      label: 'Book',    angle: -90 },
+                { Icon: Settings, label: 'Track',   angle: 0   },
+                { Icon: Zap,      label: 'Alerts',  angle: 90  },
+                { Icon: Phone,    label: 'Support', angle: 180 },
+              ].map(({ Icon, label, angle }, i) => {
+                const rad = (angle * Math.PI) / 180
+                const r   = 72
+                const x   = 100 + r * Math.cos(rad) - 22
+                const y   = 100 + r * Math.sin(rad) - 22
+                return (
+                  <div key={i} className="absolute flex flex-col items-center gap-1" style={{ left: x, top: y, width: 44 }}>
+                    <div className="w-[44px] h-[44px] bg-white/8 border border-[#B8860B]/25 rounded-xl flex items-center justify-center backdrop-blur-sm hover:bg-[#B8860B]/20 hover:border-[#B8860B]/50 transition-all">
+                      <Icon size={18} className="text-[#B8860B]" />
+                    </div>
+                    <span className="text-white/40 text-[9px] font-semibold text-center">{label}</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
-          {/* Bottom */}
-          <p className="text-white/25 text-xs mt-10">© 2024 AutoMedic · Area 47, Lilongwe</p>
+          {/* Bottom tagline */}
+          <div className="mt-auto">
+            <h1 className="font-display text-3xl text-white leading-tight mb-2">
+              Lilongwe's Premier<br/>
+              <span className="text-[#B8860B]">Garage Platform</span>
+            </h1>
+            <p className="text-white/45 text-sm">Professional service. Full digital transparency.</p>
+          </div>
         </div>
       </div>
 
-      {/* ── RIGHT PANEL ────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-white overflow-y-auto">
-        <div className="w-full max-w-[400px] py-8">
+      {/* ── RIGHT PANEL — form, scrolls independently ── */}
+      <div className="flex-1 flex items-start justify-center p-6 bg-white overflow-y-auto min-h-screen">
+        <div className="w-full max-w-[380px] py-10">
 
           {/* Mode tabs */}
           {mode !== 'forgot' && (
             <div className="flex gap-1 p-1 bg-gray-100 rounded-2xl mb-8">
-              <button onClick={() => { setMode('login'); setError(''); setInfo('') }}
+              <button onClick={() => { setMode('login'); setError(''); setInfo(''); setGoogleOnly(false) }}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${mode==='login' ? 'bg-white text-[#B8860B] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                 Sign In
               </button>
-              <button onClick={() => { setMode('register'); setError(''); setInfo('') }}
+              <button onClick={() => { setMode('register'); setError(''); setInfo(''); setGoogleOnly(false) }}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${mode==='register' ? 'bg-white text-[#B8860B] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
                 Create Account
               </button>
@@ -191,31 +222,36 @@ export default function LoginPage() {
               </button>
             )}
             <h2 className="font-display text-2xl font-bold text-[#1A1A2E]">
-              {mode === 'login'    ? 'Welcome back' :
-               mode === 'register' ? 'Create your account' :
-               'Reset password'}
+              {mode === 'login' ? 'Welcome back' : mode === 'register' ? 'Create your account' : 'Reset password'}
             </h2>
             <p className="text-gray-400 text-sm mt-1">
-              {mode === 'login'    ? 'Sign in to manage your vehicle services' :
+              {mode === 'login' ? 'Enter your credentials to access your dashboard' :
                mode === 'register' ? 'Join AutoMedic — free for customers' :
-               'Enter your email and we\'ll send a reset link'}
+               "Enter your email and we'll send a reset link"}
             </p>
           </div>
 
-          {/* Role tabs — login only */}
-          {mode === 'login' && (
-            <div className="flex gap-1.5 mb-6">
-              {[['customer','Customer'],['technician','Technician'],['admin','Admin']].map(([r,label]) => (
-                <button key={r} onClick={() => setRole(r)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${role===r ? 'bg-[#B8860B] border-[#B8860B] text-white shadow-md shadow-[#B8860B]/30' : 'border-gray-100 bg-gray-50 text-gray-400 hover:border-gray-200 hover:text-gray-600'}`}>
-                  {label}
-                </button>
-              ))}
+          {/* Alerts */}
+          {googleOnly && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl mb-5 overflow-hidden">
+              <div className="flex items-start gap-3 px-4 py-3.5">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <GoogleIcon />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-blue-800 text-sm">This account uses Google Sign-In</p>
+                  <p className="text-xs text-blue-600 mt-0.5">
+                    You created this account with Google. Use the button below to sign in.
+                  </p>
+                </div>
+              </div>
+              <button onClick={handleGoogle} disabled={loading}
+                className="w-full flex items-center justify-center gap-2.5 py-3 bg-white border-t border-blue-100 text-sm font-semibold text-gray-700 hover:bg-blue-50 transition-colors disabled:opacity-60">
+                <GoogleIcon /> Continue with Google
+              </button>
             </div>
           )}
-
-          {/* Alerts */}
-          {error && (
+          {!googleOnly && error && (
             <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl mb-5 text-sm">
               <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />{error}
             </div>
@@ -226,13 +262,12 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Google button — customer + register */}
-          {(mode === 'register' || (mode === 'login' && role === 'customer')) && (
+          {/* Google button — register only (not login) */}
+          {mode === 'register' && (
             <>
               <button onClick={handleGoogle} disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-700 hover:border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-60 mb-5 group">
-                <GoogleIcon />
-                {mode === 'register' ? 'Sign up with Google' : 'Continue with Google'}
+                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-700 hover:border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-60 mb-5">
+                <GoogleIcon /> Sign up with Google
               </button>
               <div className="flex items-center gap-3 mb-5">
                 <div className="flex-1 h-px bg-gray-100" />
@@ -242,7 +277,7 @@ export default function LoginPage() {
             </>
           )}
 
-          {/* LOGIN FORM */}
+          {/* LOGIN FORM — no role tabs, just email + password */}
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <Field label="Email address" icon={<Mail size={15}/>} type="email" value={email} onChange={setEmail} placeholder="your@email.com" required autoComplete="email"/>
@@ -256,7 +291,19 @@ export default function LoginPage() {
               </div>
               <button type="submit" disabled={loading}
                 className="w-full py-3.5 bg-[#B8860B] text-white font-bold rounded-xl hover:bg-[#8B6508] transition-all disabled:opacity-60 hover:shadow-lg hover:shadow-[#B8860B]/30 text-sm mt-1">
-                {loading ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Signing in...</span> : 'Sign In'}
+                {loading
+                  ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Signing in...</span>
+                  : 'Sign In'}
+              </button>
+              {/* Google option for customers on login too */}
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-xs text-gray-300 font-medium">or</span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+              <button type="button" onClick={handleGoogle} disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-100 rounded-xl text-sm font-semibold text-gray-700 hover:border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-60">
+                <GoogleIcon /> Continue with Google
               </button>
             </form>
           )}
@@ -268,13 +315,12 @@ export default function LoginPage() {
               <Field label="Email address" icon={<Mail size={15}/>} type="email" value={email} onChange={setEmail} placeholder="your@email.com" required autoComplete="email"/>
               <Field label="Phone (WhatsApp)" icon={<Phone size={15}/>} type="tel" value={phone} onChange={setPhone} placeholder="+265 999 000 000" autoComplete="tel"/>
               <Field label="Password" icon={<Lock size={15}/>} type={showPwd?'text':'password'} value={password} onChange={setPassword} placeholder="Min 6 characters" required autoComplete="new-password"
-                suffix={<button type="button" onClick={()=>setShowPwd(!showPwd)} className="text-gray-400 hover:text-gray-600">{showPwd?<EyeOff size={14}/>:<Eye size={14}/>}</button>}/>
+                suffix={<button type="button" onClick={()=>setShowPwd(!showPwd)} className="text-gray-400">{showPwd?<EyeOff size={14}/>:<Eye size={14}/>}</button>}/>
               <Field label="Confirm Password" icon={<Lock size={15}/>} type="password" value={confirm} onChange={setConfirm} placeholder="Repeat password" required autoComplete="new-password"/>
               <button type="submit" disabled={loading}
                 className="w-full py-3.5 bg-[#B8860B] text-white font-bold rounded-xl hover:bg-[#8B6508] transition-all disabled:opacity-60 hover:shadow-lg hover:shadow-[#B8860B]/30 text-sm">
                 {loading ? <span className="flex items-center justify-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Creating account...</span> : 'Create Account'}
               </button>
-              <p className="text-xs text-gray-400 text-center">By creating an account you agree to our Terms of Service</p>
             </form>
           )}
 
@@ -289,7 +335,6 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* Back to site */}
           <div className="mt-8 text-center">
             <Link to="/" className="text-xs text-gray-300 hover:text-[#B8860B] transition-colors flex items-center justify-center gap-1">
               <ArrowLeft size={11} /> Back to AutoMedic website
@@ -300,3 +345,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+
