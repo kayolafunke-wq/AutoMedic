@@ -717,7 +717,9 @@ function ReportsView() {
   const [dashStats,    setDashStats]    = useState(null)
   const [serviceStats, setServiceStats] = useState([])
   const [monthlyData,  setMonthlyData]  = useState([])
+  const [movement,     setMovement]     = useState(null)
   const [loading,      setLoading]      = useState(true)
+  const [movTab,       setMovTab]       = useState('fast')
 
   useEffect(() => {
     Promise.all([
@@ -725,7 +727,8 @@ function ReportsView() {
       api.get('/technicians').catch(() => null),
       api.get('/reports/services').catch(() => null),
       api.get('/reports/revenue').catch(() => null),
-    ]).then(([dash, techs, svcs, rev]) => {
+      api.get('/reports/product-movement').catch(() => null),
+    ]).then(([dash, techs, svcs, rev, mov]) => {
       if (dash)  setDashStats(dash.data.data)
       if (techs) setTechPerf((techs.data.data || []).map(t => ({
         name:   t.name,
@@ -735,6 +738,7 @@ function ReportsView() {
       })))
       if (svcs)  setServiceStats(svcs.data.data || [])
       if (rev)   setMonthlyData(rev.data.data || [])
+      if (mov)   setMovement(mov.data.data)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -744,6 +748,9 @@ function ReportsView() {
 
   const topServices = serviceStats.slice(0, 5)
   const totalSvcJobs = topServices.reduce((a, s) => a + (s.count || 0), 0) || 1
+
+  const fmtP = (n) => n != null && n !== '' ? `MK ${Number(n).toLocaleString()}` : '—'
+  const movRows = movTab === 'fast' ? (movement?.fast_moving || []) : (movement?.slow_moving || [])
 
   const exportCSV = () => {
     if (!monthlyData.length) return
@@ -882,6 +889,103 @@ function ReportsView() {
           </tbody>
         </table>
       </div>
+
+      {/* ── PRODUCT & PARTS MOVEMENT ──────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden mt-6">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="font-bold text-dark text-sm">📦 Product &amp; Parts Movement</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Stock checkouts — last 90 days</p>
+          </div>
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+            {[['fast','⚡ Fast Moving','bg-[#B8860B] text-white'],['slow','🐌 Slow Moving','bg-[#1A1A2E] text-white']].map(([key,label,active]) => (
+              <button key={key} onClick={() => setMovTab(key)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${movTab === key ? active + ' shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!movement ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-7 h-7 border-4 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : movRows.length === 0 ? (
+          <div className="flex flex-col items-center py-12 text-center">
+            <div className="text-4xl mb-2">{movTab === 'fast' ? '⚡' : '🎉'}</div>
+            <p className="text-sm font-semibold text-gray-500">
+              {movTab === 'fast' ? 'No sales in the last 90 days yet' : 'All products are moving well!'}
+            </p>
+          </div>
+        ) : (
+          <>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50/80">
+                {['#','Product','Category','Cost Price','Selling Price','Margin','Units Sold','Stock','Revenue'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {movRows.map((p, i) => {
+                const margin    = p.cost_price != null && p.selling_price != null ? Number(p.selling_price) - Number(p.cost_price) : null
+                const marginPct = p.cost_price > 0 && margin != null ? Math.round((margin / Number(p.cost_price)) * 100) : null
+                const maxQty    = movRows[0]?.total_qty_sold || 1
+                return (
+                  <tr key={p.product_id} className="border-t border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-4 py-3">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black
+                        ${movTab==='fast' ? i===0?'bg-[#B8860B] text-white':i===1?'bg-gray-200 text-gray-700':i===2?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-500' : 'bg-red-50 text-red-400 border border-red-100'}`}>
+                        {movTab==='fast' ? (i<3?['🥇','🥈','🥉'][i]:i+1) : '!'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-dark text-xs">{p.name}</p>
+                      <p className="text-[10px] text-gray-400">{p.transactions} txn{p.transactions!==1?'s':''}</p>
+                    </td>
+                    <td className="px-4 py-3"><span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{p.category||'—'}</span></td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{p.cost_price!=null?fmtP(p.cost_price):<span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-[#B8860B]">{fmtP(p.selling_price)}</td>
+                    <td className="px-4 py-3">
+                      {margin!=null ? (
+                        <span className={`text-xs font-bold ${margin>=0?'text-green-600':'text-red-500'}`}>
+                          {margin>=0?'+':''}{fmtP(margin)}
+                          {marginPct!=null&&<span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${marginPct>=30?'bg-green-50 text-green-600':marginPct>=10?'bg-amber-50 text-amber-600':'bg-red-50 text-red-500'}`}>{marginPct}%</span>}
+                        </span>
+                      ) : <span className="text-gray-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${movTab==='fast'?'bg-[#B8860B]':'bg-red-300'}`}
+                            style={{width:`${Math.min(100,(p.total_qty_sold/maxQty)*100)}%`}} />
+                        </div>
+                        <span className={`text-xs font-black ${movTab==='fast'?'text-[#B8860B]':'text-red-500'}`}>{p.total_qty_sold}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-bold ${p.stock_quantity===0?'text-red-500':p.stock_quantity<5?'text-amber-500':'text-gray-700'}`}>
+                        {p.stock_quantity}
+                        {p.stock_quantity===0&&<span className="ml-1 text-[10px] bg-red-50 text-red-500 px-1 py-0.5 rounded border border-red-100">Out</span>}
+                        {p.stock_quantity>0&&p.stock_quantity<5&&<span className="ml-1 text-[10px] bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-100">Low</span>}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-700">{fmtP(p.total_revenue)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <div className={`px-5 py-3 border-t text-xs ${movTab==='slow'?'bg-red-50 border-red-100 text-red-600':'bg-gray-50 border-gray-100 text-gray-500'}`}>
+            {movTab==='fast'
+              ? `Top ${movRows.length} products · Total: ${fmtP(movRows.reduce((s,p)=>s+Number(p.total_revenue||0),0))}`
+              : `⚠️ ${movRows.length} product${movRows.length!==1?'s':''} with 0–2 units sold — consider promotions or stock review`}
+          </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -890,6 +994,7 @@ function AnalyticsView() {
   const [revenueData,  setRevenueData]  = useState([])
   const [servicesData, setServicesData] = useState([])
   const [apptData,     setApptData]     = useState([])
+  const [movement,     setMovement]     = useState(null)
   const [loading,      setLoading]      = useState(true)
 
   useEffect(() => {
@@ -897,26 +1002,23 @@ function AnalyticsView() {
       api.get('/reports/revenue').catch(() => null),
       api.get('/reports/services').catch(() => null),
       api.get('/appointments').catch(() => null),
-    ]).then(([rev, svcs, appts]) => {
-      // Monthly appointments chart data
+      api.get('/reports/product-movement').catch(() => null),
+    ]).then(([rev, svcs, appts, mov]) => {
       if (rev) setRevenueData((rev.data.data || []).map(r => ({
         month: r.month?.slice(0,7) || r.month,
         appointments: r.appointments || 0,
       })).slice(-6).reverse())
-
-      // Services by type
       if (svcs) setServicesData((svcs.data.data || []).slice(0, 6).map(s => ({
         name:  s.name || 'Unknown',
         count: s.count || 0,
       })))
-
-      // Appointment status breakdown
       if (appts) {
         const all = appts.data.data || []
         const statusMap = {}
         all.forEach(a => { statusMap[a.status] = (statusMap[a.status] || 0) + 1 })
         setApptData(Object.entries(statusMap).map(([name, value]) => ({ name, value })))
       }
+      if (mov) setMovement(mov.data.data)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -1014,6 +1116,98 @@ function AnalyticsView() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Row 3 — Fast Moving Parts bar chart + Stock Health donut */}
+      <div className="grid grid-cols-2 gap-6">
+
+        {/* Fast Moving Parts — horizontal bar chart */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <h2 className="font-bold text-dark text-base mb-1">⚡ Fast Moving Parts</h2>
+          <p className="text-xs text-gray-400 mb-5">Top 8 by units sold — last 90 days</p>
+          {!movement || movement.fast_moving.length === 0 ? noData : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={movement.fast_moving.slice(0,8).map(p=>({ name: p.name.length>18?p.name.slice(0,18)+'…':p.name, qty: p.total_qty_sold, revenue: p.total_revenue }))}
+                layout="vertical" barCategoryGap="20%">
+                <XAxis type="number" tick={{ fontSize:11, fill:'#9CA3AF' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize:10, fill:'#374151' }} axisLine={false} tickLine={false} width={120} />
+                <Tooltip
+                  formatter={(v, n) => [n === 'qty' ? `${v} units` : `MK ${Number(v).toLocaleString()}`, n === 'qty' ? 'Units Sold' : 'Revenue']}
+                  contentStyle={{ borderRadius:12, border:'1px solid #E5E7EB', fontSize:11 }} />
+                <Bar dataKey="qty" fill="#B8860B" radius={[0,8,8,0]}>
+                  {movement.fast_moving.slice(0,8).map((_, i) => (
+                    <Cell key={i} fill={i === 0 ? '#B8860B' : i === 1 ? '#D4A020' : i === 2 ? '#E8C060' : '#F0D898'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Stock Health — donut showing in-stock vs low vs out */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <h2 className="font-bold text-dark text-base mb-1">🗃️ Inventory Health</h2>
+          <p className="text-xs text-gray-400 mb-5">Current stock status across all active products</p>
+          {!movement || movement.all.length === 0 ? noData : (() => {
+            const all = movement.all
+            const outOfStock = all.filter(p => p.stock_quantity === 0).length
+            const lowStock   = all.filter(p => p.stock_quantity > 0 && p.stock_quantity < 5).length
+            const healthy    = all.filter(p => p.stock_quantity >= 5).length
+            const stockData  = [
+              { name: 'Healthy Stock (≥5)', value: healthy,    color: '#22C55E' },
+              { name: 'Low Stock (1–4)',     value: lowStock,   color: '#F59E0B' },
+              { name: 'Out of Stock',         value: outOfStock, color: '#EF4444' },
+            ].filter(d => d.value > 0)
+            const total = stockData.reduce((s, d) => s + d.value, 0) || 1
+            const slowCount = movement.slow_moving.length
+            return (
+              <div>
+                <div className="flex items-center gap-8 mb-6">
+                  <div className="relative flex-shrink-0">
+                    <PieChart width={180} height={180}>
+                      <Pie data={stockData} cx={85} cy={85} innerRadius={52} outerRadius={82} dataKey="value" paddingAngle={3}>
+                        {stockData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius:10, fontSize:12 }} />
+                    </PieChart>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <p className="text-xl font-black text-dark">{total}</p>
+                        <p className="text-[10px] text-gray-400">products</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {stockData.map((d, i) => (
+                      <div key={i} className="flex items-center gap-2.5">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: d.color }} />
+                        <div>
+                          <p className="text-sm font-semibold text-dark">{d.name}</p>
+                          <p className="text-xs text-gray-400">{d.value} ({Math.round(d.value/total*100)}%)</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Slow mover alert */}
+                {slowCount > 0 && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex items-start gap-2">
+                    <span className="text-amber-500 text-base flex-shrink-0">🐌</span>
+                    <div>
+                      <p className="text-xs font-bold text-amber-700">
+                        {slowCount} slow-moving product{slowCount!==1?'s':''} detected
+                      </p>
+                      <p className="text-[10px] text-amber-600 mt-0.5">
+                        0–2 units sold in 90 days. Check the Reports tab for details.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
       </div>
     </div>
   )

@@ -4,8 +4,7 @@ import api from '../../services/api'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import {
   ArrowLeft, TrendingUp, CheckCircle, Clock, DollarSign,
-  ChevronRight, X, Calendar, Car, User, Wrench,
-  Package, TrendingDown, Zap, AlertTriangle
+  ChevronRight, X, Calendar, Car, User, Wrench
 } from 'lucide-react'
 
 const fmt = (n) => {
@@ -110,167 +109,6 @@ function MonthModal({ month, onClose }) {
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── PRODUCT MOVEMENT SECTION ─────────────────────────────────────────────────
-function ProductMovement() {
-  const [data,    setData]    = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [tab,     setTab]     = useState('fast') // 'fast' | 'slow'
-
-  useEffect(() => {
-    api.get('/reports/product-movement')
-      .then(r => setData(r.data.data))
-      .catch(() => setData({ fast_moving: [], slow_moving: [], all: [] }))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const fmtP = (n) => n != null ? `MK ${Number(n).toLocaleString()}` : '—'
-
-  const rows = tab === 'fast' ? (data?.fast_moving || []) : (data?.slow_moving || [])
-
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden mt-6">
-      {/* Header + tabs */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="font-bold text-[#1A1A2E] text-sm flex items-center gap-2">
-            <Package size={15} className="text-[#B8860B]" />
-            Product &amp; Parts Movement
-          </h2>
-          <p className="text-xs text-gray-400 mt-0.5">Based on stock checkouts in the last 90 days</p>
-        </div>
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          <button onClick={() => setTab('fast')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all
-              ${tab === 'fast' ? 'bg-[#B8860B] text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
-            <Zap size={11} /> Fast Moving
-          </button>
-          <button onClick={() => setTab('slow')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all
-              ${tab === 'slow' ? 'bg-[#1A1A2E] text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
-            <TrendingDown size={11} /> Slow Moving
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-4 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="text-4xl mb-3">{tab === 'fast' ? '⚡' : '🐌'}</div>
-          <p className="font-semibold text-gray-500 text-sm">
-            {tab === 'fast' ? 'No sales recorded in the last 90 days' : 'All products are selling well!'}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Data appears once stock checkouts are processed</p>
-        </div>
-      ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-gray-50/80">
-              {['#', 'Product', 'Category', 'Cost Price', 'Selling Price', 'Margin', 'Qty Sold (90d)', 'Current Stock', 'Revenue'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p, i) => {
-              const margin = p.cost_price != null && p.selling_price != null
-                ? Number(p.selling_price) - Number(p.cost_price) : null
-              const marginPct = p.cost_price > 0 && margin != null
-                ? Math.round((margin / Number(p.cost_price)) * 100) : null
-              return (
-                <tr key={p.product_id} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="px-4 py-3.5">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black
-                      ${tab === 'fast'
-                        ? i === 0 ? 'bg-[#B8860B] text-white' : i === 1 ? 'bg-gray-200 text-gray-700' : i === 2 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
-                        : 'bg-red-50 text-red-400'}`}>
-                      {tab === 'fast' ? i + 1 : <AlertTriangle size={10} />}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2">
-                      {tab === 'fast' && i < 3 && (
-                        <span className="text-sm">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                      )}
-                      <div>
-                        <p className="font-semibold text-[#1A1A2E] text-xs">{p.name}</p>
-                        <p className="text-[10px] text-gray-400">{p.transactions} transaction{p.transactions !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{p.category || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3.5 text-xs text-gray-500">{p.cost_price != null ? fmtP(p.cost_price) : <span className="text-gray-300">—</span>}</td>
-                  <td className="px-4 py-3.5 text-xs font-semibold text-[#B8860B]">{fmtP(p.selling_price)}</td>
-                  <td className="px-4 py-3.5">
-                    {margin != null ? (
-                      <div>
-                        <span className={`text-xs font-bold ${margin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          {margin >= 0 ? '+' : ''}{fmtP(margin)}
-                        </span>
-                        {marginPct != null && (
-                          <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold
-                            ${marginPct >= 30 ? 'bg-green-50 text-green-600' : marginPct >= 10 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-500'}`}>
-                            {marginPct}%
-                          </span>
-                        )}
-                      </div>
-                    ) : <span className="text-gray-300 text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden w-12">
-                        <div className={`h-full rounded-full ${tab === 'fast' ? 'bg-[#B8860B]' : 'bg-red-300'}`}
-                          style={{ width: `${tab === 'fast' ? Math.min(100, (p.total_qty_sold / (rows[0]?.total_qty_sold || 1)) * 100) : 5}%` }} />
-                      </div>
-                      <span className={`text-xs font-black ${tab === 'fast' ? 'text-[#B8860B]' : 'text-red-500'}`}>
-                        {p.total_qty_sold}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className={`text-xs font-semibold ${
-                      p.stock_quantity === 0 ? 'text-red-500' : p.stock_quantity < 5 ? 'text-amber-500' : 'text-gray-600'
-                    }`}>
-                      {p.stock_quantity}
-                      {p.stock_quantity === 0 && <span className="ml-1 text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full border border-red-100">Out</span>}
-                      {p.stock_quantity > 0 && p.stock_quantity < 5 && <span className="ml-1 text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full border border-amber-100">Low</span>}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-xs font-semibold text-gray-700">{fmtP(p.total_revenue)}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      )}
-
-      {/* Summary footer */}
-      {!loading && data && tab === 'fast' && data.fast_moving.length > 0 && (
-        <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-          <p className="text-xs text-gray-500">
-            Top {data.fast_moving.length} products by units sold in last 90 days
-          </p>
-          <p className="text-xs font-bold text-[#B8860B]">
-            Total: {fmtP(data.fast_moving.reduce((s, p) => s + Number(p.total_revenue || 0), 0))}
-          </p>
-        </div>
-      )}
-      {!loading && data && tab === 'slow' && data.slow_moving.length > 0 && (
-        <div className="px-6 py-3 bg-red-50 border-t border-red-100 flex items-center gap-2">
-          <AlertTriangle size={13} className="text-red-400 flex-shrink-0" />
-          <p className="text-xs text-red-600">
-            {data.slow_moving.length} product{data.slow_moving.length !== 1 ? 's' : ''} with 0–2 units sold in 90 days — consider promotions or reorder review
-          </p>
-        </div>
-      )}
     </div>
   )
 }
@@ -453,7 +291,6 @@ export default function RevenuePage() {
                     )
                   })}
                 </tbody>
-                {/* Grand total */}
                 <tfoot>
                   <tr className="bg-[#1A1A2E]">
                     <td className="px-5 py-4 font-bold text-white text-sm">All Time Total</td>
@@ -466,9 +303,6 @@ export default function RevenuePage() {
               </table>
             )}
           </div>
-
-          {/* Product movement report */}
-          <ProductMovement />
         </>
       )}
     </div>
