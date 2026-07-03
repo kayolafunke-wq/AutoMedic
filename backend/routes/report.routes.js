@@ -203,4 +203,67 @@ router.get('/services', authenticate, authorize('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
 
+// ── PRODUCT MOVEMENT REPORT ────────────────────────────────────────────────────
+// Fast-moving: products with highest total qty sold in last 90 days
+// Slow-moving: active products with low or zero sales in last 90 days
+router.get('/product-movement', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    // Aggregate qty sold per product from stock_checkout items (JSON array)
+    // We join to products for current stock + price info
+    const checkouts = await db.query(`
+      SELECT items, created_at FROM stock_checkouts
+      WHERE created_at >= date('now', '-90 days')
+    `)
+
+    // Parse JSON items and aggregate per product_id
+    const movement = {}
+    for (const row of checkouts.rows) {
+      let items = []
+      try { items = JSON.parse(row.items || '[]') } catch { continue }
+      for (const item of items) {
+        if (!item.product_id) continue
+        if (!movement[item.product_id]) {
+          movement[item.product_id] = { product_id: item.product_id, name: item.name || '', total_qty: 0, total_revenue: 0, transactions: 0 }
+        }
+        movement[item.product_id].total_qty      += Number(item.qty || 0)
+        movement[item.product_id].total_revenue  += Number(item.qty || 0) * Number(item.unit_price || 0)
+        movement[item.product_id].transactions   += 1
+      }
+    }
+
+    // Fetch all active products
+    const products = await db.query(
+      'SELECT id, name, category, cost_price, price as selling_price, stock_quantity FROM products WHERE is_active = 1'
+    )
+
+    const result = products.rows.map(p => {
+      const m = movement[p.id] || { total_qty: 0, total_revenue: 0, transactions: 0 }
+      return {
+        product_id:    p.id,
+        name:          p.name,
+        category:      p.category,
+        cost_price:    p.cost_price,
+        selling_price: p.selling_price,
+        stock_quantity:p.stock_quantity,
+        total_qty_sold:m.total_qty,
+        total_revenue: m.total_revenue,
+        transactions:  m.transactions,
+        // margin per unit
+        margin:        p.cost_price != null && p.selling_price != null
+                         ? Number(p.selling_price) - Number(p.cost_price) : null,
+      }
+    })
+
+    // Sort by qty sold descending
+    result.sort((a, b) => b.total_qty_sold - a.total_qty_sold)
+
+    const fast = result.filter(p => p.total_qty_sold > 0).slice(0, 10)
+    const slow = result.filter(p => p.total_qty_sold === 0 || p.total_qty_sold <= 2)
+                       .sort((a, b) => a.total_qty_sold - b.total_qty_sold)
+                       .slice(0, 20)
+
+    res.json({ success: true, data: { fast_moving: fast, slow_moving: slow, all: result } })
+  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
+})
+
 module.exports = router

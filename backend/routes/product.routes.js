@@ -18,11 +18,11 @@ router.get('/', async (req, res) => {
 
 router.post('/', authenticate, authorize('admin'), createProductRules, async (req, res) => {
   try {
-    const { name, description, category, price, stock_quantity } = req.body
+    const { name, description, category, cost_price, price, stock_quantity } = req.body
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO products (id,name,description,category,price,stock_quantity) VALUES (?,?,?,?,?,?)',
-      [id, name, description||null, category||null, price||null, stock_quantity||0]
+      'INSERT INTO products (id,name,description,category,cost_price,price,stock_quantity) VALUES (?,?,?,?,?,?,?)',
+      [id, name, description||null, category||null, cost_price!=null?Number(cost_price):null, price||null, stock_quantity||0]
     )
     const r = await db.query('SELECT * FROM products WHERE id = ?', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
@@ -31,15 +31,25 @@ router.post('/', authenticate, authorize('admin'), createProductRules, async (re
 
 router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { name, description, category, price, stock_quantity, is_active } = req.body
+    const { name, description, category, cost_price, price, stock_quantity, is_active } = req.body
     const r = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const p = r.rows[0]
     await db.query(
-      'UPDATE products SET name=?,description=?,category=?,price=?,stock_quantity=?,is_active=? WHERE id=?',
-      [name||p.name, description||p.description, category||p.category, price||p.price, stock_quantity??p.stock_quantity, is_active!==undefined?(is_active?1:0):p.is_active, req.params.id]
+      'UPDATE products SET name=?,description=?,category=?,cost_price=?,price=?,stock_quantity=?,is_active=? WHERE id=?',
+      [
+        name||p.name,
+        description!==undefined?description:p.description,
+        category||p.category,
+        cost_price!=null?Number(cost_price):p.cost_price,
+        price||p.price,
+        stock_quantity??p.stock_quantity,
+        is_active!==undefined?(is_active?1:0):p.is_active,
+        req.params.id
+      ]
     )
-    res.json({ success:true })
+    const updated = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
+    res.json({ success:true, data:updated.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
 

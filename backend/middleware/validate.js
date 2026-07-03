@@ -104,7 +104,8 @@ const createServiceRules = [
 // ── PRODUCTS ──────────────────────────────────────────────────────────────────
 const createProductRules = [
   body('name').trim().notEmpty().withMessage('Product name is required').isLength({ max: 120 }),
-  body('price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Price must be a positive number'),
+  body('cost_price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Cost price must be a positive number'),
+  body('price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Selling price must be a positive number'),
   body('stock_quantity').optional().isInt({ min: 0 }).withMessage('Stock quantity must be a non-negative integer'),
   check,
 ]

@@ -196,10 +196,11 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
                     ['Make / Model', `${job.make || inspection.make || ''} ${job.model || inspection.model || ''}`.trim() || '—'],
                     ['Registration', job.registration_number || inspection.registration_number || '—'],
                     ['Color / Year', `${job.color || inspection.color || '—'} / ${job.year || inspection.year || '—'}`],
+                    ['VIN / Chassis No.', job.chassis_number || inspection.chassis_number || '—'],
                   ].map(([k, v]) => (
                     <div key={k} className="flex justify-between text-sm py-1 border-b border-gray-100 last:border-0">
                       <span className="text-gray-400">{k}</span>
-                      <span className="font-semibold text-[#1A1A2E]">{v}</span>
+                      <span className={`font-semibold text-[#1A1A2E] ${k === 'VIN / Chassis No.' ? 'font-mono tracking-wider text-xs' : ''}`}>{v}</span>
                     </div>
                   ))}
                 </div>

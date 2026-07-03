@@ -24,7 +24,7 @@ router.get('/my', authenticate, authorize('technician'), async (req, res) => {
       SELECT jc.*, a.tracking_number, a.preferred_date, a.problem_description,
         a.customer_id, a.vehicle_id,
         u.name as customer_name, u.phone as customer_phone,
-        v.make, v.model, v.registration_number, v.color,
+        v.make, v.model, v.registration_number, v.color, v.chassis_number,
         s.name as service_name,
         i.status as inspection_status, i.advisor_signature as inspection_advisor_sig
       FROM job_cards jc

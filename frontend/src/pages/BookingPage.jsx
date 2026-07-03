@@ -14,7 +14,7 @@ export default function BookingPage() {
   const [submitted, setSubmitted] = useState(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
-    make: '', model: '', year: '', color: '', registration_number: '',
+    make: '', model: '', year: '', color: '', registration_number: '', chassis_number: '',
     service_id: '', preferred_date: '', problem_description: ''
   })
 
@@ -67,7 +67,8 @@ export default function BookingPage() {
         const vRes = await api.post('/vehicles', {
           make: form.make, model: form.model,
           year: form.year || null, color: form.color || null,
-          registration_number: form.registration_number
+          registration_number: form.registration_number,
+          chassis_number: form.chassis_number || null,
         })
         vehicleId = vRes.data.data.id
       }
@@ -197,12 +198,27 @@ export default function BookingPage() {
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Service Needed <span className="text-red-500">*</span></label>
-                    <select value={form.service_id} onChange={e=>set('service_id',e.target.value)} required className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white">
-                      <option value="">-- Select a service --</option>
-                      {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+
+                  {/* Row 4: VIN + Service */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        VIN / Chassis Number
+                        <span className="ml-1.5 text-[11px] font-normal text-gray-400">(optional)</span>
+                      </label>
+                      <input value={form.chassis_number} onChange={e=>set('chassis_number',e.target.value)}
+                        placeholder="e.g. JN1AZ4EH2FM301234"
+                        maxLength={17}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 font-mono tracking-wider uppercase placeholder-normal placeholder:font-sans placeholder:tracking-normal placeholder:normal-case" />
+                      <p className="text-[10px] text-gray-400 mt-1">17-character Vehicle Identification Number found on your dashboard or logbook</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Service Needed <span className="text-red-500">*</span></label>
+                      <select value={form.service_id} onChange={e=>set('service_id',e.target.value)} required className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white h-[50px]">
+                        <option value="">-- Select a service --</option>
+                        {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Problem Description</label>

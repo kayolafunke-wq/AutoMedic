@@ -70,7 +70,7 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT i.*, v.make, v.model, v.registration_number, v.year, v.color,
+      SELECT i.*, v.make, v.model, v.registration_number, v.year, v.color, v.chassis_number,
              u.name as customer_name, u.phone as customer_phone,
              a.tracking_number, a.service_id, s.name as service_name
       FROM inspections i

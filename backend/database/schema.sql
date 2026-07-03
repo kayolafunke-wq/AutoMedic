@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS products (
   name           TEXT NOT NULL,
   description    TEXT,
   category       TEXT,
+  cost_price     REAL,
   price          REAL,
   stock_quantity INTEGER DEFAULT 0,
   image_url      TEXT,

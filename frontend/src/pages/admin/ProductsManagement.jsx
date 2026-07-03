@@ -3,7 +3,7 @@ import { Plus, Edit2, X, Save, Package, ToggleLeft, ToggleRight, Search, Chevron
 import api from '../../services/api'
 
 const CATEGORIES = ['tyres', 'oils', 'brakes', 'filters', 'electrical', 'body', 'engine', 'accessories', 'other']
-const EMPTY = { name: '', description: '', category: '', price: '', stock_quantity: '' }
+const EMPTY = { name: '', description: '', category: '', cost_price: '', price: '', stock_quantity: '' }
 const PAGE_SIZE = 10
 
 export default function ProductsManagement() {
@@ -29,7 +29,7 @@ export default function ProductsManagement() {
   useEffect(() => { setPage(1) }, [search, catFilter])
 
   const openAdd = () => { setForm(EMPTY); setModal('add') }
-  const openEdit = (p) => { setForm({ name: p.name, description: p.description || '', category: p.category || '', price: p.price || '', stock_quantity: p.stock_quantity || '' }); setModal(p) }
+  const openEdit = (p) => { setForm({ name: p.name, description: p.description || '', category: p.category || '', cost_price: p.cost_price || '', price: p.price || '', stock_quantity: p.stock_quantity || '' }); setModal(p) }
 
   const save = async () => {
     if (!form.name) return showToast('Product name is required')
@@ -39,6 +39,7 @@ export default function ProductsManagement() {
         name:           form.name,
         description:    form.description || null,
         category:       form.category || null,
+        cost_price:     form.cost_price ? Number(form.cost_price) : null,
         price:          form.price ? Number(form.price) : null,
         stock_quantity: form.stock_quantity ? Number(form.stock_quantity) : 0,
       }
@@ -77,6 +78,7 @@ export default function ProductsManagement() {
 
   const totalStock = products.reduce((s, p) => s + (p.stock_quantity || 0), 0)
   const totalValue = products.reduce((s, p) => s + ((p.price || 0) * (p.stock_quantity || 0)), 0)
+  const totalCost  = products.reduce((s, p) => s + ((p.cost_price || 0) * (p.stock_quantity || 0)), 0)
   const fmtPrice = (n) => n ? `MK ${Number(n).toLocaleString()}` : '—'
 
   return (
@@ -104,10 +106,10 @@ export default function ProductsManagement() {
       {/* KPI cards */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          ['📦', products.length,         'Total Products',   'bg-blue-50 text-blue-600'],
+          ['📦', products.length,              'Total Products',    'bg-blue-50 text-blue-600'],
           ['✅', products.filter(p=>p.is_active).length, 'Active Products', 'bg-green-50 text-green-600'],
-          ['🗃️', totalStock,              'Total Stock Units','bg-orange-50 text-orange-600'],
-          ['💰', fmtPrice(totalValue),    'Inventory Value',  'bg-[#B8860B]/10 text-[#B8860B]'],
+          ['🗃️', totalStock,                   'Total Stock Units', 'bg-orange-50 text-orange-600'],
+          ['💰', fmtPrice(totalValue),          'Retail Value',     'bg-[#B8860B]/10 text-[#B8860B]'],
         ].map(([icon, val, label, cls], i) => (
           <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex items-center gap-3">
             <div className={`w-11 h-11 ${cls} rounded-xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
@@ -149,21 +151,21 @@ export default function ProductsManagement() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50/80">
-              {['Product','Category','Price','Stock','Value','Status','Action'].map(h => (
+              {['Product','Category','Cost Price','Selling Price','Margin','Stock','Status','Action'].map(h => (
                 <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
                   Loading products...
                 </div>
               </td></tr>
             ) : paginated.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-16 text-center">
+              <tr><td colSpan={8} className="px-4 py-16 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <Package size={32} className="text-gray-200" />
                   <p className="text-gray-400 text-sm font-medium">
@@ -172,12 +174,17 @@ export default function ProductsManagement() {
                   {!search && <button onClick={openAdd} className="text-[#B8860B] text-xs font-semibold hover:underline">Add your first product →</button>}
                 </div>
               </td></tr>
-            ) : paginated.map((p) => (
+            ) : paginated.map((p) => {
+              const margin = p.cost_price != null && p.price != null
+                ? Number(p.price) - Number(p.cost_price) : null
+              const marginPct = p.cost_price > 0 && margin != null
+                ? Math.round((margin / Number(p.cost_price)) * 100) : null
+              return (
               <tr key={p.id} className={`border-t border-gray-50 hover:bg-gray-50/50 transition-colors ${!p.is_active ? 'opacity-60' : ''}`}>
                 <td className="px-4 py-3.5">
                   <div>
                     <p className="font-semibold text-[#1A1A2E]">{p.name}</p>
-                    {p.description && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px]">{p.description}</p>}
+                    {p.description && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]">{p.description}</p>}
                   </div>
                 </td>
                 <td className="px-4 py-3.5">
@@ -185,7 +192,23 @@ export default function ProductsManagement() {
                     {p.category || '—'}
                   </span>
                 </td>
+                <td className="px-4 py-3.5 text-gray-500 text-xs font-medium">{p.cost_price != null ? fmtPrice(p.cost_price) : <span className="text-gray-300">—</span>}</td>
                 <td className="px-4 py-3.5 font-semibold text-[#B8860B]">{fmtPrice(p.price)}</td>
+                <td className="px-4 py-3.5">
+                  {margin != null ? (
+                    <div>
+                      <span className={`text-xs font-bold ${margin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {margin >= 0 ? '+' : ''}{fmtPrice(margin)}
+                      </span>
+                      {marginPct != null && (
+                        <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold
+                          ${marginPct >= 30 ? 'bg-green-50 text-green-600' : marginPct >= 10 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-500'}`}>
+                          {marginPct}%
+                        </span>
+                      )}
+                    </div>
+                  ) : <span className="text-gray-300 text-xs">—</span>}
+                </td>
                 <td className="px-4 py-3.5">
                   <span className={`font-bold text-sm ${p.stock_quantity === 0 ? 'text-red-500' : p.stock_quantity < 5 ? 'text-amber-500' : 'text-gray-700'}`}>
                     {p.stock_quantity || 0}
@@ -193,7 +216,6 @@ export default function ProductsManagement() {
                   {p.stock_quantity === 0 && <span className="ml-1.5 text-[10px] text-red-500 font-semibold">Out</span>}
                   {p.stock_quantity > 0 && p.stock_quantity < 5 && <span className="ml-1.5 text-[10px] text-amber-500 font-semibold">Low</span>}
                 </td>
-                <td className="px-4 py-3.5 text-gray-500 text-xs">{fmtPrice((p.price || 0) * (p.stock_quantity || 0))}</td>
                 <td className="px-4 py-3.5">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${p.is_active ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-gray-100 text-gray-400'}`}>
                     {p.is_active ? 'Active' : 'Inactive'}
@@ -214,7 +236,7 @@ export default function ProductsManagement() {
                   </div>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
@@ -296,19 +318,53 @@ export default function ProductsManagement() {
                   {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
                 </select>
               </div>
+
+              {/* Cost price + Selling price side by side */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Price (MK)</label>
-                  <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Cost Price (MK)
+                    <span className="ml-1 text-gray-400 font-normal text-[10px]">what you paid</span>
+                  </label>
+                  <input type="number" min="0" value={form.cost_price} onChange={e => setForm(f => ({ ...f, cost_price: e.target.value }))}
+                    placeholder="e.g. 10000"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    Selling Price (MK)
+                    <span className="ml-1 text-gray-400 font-normal text-[10px]">charged to customer</span>
+                  </label>
+                  <input type="number" min="0" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
                     placeholder="e.g. 15000"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B]" />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Stock Quantity</label>
-                  <input type="number" value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))}
-                    placeholder="e.g. 10"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B]" />
+              </div>
+
+              {/* Live margin preview */}
+              {form.cost_price && form.price && (
+                <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between border border-gray-100">
+                  <span className="text-xs text-gray-500 font-medium">Profit Margin</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-black ${Number(form.price) - Number(form.cost_price) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      MK {(Number(form.price) - Number(form.cost_price)).toLocaleString()}
+                    </span>
+                    {Number(form.cost_price) > 0 && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full
+                        ${Math.round(((Number(form.price) - Number(form.cost_price)) / Number(form.cost_price)) * 100) >= 20
+                          ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {Math.round(((Number(form.price) - Number(form.cost_price)) / Number(form.cost_price)) * 100)}%
+                      </span>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Stock Quantity</label>
+                <input type="number" min="0" value={form.stock_quantity} onChange={e => setForm(f => ({ ...f, stock_quantity: e.target.value }))}
+                  placeholder="e.g. 10"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B]" />
               </div>
               <button onClick={save} disabled={saving}
                 className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#B8860B] text-white font-bold rounded-full hover:bg-[#8B6508] transition-colors disabled:opacity-60 text-sm">
