@@ -1,9 +1,10 @@
 const express = require('express')
-const router  = express.Router()
+const router  = require('express').Router()
 const crypto  = require('crypto')
 const db      = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 const { createProductRules } = require('../middleware/validate')
+const inventorySvc = require('../services/inventory.service')
 
 router.get('/', async (req, res) => {
   try {
@@ -19,11 +20,20 @@ router.get('/', async (req, res) => {
 router.post('/', authenticate, authorize('admin'), createProductRules, async (req, res) => {
   try {
     const { name, description, category, cost_price, price, stock_quantity } = req.body
-    const id = crypto.randomBytes(16).toString('hex')
+    const id  = crypto.randomBytes(16).toString('hex')
+    const qty = stock_quantity ? Number(stock_quantity) : 0
     await db.query(
       'INSERT INTO products (id,name,description,category,cost_price,price,stock_quantity) VALUES (?,?,?,?,?,?,?)',
-      [id, name, description||null, category||null, cost_price!=null?Number(cost_price):null, price||null, stock_quantity||0]
+      [id, name, description||null, category||null, cost_price!=null?Number(cost_price):null, price||null, qty]
     )
+    // Log initial stock-in if starting with stock
+    if (qty > 0) {
+      await inventorySvc.logMovement({
+        productId: id, type: 'stock_in',
+        qtyChange: qty, qtyBefore: 0, qtyAfter: qty,
+        reason: 'Initial stock on product creation', createdBy: req.user.id,
+      })
+    }
     const r = await db.query('SELECT * FROM products WHERE id = ?', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
@@ -35,6 +45,17 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
     const r = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const p = r.rows[0]
+
+    // If stock_quantity is being changed manually, log as adjustment
+    const newQty = stock_quantity !== undefined ? Number(stock_quantity) : p.stock_quantity
+    if (stock_quantity !== undefined && newQty !== p.stock_quantity) {
+      await inventorySvc.logMovement({
+        productId: req.params.id, type: 'adjustment',
+        qtyChange: newQty - p.stock_quantity, qtyBefore: p.stock_quantity, qtyAfter: newQty,
+        reason: 'Manual stock adjustment via admin', createdBy: req.user.id,
+      })
+    }
+
     await db.query(
       'UPDATE products SET name=?,description=?,category=?,cost_price=?,price=?,stock_quantity=?,is_active=? WHERE id=?',
       [
@@ -43,7 +64,7 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
         category||p.category,
         cost_price!=null?Number(cost_price):p.cost_price,
         price||p.price,
-        stock_quantity??p.stock_quantity,
+        newQty,
         is_active!==undefined?(is_active?1:0):p.is_active,
         req.params.id
       ]

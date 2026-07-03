@@ -25,6 +25,7 @@ const notificationRoutes = require('./routes/notification.routes')
 const invoiceRoutes      = require('./routes/invoice.routes')
 const uploadRoutes       = require('./routes/upload.routes')
 const checkoutRoutes     = require('./routes/checkout.routes')
+const inventoryRoutes    = require('./routes/inventory.routes')
 
 const app    = express()
 const server = http.createServer(app)
@@ -77,6 +78,7 @@ app.use('/api/notifications', notificationRoutes)
 app.use('/api/invoices',     invoiceRoutes)
 app.use('/api/upload',       uploadRoutes)
 app.use('/api/checkout',    checkoutRoutes)
+app.use('/api/inventory',  inventoryRoutes)
 
 // â”€â”€â”€ HEALTH CHECK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/api/health', (req, res) => {

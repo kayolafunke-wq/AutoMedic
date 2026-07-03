@@ -163,6 +163,23 @@ CREATE TABLE IF NOT EXISTS stock_checkouts (
   created_at     TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS inventory_logs (
+  id          TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  type        TEXT NOT NULL CHECK(type IN ('stock_in','stock_out','adjustment')),
+  qty_change  INTEGER NOT NULL,
+  qty_before  INTEGER NOT NULL,
+  qty_after   INTEGER NOT NULL,
+  reason      TEXT,
+  reference   TEXT,
+  created_by  TEXT REFERENCES users(id),
+  created_at  TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_inv_logs_product ON inventory_logs(product_id);
+CREATE INDEX IF NOT EXISTS idx_inv_logs_type    ON inventory_logs(type);
+CREATE INDEX IF NOT EXISTS idx_inv_logs_date    ON inventory_logs(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_users_email         ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role          ON users(role);
 CREATE INDEX IF NOT EXISTS idx_appts_customer      ON appointments(customer_id);

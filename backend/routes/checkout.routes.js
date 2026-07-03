@@ -4,24 +4,10 @@ const crypto  = require('crypto')
 const db      = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 const { jobCardCheckoutRules, walkinCheckoutRules, restockRules } = require('../middleware/validate')
+const inventorySvc = require('../services/inventory.service')
 
 // Both stockkeeper and admin can do checkouts
 const checkoutAuth = authorize('stockkeeper', 'admin')
-
-// ── helper: deduct stock (throws if insufficient) ────────────────────────────
-async function deductStock(productId, qty, checkQty = true) {
-  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = ? AND is_active = 1', [productId])
-  if (!p.rows.length) throw new Error(`Product not found: ${productId}`)
-  const product = p.rows[0]
-  if (checkQty && product.stock_quantity < qty) {
-    throw new Error(`Insufficient stock for "${product.name}". Available: ${product.stock_quantity}, requested: ${qty}`)
-  }
-  await db.query(
-    'UPDATE products SET stock_quantity = MAX(0, stock_quantity - ?) WHERE id = ?',
-    [qty, productId]
-  )
-  return product
-}
 
 // ── helper: create/update invoice with parts (+optional labour) ──────────────
 async function attachToInvoice(appointmentId, customerId, checkoutItems, checkoutId, labourCost) {
@@ -159,10 +145,13 @@ router.post('/job-card', authenticate, checkoutAuth, jobCardCheckoutRules, async
     if (!jcRow.rows.length) return res.status(404).json({ success: false, message: 'Job card not found' })
     const jc = jcRow.rows[0]
 
+    // Generate checkout id upfront so it can be used as reference in inventory logs
+    const id = crypto.randomBytes(16).toString('hex')
+
     // Deduct stock for each item
     const resolvedItems = []
     for (const item of items) {
-      const product = await deductStock(item.product_id, Number(item.qty))
+      const product = await inventorySvc.deductStock(item.product_id, Number(item.qty), id, req.user.id)
       resolvedItems.push({
         product_id: item.product_id,
         name:       product.name,
@@ -179,7 +168,6 @@ router.post('/job-card', authenticate, checkoutAuth, jobCardCheckoutRules, async
     const invoiceId = await attachToInvoice(jc.appt_id, jc.customer_id, resolvedItems, null, jc.final_cost || 0)
 
     // Record checkout
-    const id = crypto.randomBytes(16).toString('hex')
     await db.query(
       `INSERT INTO stock_checkouts
         (id,type,job_card_id,appointment_id,customer_id,customer_name,items,subtotal,tax,total,invoice_id,notes,created_by)
@@ -208,10 +196,13 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
       return res.status(400).json({ success: false, message: 'items are required' })
     }
 
+    // Generate checkout id upfront for inventory log reference
+    const id = crypto.randomBytes(16).toString('hex')
+
     // Deduct stock for each item
     const resolvedItems = []
     for (const item of items) {
-      const product = await deductStock(item.product_id, Number(item.qty))
+      const product = await inventorySvc.deductStock(item.product_id, Number(item.qty), id, req.user.id)
       resolvedItems.push({
         product_id: item.product_id,
         name:       product.name,
@@ -245,7 +236,6 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
     }
 
     // Record checkout
-    const id = crypto.randomBytes(16).toString('hex')
     await db.query(
       `INSERT INTO stock_checkouts
         (id,type,job_card_id,appointment_id,customer_id,customer_name,items,subtotal,tax,total,invoice_id,notes,created_by)
@@ -271,14 +261,17 @@ router.patch('/restock/:product_id', authenticate, authorize('admin', 'stockkeep
   try {
     const { qty, notes } = req.body
     if (!qty || Number(qty) <= 0) return res.status(400).json({ success: false, message: 'qty must be > 0' })
-    const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = ?', [req.params.product_id])
-    if (!p.rows.length) return res.status(404).json({ success: false, message: 'Product not found' })
-    const newQty = p.rows[0].stock_quantity + Number(qty)
-    await db.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [newQty, req.params.product_id])
+    const result = await inventorySvc.addStock(
+      req.params.product_id,
+      Number(qty),
+      notes || 'Manual restock',
+      null,
+      req.user.id
+    )
     res.json({
       success: true,
-      message: `Restocked "${p.rows[0].name}" by ${qty}. New qty: ${newQty}`,
-      new_quantity: newQty
+      message: `Restocked "${result.product.name}" by ${qty}. New qty: ${result.qtyAfter}`,
+      new_quantity: result.qtyAfter
     })
   } catch (err) { res.status(400).json({ success: false, message: err.message }) }
 })

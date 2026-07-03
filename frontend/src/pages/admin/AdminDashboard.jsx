@@ -10,6 +10,7 @@ import RevenuePage from './RevenuePage'
 import ProductsManagement from './ProductsManagement'
 import InvoicesManagement from './InvoicesManagement'
 import ServicesManagement from './ServicesManagement'
+import InventoryTracking from './InventoryTracking'
 
 const COLORS = ['#B8860B','#25D366','#1565C0','#E65100']
 
@@ -48,6 +49,7 @@ const NAV_GROUPS = [
     label: 'Inventory',
     items: [
       { path: 'products',      icon: Package,         label: 'Products & Parts' },
+      { path: 'inventory',     icon: TrendingUp,      label: 'Inventory Tracking' },
       { path: 'services-mgmt', icon: Wrench,          label: 'Services' },
       { path: 'checkouts',     icon: ShoppingCart,    label: 'Checkout Logs' },
     ],
@@ -1753,6 +1755,7 @@ export default function AdminDashboard() {
             <Route path="reports" element={<ReportsView />} />
             <Route path="analytics" element={<AnalyticsView />} />
             <Route path="products"      element={<ProductsManagement />} />
+            <Route path="inventory"     element={<InventoryTracking />} />
             <Route path="checkouts"     element={<AdminCheckoutsView />} />
             <Route path="services-mgmt" element={<ServicesManagement />} />
             <Route path="inspection" element={<InspectionAdminView />} />
