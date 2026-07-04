@@ -305,11 +305,12 @@ export default function InventoryTracking() {
 
       {/* ── SUMMARY TAB ────────────────────────────────────────────────── */}
       {tab === 'summary' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
-            <h2 className="font-bold text-[#1A1A2E] text-sm">Per-Product Stock Summary</h2>
-            <span className="text-xs text-gray-400">{summary.length} products</span>
-          </div>
+        <>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="font-bold text-[#1A1A2E] text-sm">Per-Product Stock Summary</h2>
+              <span className="text-xs text-gray-400">{summary.length} products</span>
+            </div>
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="w-7 h-7 border-4 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
@@ -371,10 +372,11 @@ export default function InventoryTracking() {
               </tbody>
             </table>
           )}
-        </div>
-        <Pagination
-          page={safeSummary} totalPages={summaryPages} total={summaryTotal}
-          pageSize={SUMMARY_PAGE_SIZE} onPage={setSummaryPage} label="product" />
+          </div>
+          <Pagination
+            page={safeSummary} totalPages={summaryPages} total={summaryTotal}
+            pageSize={SUMMARY_PAGE_SIZE} onPage={setSummaryPage} label="product" />
+        </>
       )}
 
       {/* ── ADJUST MODAL ───────────────────────────────────────────────── */}
