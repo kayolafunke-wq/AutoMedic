@@ -8,7 +8,7 @@ const inventorySvc = require('../services/inventory.service')
 // Query params: product_id, type (stock_in|stock_out|adjustment), from, to, limit
 router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req, res) => {
   try {
-    const { product_id, type, from, to, limit = 200 } = req.query
+    const { product_id, type, from, to, limit = 500 } = req.query
     let sql = `
       SELECT il.*,
         p.name  AS product_name,
@@ -47,7 +47,7 @@ router.get('/summary', authenticate, authorize('admin', 'stockkeeper'), async (r
       LEFT JOIN inventory_logs il ON il.product_id = p.id
       WHERE p.is_active = 1
       GROUP BY p.id
-      ORDER BY total_out DESC
+      ORDER BY last_movement DESC NULLS LAST
     `)
     res.json({ success: true, data: r.rows })
   } catch (err) { res.status(500).json({ success: false, message: err.message }) }
