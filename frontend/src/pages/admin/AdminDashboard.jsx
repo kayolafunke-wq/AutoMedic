@@ -1534,108 +1534,177 @@ function ReceiptModal({ receipt, onClose }) {
   if (!receipt) return null
 
   const checkout = receipt.data || receipt
-  const items = typeof checkout.items === 'string' ? JSON.parse(checkout.items) : (checkout.items || [])
+  const items    = typeof checkout.items === 'string' ? JSON.parse(checkout.items || '[]') : (checkout.items || [])
+  const fmt      = (n) => `MK ${Number(n || 0).toLocaleString()}`
 
-  const fmt = (n) => `MK ${Number(n || 0).toLocaleString()}`
+  const handlePrint = () => {
+    const rows = items.map(i => {
+      const lt = Number(i.qty || 1) * Number(i.unit_price || 0)
+      return `<tr><td>${i.name || i.description || '—'}</td><td style="text-align:center">${i.qty||1}</td>
+        <td style="text-align:right">MK ${Number(i.unit_price||0).toLocaleString()}</td>
+        <td style="text-align:right;font-weight:700">MK ${lt.toLocaleString()}</td></tr>`
+    }).join('')
+    const w = window.open('', '_blank', 'width=820,height=960')
+    w.document.write(`<!DOCTYPE html><html><head><title>Checkout Receipt</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:48px;color:#1A1A2E;font-size:13px}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #1A1A2E;margin-bottom:28px}
+    .logo{width:44px;height:44px;background:#B8860B;color:#fff;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin:20px 0}
+    th{background:#f5f3ee;padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#888}
+    td{padding:11px 12px;border-bottom:1px solid #eee;font-size:12px}
+    .tot{width:260px;margin-left:auto}.tr{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:12px}
+    .tf{border-top:2px solid #1A1A2E;border-bottom:none;font-size:14px;font-weight:900;padding-top:10px}
+    .foot{margin-top:32px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:16px}
+    @media print{body{padding:20px}}</style></head><body>
+    <div class="hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="logo">AM</div>
+        <div><strong style="font-size:18px">AutoMedic</strong><br/><span style="font-size:11px;color:#888">Area 47, Lilongwe, Malawi · +265 999 000 000</span></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:24px;font-weight:900">RECEIPT</div>
+        <div style="color:#B8860B;font-weight:700;font-size:13px;margin:4px 0">${checkout.type === 'job_card' ? 'Job Card Repair' : 'Walk-in Sale'}</div>
+        <div style="font-size:11px;color:#888">${new Date(checkout.created_at || Date.now()).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:24px;font-size:12px">
+      <div><strong>AutoMedic Garage</strong><br/>Area 47, Lilongwe, Malawi<br/>+265 999 000 000</div>
+      <div><strong>Customer:</strong> ${checkout.customer_name || 'Walk-in Guest'}<br/>
+      ${checkout.tracking_number ? `<strong>Booking:</strong> ${checkout.tracking_number}` : ''}</div>
+    </div>
+    <table><thead><tr><th>Item</th><th>Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="tot">
+      <div class="tr"><span>Subtotal</span><span>MK ${Number(checkout.subtotal||0).toLocaleString()}</span></div>
+      <div class="tr"><span>VAT (16.5%)</span><span>MK ${Number(checkout.tax||0).toLocaleString()}</span></div>
+      <div class="tr tf"><span>TOTAL</span><span style="color:#B8860B">MK ${Number(checkout.total||0).toLocaleString()}</span></div>
+    </div>
+    <div class="foot"><p>Thank you for choosing AutoMedic — Lilongwe's Premier Garage</p></div>
+    </body></html>`)
+    w.document.close(); w.focus(); setTimeout(() => w.print(), 500)
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm print:p-0 print:static print:bg-white">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl flex flex-col print:shadow-none print:w-full print:max-w-none print:p-0" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex justify-between items-start border-b border-gray-100 pb-4 mb-4 print:hidden">
-          <div>
-            <h3 className="font-bold text-dark text-lg flex items-center gap-2">
-              <CheckCircle className="text-green-500" size={20} />
-              Checkout Log Details
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">Receipt summary</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200">
-            <X size={14} />
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-10 p-4 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl mb-8" onClick={e => e.stopPropagation()}>
 
-        {/* Receipt Content */}
-        <div className="flex-1 overflow-y-auto space-y-4 print:overflow-visible text-left">
-          {/* Brand header */}
-          <div className="text-center pb-4 border-b border-dashed border-gray-200">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white font-black text-sm mx-auto mb-2">AM</div>
-            <h2 className="text-base font-black tracking-tight text-dark uppercase">AutoMedic Garage</h2>
-            <p className="text-[10px] text-gray-400">Blantyre, Malawi · Phone: +265 999 123 456</p>
-          </div>
-
-          {/* Details */}
-          <div className="grid grid-cols-2 gap-y-2 text-xs border-b border-dashed border-gray-200 pb-4">
-            <span className="text-gray-400">Checkout ID:</span>
-            <span className="font-mono text-right text-dark truncate">{checkout.id}</span>
-
-            <span className="text-gray-400">Date:</span>
-            <span className="text-right text-dark">{new Date(checkout.created_at || Date.now()).toLocaleString('en-GB')}</span>
-
-            <span className="text-gray-400">Type:</span>
-            <span className="text-right font-semibold uppercase text-primary text-[10px]">{checkout.type === 'job_card' ? 'Job Card Repair' : 'Walk-in Sale'}</span>
-
-            <span className="text-gray-400">Customer:</span>
-            <span className="text-right text-dark font-medium">{checkout.customer_name || 'Walk-in Guest'}</span>
-
-            {checkout.invoice_id && (
-              <>
-                <span className="text-gray-400">Invoice Ref:</span>
-                <span className="text-right font-mono text-dark">{checkout.invoice_id.slice(0, 8).toUpperCase()}</span>
-              </>
-            )}
-          </div>
-
-          {/* Items */}
-          <div className="space-y-2.5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider text-[10px]">Items Summary</p>
-            <div className="space-y-2">
-              {items.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-start text-xs">
-                  <div className="max-w-[70%]">
-                    <p className="font-semibold text-dark leading-tight">{item.name}</p>
-                    <p className="text-[10px] text-gray-400">{item.qty} x {fmt(item.unit_price)}</p>
-                  </div>
-                  <span className="font-bold text-dark">{fmt(item.unit_price * item.qty)}</span>
-                </div>
-              ))}
+        {/* ── HEADER ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-[#B8860B]/10 rounded-xl flex items-center justify-center">
+              <ShoppingCart size={16} className="text-[#B8860B]" />
+            </div>
+            <div>
+              <p className="font-bold text-[#1A1A2E] text-sm">
+                {checkout.type === 'job_card' ? 'Job Card Checkout' : 'Walk-in Sale'}
+              </p>
+              <p className="text-xs text-gray-400">
+                {checkout.customer_name || 'Walk-in Guest'}
+                {checkout.tracking_number ? ` · ${checkout.tracking_number}` : ''}
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-bold px-3 py-1.5 rounded-full capitalize
+              ${checkout.type === 'job_card'
+                ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
+              {checkout.type === 'job_card' ? 'Job Card' : 'Walk-in'}
+            </span>
+            <button onClick={handlePrint}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#1A1A2E] text-white text-xs font-semibold rounded-full hover:bg-black transition-colors">
+              <Printer size={12} /> Print
+            </button>
+            <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── BODY ── */}
+        <div className="p-6">
+
+          {/* From / To */}
+          <div className="flex justify-between items-start mb-6 pb-5 border-b-2 border-[#1A1A2E]">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-[#B8860B] rounded-xl flex items-center justify-center text-white font-black text-sm">AM</div>
+              <div><p className="font-black text-[#1A1A2E]">AutoMedic</p><p className="text-xs text-gray-400">Area 47, Lilongwe, Malawi</p></div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-black text-[#1A1A2E]">RECEIPT</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {new Date(checkout.created_at || Date.now()).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}
+              </p>
+            </div>
+          </div>
+
+          {/* Bill info */}
+          <div className="grid grid-cols-2 gap-6 mb-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">From</p>
+              <p className="font-bold text-[#1A1A2E] text-sm">AutoMedic Garage</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">Area 47, Lilongwe, Malawi<br/>+265 999 000 000</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Customer</p>
+              <p className="font-bold text-[#1A1A2E] text-sm">{checkout.customer_name || 'Walk-in Guest'}</p>
+              {checkout.tracking_number && (
+                <p className="text-xs text-gray-500 mt-1">Booking: <span className="font-semibold text-[#B8860B]">{checkout.tracking_number}</span></p>
+              )}
+              {checkout.created_by_name && (
+                <p className="text-xs text-gray-500 mt-0.5">Served by: {checkout.created_by_name}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Reference strip */}
+          <div className="bg-gray-50 rounded-xl px-4 py-3 mb-5 text-xs text-gray-600 flex gap-4 flex-wrap">
+            <span><strong>Type:</strong> {checkout.type === 'job_card' ? 'Job Card Repair' : 'Walk-in Sale'}</span>
+            <span><strong>Date:</strong> {new Date(checkout.created_at || Date.now()).toLocaleString('en-GB')}</span>
+            {checkout.invoice_id && <span><strong>Invoice Ref:</strong> {checkout.invoice_id.slice(0,8).toUpperCase()}</span>}
+          </div>
+
+          {/* Line items table */}
+          <table className="w-full text-sm mb-5">
+            <thead>
+              <tr className="bg-gray-50">
+                {['Item','Qty','Unit Price','Total'].map((h, i) => (
+                  <th key={h} className={`px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 ${i > 1 ? 'text-right' : ''}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, i) => {
+                const lt = Number(item.qty || 1) * Number(item.unit_price || 0)
+                return (
+                  <tr key={i} className="border-b border-gray-50">
+                    <td className="px-3 py-3 text-[#1A1A2E] font-medium">{item.name || item.description || '—'}</td>
+                    <td className="px-3 py-3 text-gray-500 text-center">{item.qty || 1}</td>
+                    <td className="px-3 py-3 text-gray-500 text-right">MK {Number(item.unit_price || 0).toLocaleString()}</td>
+                    <td className="px-3 py-3 font-bold text-[#1A1A2E] text-right">MK {lt.toLocaleString()}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
 
           {/* Notes */}
           {checkout.notes && (
-            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-xs">
+            <div className="bg-gray-50 rounded-xl px-4 py-3 mb-5 text-xs text-gray-600">
               <span className="font-semibold text-gray-400 block mb-0.5">Notes:</span>
-              <p className="text-gray-600 italic">{checkout.notes}</p>
+              <p className="italic">{checkout.notes}</p>
             </div>
           )}
 
-          {/* Summary pricing */}
-          <div className="border-t border-dashed border-gray-200 pt-4 space-y-2">
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Subtotal:</span>
-              <span>{fmt(checkout.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>VAT (16.5%):</span>
-              <span>{fmt(checkout.tax)}</span>
-            </div>
-            <div className="flex justify-between text-sm font-black text-dark pt-1.5 border-t border-gray-100">
-              <span>TOTAL PAID:</span>
-              <span>{fmt(checkout.total)}</span>
+          {/* Totals */}
+          <div className="ml-auto w-60 space-y-2 mb-6">
+            <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="font-semibold">MK {Number(checkout.subtotal||0).toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">VAT (16.5%)</span><span className="font-semibold">MK {Number(checkout.tax||0).toLocaleString()}</span></div>
+            <div className="flex justify-between text-base font-black border-t-2 border-[#1A1A2E] pt-2.5">
+              <span>TOTAL</span><span className="text-[#B8860B]">MK {Number(checkout.total||0).toLocaleString()}</span>
             </div>
           </div>
-        </div>
 
-        {/* Buttons */}
-        <div className="flex gap-2.5 mt-6 border-t border-gray-100 pt-4 print:hidden">
-          <button onClick={() => window.print()} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-full transition-colors">
-            <Printer size={13} />
-            Print Receipt
-          </button>
-          <button onClick={onClose} className="flex-1 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-full transition-colors">
-            Close View
-          </button>
         </div>
       </div>
     </div>
