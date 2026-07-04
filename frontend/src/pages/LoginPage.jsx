@@ -133,14 +133,14 @@ export default function LoginPage() {
             onError={e => { e.target.style.display = 'none' }}
           />
           {/* Dark overlay so text stays readable over the photo */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117]/80 via-[#1A1A2E]/65 to-[#0F3460]/55 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117]/45 via-[#1A1A2E]/30 to-[#0F3460]/20 pointer-events-none" />
           {/* Gold glow */}
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#B8860B]/20 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#B8860B]/10 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4 pointer-events-none" />
         </div>
 
         <div className="relative z-10 flex flex-col h-full p-10">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.6))' }}>
             <div className="w-11 h-11 bg-[#B8860B] rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xl shadow-[#B8860B]/40">AM</div>
             <span className="font-black text-xl text-white tracking-tight">AutoMedic</span>
           </Link>
@@ -196,11 +196,11 @@ export default function LoginPage() {
 
           {/* Bottom tagline */}
           <div className="mt-auto">
-            <h1 className="font-display text-3xl text-white leading-tight mb-2">
+            <h1 className="font-display text-3xl text-white leading-tight mb-2" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8)' }}>
               Lilongwe's Premier<br/>
               <span className="text-[#B8860B]">Garage Platform</span>
             </h1>
-            <p className="text-white/45 text-sm">Professional service. Full digital transparency.</p>
+            <p className="text-white/80 text-sm" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.7)' }}>Professional service. Full digital transparency.</p>
           </div>
         </div>
       </div>
