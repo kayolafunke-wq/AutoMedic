@@ -27,16 +27,5 @@ const r2 = db.prepare(`
 `).run()
 console.log(`✓ Fixed ${r2.changes} stock_out backfill timestamps`)
 
-// 3. Show the latest 8 logs to confirm ordering
-const rows = db.prepare(`
-  SELECT il.type, il.qty_change, il.reason, il.created_at, p.name as product
-  FROM inventory_logs il
-  LEFT JOIN products p ON il.product_id = p.id
-  ORDER BY il.created_at DESC
-  LIMIT 8
-`).all()
-console.log('\nLatest 8 logs (newest first):')
-rows.forEach(r => console.log(`  [${r.created_at}] ${r.type.padEnd(10)} ${r.product} (${r.qty_change > 0 ? '+' : ''}${r.qty_change})`))
-
 console.log('\n✓ Done.')
 db.close()
