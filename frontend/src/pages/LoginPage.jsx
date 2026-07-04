@@ -123,17 +123,19 @@ export default function LoginPage() {
 
       {/* ── LEFT PANEL — static, never scrolls ── */}
       <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] flex-col relative overflow-hidden flex-shrink-0 sticky top-0 h-screen">
-        {/* Background image */}
-        <div className="absolute inset-0">
+        {/* Background — image with gradient overlay, falls back to gradient if image missing */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117] via-[#1A1A2E] to-[#0F3460]">
           <img
             src="/login-bg.jpg"
             alt=""
-            className="w-full h-full object-cover object-center"
+            className="w-full h-full object-cover object-top opacity-0 transition-opacity duration-700"
+            onLoad={e => { e.target.style.opacity = '1' }}
+            onError={e => { e.target.style.display = 'none' }}
           />
-          {/* Dark overlay so text stays readable */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117]/85 via-[#1A1A2E]/75 to-[#0F3460]/70" />
-          {/* Subtle gold glow at bottom-left */}
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#B8860B]/15 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4 pointer-events-none" />
+          {/* Dark overlay so text stays readable over the photo */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117]/80 via-[#1A1A2E]/65 to-[#0F3460]/55 pointer-events-none" />
+          {/* Gold glow */}
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#B8860B]/20 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4 pointer-events-none" />
         </div>
 
         <div className="relative z-10 flex flex-col h-full p-10">
