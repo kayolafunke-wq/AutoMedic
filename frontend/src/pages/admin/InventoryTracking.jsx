@@ -5,6 +5,10 @@ import {
   ChevronDown, AlertTriangle, CheckCircle, RefreshCw, ArrowUpCircle,
   ArrowDownCircle, SlidersHorizontal, Calendar, User
 } from 'lucide-react'
+import Pagination from '../../components/ui/Pagination'
+
+const LEDGER_PAGE_SIZE  = 20
+const SUMMARY_PAGE_SIZE = 15
 
 const TYPE_META = {
   stock_in:   { label: 'Stock In',   icon: ArrowUpCircle,   bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-200',  dot: 'bg-green-500' },
@@ -36,6 +40,8 @@ export default function InventoryTracking() {
   const [adjSaving,   setAdjSaving]   = useState(false)
   const [toast,       setToast]       = useState('')
   const [products,    setProducts]    = useState([])
+  const [ledgerPage,  setLedgerPage]  = useState(1)
+  const [summaryPage, setSummaryPage] = useState(1)
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500) }
 
@@ -91,6 +97,24 @@ export default function InventoryTracking() {
            (l.reason       || '').toLowerCase().includes(search.toLowerCase()) ||
            (l.created_by_name || '').toLowerCase().includes(search.toLowerCase())
   })
+
+  // Pagination computed values
+  const ledgerTotal  = filtered.length
+  const ledgerPages  = Math.max(1, Math.ceil(ledgerTotal / LEDGER_PAGE_SIZE))
+  const safeLedger   = Math.min(ledgerPage, ledgerPages)
+  const paginatedLog = filtered.slice((safeLedger - 1) * LEDGER_PAGE_SIZE, safeLedger * LEDGER_PAGE_SIZE)
+
+  const summaryTotal = summary.length
+  const summaryPages = Math.max(1, Math.ceil(summaryTotal / SUMMARY_PAGE_SIZE))
+  const safeSummary  = Math.min(summaryPage, summaryPages)
+  const paginatedSum = summary.slice((safeSummary - 1) * SUMMARY_PAGE_SIZE, safeSummary * SUMMARY_PAGE_SIZE)
+
+  // Reset pages when filters/search change
+  const handleSearch = (v) => { setSearch(v); setLedgerPage(1) }
+  const handleTypeFilter = (v) => { setTypeFilter(v); setLedgerPage(1) }
+  const handleProductFilter = (v) => { setProductFilter(v); setLedgerPage(1) }
+  const handleFromDate = (v) => { setFromDate(v); setLedgerPage(1) }
+  const handleToDate = (v) => { setToDate(v); setLedgerPage(1) }
 
   return (
     <div>
@@ -153,16 +177,16 @@ export default function InventoryTracking() {
             {/* Search */}
             <div className="relative">
               <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input value={search} onChange={e => setSearch(e.target.value)}
+              <input value={search} onChange={e => handleSearch(e.target.value)}
                 placeholder="Search product, reason, user..."
                 className="pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-[#B8860B] bg-white w-56" />
-              {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><X size={12} /></button>}
+              {search && <button onClick={() => handleSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><X size={12} /></button>}
             </div>
 
             {/* Type filter */}
             <div className="flex gap-1.5">
               {[['all','All'],['stock_in','In'],['stock_out','Out'],['adjustment','Adjust']].map(([val, label]) => (
-                <button key={val} onClick={() => setTypeFilter(val)}
+                <button key={val} onClick={() => handleTypeFilter(val)}
                   className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all border
                     ${typeFilter === val ? 'bg-[#B8860B] text-white border-[#B8860B]' : 'bg-white border-gray-200 text-gray-500 hover:border-[#B8860B] hover:text-[#B8860B]'}`}>
                   {label}
@@ -171,7 +195,7 @@ export default function InventoryTracking() {
             </div>
 
             {/* Product filter */}
-            <select value={productFilter} onChange={e => setProductFilter(e.target.value)}
+            <select value={productFilter} onChange={e => handleProductFilter(e.target.value)}
               className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-[#B8860B] bg-white">
               <option value="">All Products</option>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -180,13 +204,13 @@ export default function InventoryTracking() {
             {/* Date range */}
             <div className="flex items-center gap-2">
               <Calendar size={13} className="text-gray-400 flex-shrink-0" />
-              <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+              <input type="date" value={fromDate} onChange={e => handleFromDate(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-[#B8860B] bg-white" />
               <span className="text-gray-400 text-xs">to</span>
-              <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+              <input type="date" value={toDate} onChange={e => handleToDate(e.target.value)}
                 className="px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-[#B8860B] bg-white" />
               {(fromDate || toDate) && (
-                <button onClick={() => { setFromDate(''); setToDate('') }} className="text-gray-400 hover:text-red-500 transition-colors"><X size={13} /></button>
+                <button onClick={() => { setFromDate(''); setToDate(''); setLedgerPage(1) }} className="text-gray-400 hover:text-red-500 transition-colors"><X size={13} /></button>
               )}
             </div>
           </div>
@@ -217,7 +241,7 @@ export default function InventoryTracking() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((log, i) => {
+                  {paginatedLog.map((log, i) => {
                     const meta = TYPE_META[log.type] || TYPE_META.adjustment
                     const Icon = meta.icon
                     return (
@@ -273,6 +297,9 @@ export default function InventoryTracking() {
               </table>
             )}
           </div>
+          <Pagination
+            page={safeLedger} totalPages={ledgerPages} total={ledgerTotal}
+            pageSize={LEDGER_PAGE_SIZE} onPage={setLedgerPage} label="movement" />
         </>
       )}
 
@@ -297,7 +324,7 @@ export default function InventoryTracking() {
                 </tr>
               </thead>
               <tbody>
-                {summary.map((p, i) => (
+                {paginatedSum.map((p, i) => (
                   <tr key={p.id} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-[#1A1A2E] text-xs">{p.name}</p>
@@ -345,6 +372,9 @@ export default function InventoryTracking() {
             </table>
           )}
         </div>
+        <Pagination
+          page={safeSummary} totalPages={summaryPages} total={summaryTotal}
+          pageSize={SUMMARY_PAGE_SIZE} onPage={setSummaryPage} label="product" />
       )}
 
       {/* ── ADJUST MODAL ───────────────────────────────────────────────── */}

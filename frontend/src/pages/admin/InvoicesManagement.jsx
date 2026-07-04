@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
-import { FileText, X, Printer, CheckCircle, Clock, AlertCircle, Search, DollarSign } from 'lucide-react'
+import { FileText, X, Printer, CheckCircle, Clock, AlertCircle, Search, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../../services/api'
+import Pagination from '../../components/ui/Pagination'
+
+const PAGE_SIZE = 15
 
 const fmt = (n) => {
   const v = Number(n || 0)
@@ -261,6 +264,7 @@ export default function InvoicesManagement() {
   const [selected, setSelected]       = useState(null)
   const [filter,   setFilter]         = useState('all')
   const [search,   setSearch]         = useState('')
+  const [page,     setPage]           = useState(1)
   const [toast,    setToast]          = useState('')
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
@@ -289,6 +293,14 @@ export default function InvoicesManagement() {
       (`${inv.make} ${inv.model}`).toLowerCase().includes(search.toLowerCase())
     return matchFilter && matchSearch
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage   = Math.min(page, totalPages)
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  // Reset to page 1 when filter/search changes
+  const setFilterAndReset = (f) => { setFilter(f); setPage(1) }
+  const setSearchAndReset = (s) => { setSearch(s); setPage(1) }
 
   // KPIs
   const totalRevenue  = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.total || 0), 0)
@@ -337,7 +349,7 @@ export default function InvoicesManagement() {
       <div className="flex gap-3 mb-5 items-center flex-wrap">
         <div className="flex gap-1.5 bg-white rounded-xl p-1 shadow-sm border border-gray-100">
           {['all','unpaid','partial','paid'].map(f => (
-            <button key={f} onClick={() => setFilter(f)}
+            <button key={f} onClick={() => setFilterAndReset(f)}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
                 ${filter === f ? 'bg-[#B8860B] text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
               {f === 'all' ? 'All' : f}
@@ -349,7 +361,7 @@ export default function InvoicesManagement() {
         </div>
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
+          <input value={search} onChange={e => setSearchAndReset(e.target.value)}
             placeholder="Search invoice, customer, tracking..."
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white" />
         </div>
@@ -394,7 +406,7 @@ export default function InvoicesManagement() {
                   <p className="text-gray-400 text-sm">No invoices found</p>
                 </div>
               </td></tr>
-            ) : filtered.map((inv) => (
+            ) : paginated.map((inv) => (
               <tr key={inv.id}
                 className={`border-t border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer
                   ${inv.status === 'unpaid' ? 'bg-red-50/20 hover:bg-red-50/40' : ''}`}
@@ -462,6 +474,9 @@ export default function InvoicesManagement() {
           )}
         </table>
       </div>
+      <Pagination
+        page={safePage} totalPages={totalPages} total={filtered.length}
+        pageSize={PAGE_SIZE} onPage={setPage} label="invoice" />
     </div>
   )
 }

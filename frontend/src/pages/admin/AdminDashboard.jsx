@@ -3,7 +3,7 @@ import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { LayoutDashboard, Calendar, Car, Users, BarChart2, TrendingUp, Settings, LogOut, Plus, Trash2, Edit2, Globe, ClipboardCheck, X, Search, DollarSign, Package, Save, AlertCircle, FileText, ChevronDown, ChevronRight as ChevronR, Wrench, ShoppingCart, History, Eye, Printer, CheckCircle } from 'lucide-react'
+import { LayoutDashboard, Calendar, Car, Users, BarChart2, TrendingUp, Settings, LogOut, Plus, Trash2, Edit2, Globe, ClipboardCheck, X, Search, DollarSign, Package, Save, AlertCircle, FileText, ChevronDown, ChevronRight as ChevronR, Wrench, ShoppingCart, History, Eye, Printer, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import InspectionModule from '../technician/InspectionModule'
 import UserManagement from './UserManagement'
 import RevenuePage from './RevenuePage'
@@ -11,6 +11,9 @@ import ProductsManagement from './ProductsManagement'
 import InvoicesManagement from './InvoicesManagement'
 import ServicesManagement from './ServicesManagement'
 import InventoryTracking from './InventoryTracking'
+import Pagination from '../../components/ui/Pagination'
+
+const PAGE_SIZE = 15
 
 const COLORS = ['#B8860B','#25D366','#1565C0','#E65100']
 
@@ -310,6 +313,7 @@ function AppointmentsView() {
   const [search, setSearch]   = useState('')
   const [toast, setToast]     = useState('')
   const [saving, setSaving]   = useState(false)
+  const [page,   setPage]     = useState(1)
   const [genInvLoading, setGenInvLoading] = useState(null)
   const [invoicedIds, setInvoicedIds] = useState(new Set())
   const [addModal, setAddModal] = useState(false)
@@ -422,6 +426,13 @@ function AppointmentsView() {
     return matchFilter && matchSearch
   })
 
+  const apptPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safeApptPg = Math.min(page, apptPages)
+  const paginated  = filtered.slice((safeApptPg - 1) * PAGE_SIZE, safeApptPg * PAGE_SIZE)
+
+  const setFilterReset = (f) => { setFilter(f); setPage(1) }
+  const setSearchReset = (s) => { setSearch(s); setPage(1) }
+
   const statusColor = (s) => ({
     pending:     'bg-blue-50 text-blue-600 border border-blue-100',
     confirmed:   'bg-yellow-50 text-yellow-600 border border-yellow-100',
@@ -471,7 +482,7 @@ function AppointmentsView() {
       <div className="flex gap-3 mb-5 flex-wrap items-center">
         <div className="flex gap-2 bg-white rounded-xl p-1 shadow-sm border border-gray-100">
           {['all','pending','confirmed','in_progress','completed'].map(f => (
-            <button key={f} onClick={() => setFilter(f)}
+            <button key={f} onClick={() => setFilterReset(f)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
                 ${filter === f ? 'bg-[#B8860B] text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
               {f === 'all' ? 'All' : f.replace('_',' ')}
@@ -481,7 +492,7 @@ function AppointmentsView() {
             </button>
           ))}
         </div>
-        <input value={search} onChange={e => setSearch(e.target.value)}
+        <input value={search} onChange={e => setSearchReset(e.target.value)}
           placeholder="Search customer, vehicle, tracking #..."
           className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white" />
       </div>
@@ -497,7 +508,7 @@ function AppointmentsView() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((a) => (
+            {paginated.map((a) => (
               <tr key={a.id} className={`border-t border-gray-50 transition-colors hover:bg-gray-50/50 ${a.status === 'pending' ? 'bg-amber-50/30' : ''}`}>
                 <td className="px-4 py-3.5 font-bold text-[#B8860B] text-xs">{a.tracking_number}</td>
                 <td className="px-4 py-3.5 font-medium text-[#1A1A2E]">{a.customer_name}</td>
@@ -563,6 +574,9 @@ function AppointmentsView() {
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={safeApptPg} totalPages={apptPages} total={filtered.length}
+        pageSize={PAGE_SIZE} onPage={setPage} label="appointment" />
 
       {/* ASSIGN MODAL */}
       {assignModal && (        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setAssignModal(null)}>
@@ -1217,21 +1231,36 @@ function AnalyticsView() {
 
 // ---- CUSTOMERS VIEW ----
 function CustomersView() {
-  const [data, setData] = useState([])
+  const [data,   setData]   = useState([])
+  const [search, setSearch] = useState('')
+  const [page,   setPage]   = useState(1)
+
   useEffect(() => {
     api.get('/customers').then(r => setData(r.data.data || [])).catch(() => setData([]))
   }, [])
+
+  const filtered    = data.filter(c => !search || `${c.name} ${c.phone || ''}`.toLowerCase().includes(search.toLowerCase()))
+  const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage    = Math.min(page, totalPages)
+  const paginated   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6"><div><h1 className="font-display text-2xl text-dark">Customers</h1></div>
         <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-dark transition-colors"><Plus size={14} /> Add Customer</button>
       </div>
+      <div className="mb-4">
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Search by name or phone..."
+          className="w-full max-w-sm px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-white" />
+      </div>
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr className="bg-gray-50">{['Name','Phone','Vehicles','Total Services','Last Visit'].map(h=><th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
           <tbody>
-            {data.map((c,i) => (
+            {paginated.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 text-sm">No customers found</td></tr>
+            ) : paginated.map((c, i) => (
               <tr key={i} className="border-t border-gray-50 hover:bg-gray-50">
                 <td className="px-4 py-3 font-semibold text-dark">{c.name}</td>
                 <td className="px-4 py-3 text-gray-500">{c.phone}</td>
@@ -1243,6 +1272,7 @@ function CustomersView() {
           </tbody>
         </table>
       </div>
+      <Pagination page={safePage} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="customer" />
     </div>
   )
 }
@@ -1370,32 +1400,29 @@ function SettingsView() {
 
 // ---- VEHICLES VIEW ----
 function VehiclesView() {
-  const [data, setData] = useState([])
-  const [search, setSearch] = useState('')
+  const [data,    setData]    = useState([])
+  const [search,  setSearch]  = useState('')
   const [loading, setLoading] = useState(true)
+  const [page,    setPage]    = useState(1)
 
   useEffect(() => {
     api.get('/vehicles').then(r => {
-      // Normalise API response shape to match what the table expects
       const rows = (r.data.data || []).map(v => ({
-        id:           v.id,
-        reg:          v.registration_number,
-        make:         v.make,
-        model:        v.model,
-        year:         v.year || '—',
-        color:        v.color || '—',
-        owner:        v.owner_name || '—',
-        owner_phone:  v.owner_phone || '',
+        id: v.id, reg: v.registration_number,
+        make: v.make, model: v.model,
+        year: v.year || '—', color: v.color || '—',
+        owner: v.owner_name || '—', owner_phone: v.owner_phone || '',
         last_service: v.created_at ? new Date(v.created_at).toLocaleDateString('en-GB') : '—',
-        status:       'Registered',
+        status: 'Registered',
       }))
       setData(rows)
     }).catch(() => setData([])).finally(() => setLoading(false))
   }, [])
 
-  const filtered = data.filter(v =>
-    !search || `${v.make} ${v.model} ${v.reg} ${v.owner}`.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered   = data.filter(v => !search || `${v.make} ${v.model} ${v.reg} ${v.owner}`.toLowerCase().includes(search.toLowerCase()))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage   = Math.min(page, totalPages)
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const statusColor = (s) => ({
     'In Repair':  'bg-orange-50 text-orange-500 border border-orange-100',
@@ -1433,7 +1460,7 @@ function VehiclesView() {
 
       {/* Search */}
       <div className="mb-4">
-        <input value={search} onChange={e => setSearch(e.target.value)}
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
           placeholder="Search by registration, make, model or owner..."
           className="w-full max-w-sm px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-white" />
       </div>
@@ -1453,7 +1480,7 @@ function VehiclesView() {
               <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">
                 <div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"/>Loading vehicles...</div>
               </td></tr>
-            ) : filtered.map((v, i) => (
+            ) : paginated.map((v, i) => (
               <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
                 <td className="px-4 py-3.5 font-bold text-primary text-sm">{v.reg}</td>
                 <td className="px-4 py-3.5 font-medium text-dark">{v.make} {v.model}</td>
@@ -1486,6 +1513,7 @@ function VehiclesView() {
           </tbody>
         </table>
       </div>
+      <Pagination page={safePage} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="vehicle" />
     </div>
   )
 }
@@ -1618,8 +1646,9 @@ function ReceiptModal({ receipt, onClose }) {
 function AdminCheckoutsView() {
   const [history, setHistory]   = useState([])
   const [loading, setLoading]   = useState(true)
-  const [search, setSearch]     = useState('')
+  const [search,  setSearch]    = useState('')
   const [viewing, setViewing]   = useState(null)
+  const [page,    setPage]      = useState(1)
 
   const fmt = (n) => `MK ${Number(n || 0).toLocaleString()}`
 
@@ -1633,7 +1662,7 @@ function AdminCheckoutsView() {
 
   useEffect(() => { load() }, [])
 
-  const filtered = history.filter(h => {
+  const filtered   = history.filter(h => {
     const q = search.toLowerCase()
     return !search ||
       (h.customer_name || '').toLowerCase().includes(q) ||
@@ -1641,6 +1670,10 @@ function AdminCheckoutsView() {
       (h.tracking_number || '').toLowerCase().includes(q) ||
       (h.created_by_name || '').toLowerCase().includes(q)
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage   = Math.min(page, totalPages)
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
     <div className="space-y-6">
@@ -1655,7 +1688,7 @@ function AdminCheckoutsView() {
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search checkouts by customer name, checkout ID, vehicle tracking no, stock keeper..."
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary"
           />
@@ -1686,7 +1719,7 @@ function AdminCheckoutsView() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.length ? filtered.map(h => (
+              ) : filtered.length ? paginated.map(h => (
                 <tr key={h.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-4 py-3.5 font-mono text-gray-400 text-[10px]">{h.id.slice(0, 10)}...</td>
                   <td className="px-4 py-3.5 text-gray-500">{new Date(h.created_at).toLocaleDateString('en-GB')} {new Date(h.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</td>
@@ -1717,6 +1750,9 @@ function AdminCheckoutsView() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={safePage} totalPages={totalPages} total={filtered.length}
+          pageSize={PAGE_SIZE} onPage={setPage} label="checkout" />
       </div>
 
       <ReceiptModal receipt={viewing} onClose={() => setViewing(null)} />
