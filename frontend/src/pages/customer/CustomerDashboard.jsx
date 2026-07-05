@@ -343,7 +343,9 @@ export default function CustomerDashboard() {
         </Link>
         <div className="flex items-center gap-2.5">
           {current&&<span className="bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100">Active Repair</span>}
-          <Link to="/" className="text-xs text-gray-500 hover:text-[#B8860B] transition-colors font-medium px-2">← Back to Site</Link>
+          <Link to="/" className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-full hover:border-[#B8860B] hover:text-[#B8860B] transition-all">
+            <span>←</span> Back to Site
+          </Link>
           <Link to="/track" className="flex items-center gap-1.5 px-4 py-2 bg-[#B8860B] text-white text-xs font-semibold rounded-full hover:bg-[#8B6508] transition-all hover:shadow-lg hover:shadow-[#B8860B]/30">
             <Satellite size={13}/>Track Vehicle
           </Link>
