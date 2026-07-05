@@ -7,8 +7,8 @@ import {
 } from 'lucide-react'
 import Pagination from '../../components/ui/Pagination'
 
-const LEDGER_PAGE_SIZE  = 20
-const SUMMARY_PAGE_SIZE = 15
+const LEDGER_PAGE_SIZE  = 12
+const SUMMARY_PAGE_SIZE = 12
 
 const TYPE_META = {
   stock_in:   { label: 'Stock In',   icon: ArrowUpCircle,   bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-200',  dot: 'bg-green-500' },
