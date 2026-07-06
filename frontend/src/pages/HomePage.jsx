@@ -17,7 +17,7 @@ export default function HomePage() {
 
       {/* HERO */}
       <section className="min-h-screen pt-[70px] bg-[#F5F3EE] flex items-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16 grid md:grid-cols-2 gap-8 md:gap-16 items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16 pb-16 md:pb-20 grid md:grid-cols-2 gap-8 md:gap-16 items-center">
           {/* Text */}
           <div>
             <div className="inline-flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-full text-xs font-bold tracking-widest text-gray-500 mb-6">
@@ -52,19 +52,19 @@ export default function HomePage() {
           </div>
 
           {/* Hero Image + Floating Card */}
-          <div className="relative hidden md:block">
-            <div className="h-[560px] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-dark via-dark-2 to-[#0F3460] flex items-center justify-center">
-              <div className="text-center text-white">
-                <div className="w-36 h-36 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mx-auto mb-4 animate-pulse-ring">
-                  <Car size={56} className="text-primary drop-shadow-[0_0_20px_rgba(184,134,11,0.6)]" />
+          <div className="relative w-full">
+            <div className="h-[280px] sm:h-[380px] md:h-[560px] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-dark via-dark-2 to-[#0F3460] flex items-center justify-center">
+              <div className="text-center text-white px-4">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mx-auto mb-4 animate-pulse-ring">
+                  <Car size={42} className="text-primary drop-shadow-[0_0_20px_rgba(184,134,11,0.6)] md:w-14 md:h-14" />
                 </div>
-                <p className="font-display text-2xl font-bold">AutoMedic Workshop</p>
-                <p className="text-white/50 text-sm uppercase tracking-widest mt-1">Professional Service — Lilongwe</p>
+                <p className="font-display text-xl sm:text-2xl font-bold">AutoMedic Workshop</p>
+                <p className="text-white/50 text-xs sm:text-sm uppercase tracking-widest mt-1">Professional Service — Lilongwe</p>
               </div>
             </div>
 
             {/* Floating status card */}
-            <div className="absolute -bottom-6 -left-8 bg-white rounded-2xl p-5 shadow-2xl min-w-[260px] animate-float">
+            <div className="absolute -bottom-4 md:-bottom-6 left-2 md:-left-8 bg-white rounded-2xl p-4 md:p-5 shadow-2xl w-[230px] sm:w-[260px] animate-float">
               <div className="flex justify-between items-center mb-3">
                 <span className="font-bold text-sm text-dark">Vehicle Repair Status</span>
                 <span className="bg-green-50 text-green-600 text-xs font-bold px-2.5 py-1 rounded-full">Live</span>
