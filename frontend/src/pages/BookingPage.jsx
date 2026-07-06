@@ -116,10 +116,10 @@ export default function BookingPage() {
 
       <section className="bg-[#F5F3EE] py-20">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-[1.4fr_1fr] gap-12 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-8 md:gap-12 items-start">
 
             {/* FORM */}
-            <div className="bg-white rounded-2xl p-10 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 md:p-10 shadow-sm">
               <h2 className="font-display text-2xl text-dark mb-1">Your Appointment Details</h2>
               <p className="text-sm text-gray-500 mb-7">We'll confirm your booking via WhatsApp within 1 hour.</p>
 
@@ -155,7 +155,7 @@ export default function BookingPage() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Row 1: Make + Model */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vehicle Make <span className="text-red-500">*</span></label>
                       <input value={form.make} onChange={e=>set('make',e.target.value)} required placeholder="e.g. Toyota"
@@ -169,7 +169,7 @@ export default function BookingPage() {
                   </div>
 
                   {/* Row 2: Year + Color */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Year</label>
                       <input type="number" min="1990" max={new Date().getFullYear() + 1}
@@ -186,7 +186,7 @@ export default function BookingPage() {
                   </div>
 
                   {/* Row 3: Registration + Date */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Registration <span className="text-red-500">*</span></label>
                       <input value={form.registration_number} onChange={e=>set('registration_number',e.target.value)} required placeholder="MK 1234"
@@ -200,7 +200,7 @@ export default function BookingPage() {
                   </div>
 
                   {/* Row 4: VIN + Service */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                         VIN / Chassis Number

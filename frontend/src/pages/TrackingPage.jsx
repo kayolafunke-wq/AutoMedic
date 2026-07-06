@@ -56,7 +56,7 @@ export default function TrackingPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.18),transparent_70%)]" />
         <div className="relative z-10">
           <div className="text-xs font-bold tracking-widest text-primary/80 uppercase mb-3">Live Status</div>
-          <h1 className="font-display text-5xl text-white mb-3">Track Your Vehicle</h1>
+          <h1 className="font-display text-4xl sm:text-5xl text-white mb-3">Track Your Vehicle</h1>
           <p className="text-white/70">Enter your tracking number or registration to see live status</p>
         </div>
       </section>
@@ -66,7 +66,7 @@ export default function TrackingPage() {
           {/* Search */}
           <div className="bg-white rounded-2xl p-8 shadow-sm mb-8 max-w-2xl mx-auto">
             <h3 className="font-bold text-dark mb-4">Enter Your Details</h3>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <input value={input} onChange={e=>setInput(e.target.value)}
                 onKeyDown={e=>e.key==='Enter' && search()}
                 placeholder="Tracking Number or Registration e.g. AC-2847"
@@ -81,11 +81,11 @@ export default function TrackingPage() {
 
           {/* Result */}
           {data && (
-            <div className="grid md:grid-cols-[1fr_300px] gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-6">
               <div className="space-y-5">
                 {/* Vehicle info */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm">
-                  <div className="grid grid-cols-[160px_1fr] gap-5 items-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4 md:gap-5 items-center">
                     <div className="h-32 bg-gradient-to-br from-dark to-dark-2 rounded-xl flex items-center justify-center">
                       <span className="text-4xl">🚗</span>
                     </div>

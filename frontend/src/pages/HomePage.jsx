@@ -17,33 +17,33 @@ export default function HomePage() {
 
       {/* HERO */}
       <section className="min-h-screen pt-[70px] bg-[#F5F3EE] flex items-center">
-        <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-16 items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16 grid md:grid-cols-2 gap-8 md:gap-16 items-center">
           {/* Text */}
           <div>
             <div className="inline-flex items-center gap-2 bg-white border border-gray-200 px-4 py-2 rounded-full text-xs font-bold tracking-widest text-gray-500 mb-6">
               <span className="w-2 h-2 bg-primary rounded-full" />
               LILONGWE'S PREMIER GARAGE
             </div>
-            <h1 className="font-display text-5xl md:text-6xl leading-[1.1] text-dark mb-5">
+            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl leading-[1.1] text-dark mb-5">
               Your Car.<br />
               <em className="text-primary">Our Expertise.</em><br />
               Zero Guesswork.
             </h1>
-            <p className="text-gray-500 text-lg mb-8 max-w-md">Book appointments, track repairs in real-time, and get notified the moment your vehicle is ready — all from your phone.</p>
-            <div className="flex gap-3 flex-wrap mb-12">
-              <Link to="/booking" className="flex items-center gap-2 px-7 py-4 bg-primary text-white font-semibold rounded-full hover:bg-primary-dark transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/30">
+            <p className="text-gray-500 text-base md:text-lg mb-8 max-w-md">Book appointments, track repairs in real-time, and get notified the moment your vehicle is ready — all from your phone.</p>
+            <div className="flex gap-3 flex-wrap mb-10 md:mb-12">
+              <Link to="/booking" className="flex items-center gap-2 px-6 py-3.5 md:px-7 md:py-4 bg-primary text-white font-semibold rounded-full hover:bg-primary-dark transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/30 text-sm md:text-base">
                 <CalendarCheck size={18} /> Book Appointment
               </Link>
-              <Link to="/track" className="px-7 py-4 border-2 border-primary text-primary font-semibold rounded-full hover:bg-primary hover:text-white transition-all">
+              <Link to="/track" className="px-6 py-3.5 md:px-7 md:py-4 border-2 border-primary text-primary font-semibold rounded-full hover:bg-primary hover:text-white transition-all text-sm md:text-base">
                 Track My Vehicle
               </Link>
             </div>
-            <div className="flex items-center gap-0">
+            <div className="flex items-center gap-0 flex-wrap">
               {[['2,400+', 'Vehicles Serviced'], ['12+', 'Years Experience'], ['98%', 'Satisfaction Rate']].map(([num, label], i) => (
-                <div key={i} className="flex items-center gap-6">
-                  {i > 0 && <div className="w-px h-10 bg-gray-200 mx-2" />}
+                <div key={i} className="flex items-center gap-4 md:gap-6">
+                  {i > 0 && <div className="w-px h-10 bg-gray-200 mx-2 md:mx-2" />}
                   <div>
-                    <div className="text-2xl font-black text-dark">{num}</div>
+                    <div className="text-xl md:text-2xl font-black text-dark">{num}</div>
                     <div className="text-xs text-gray-500 font-medium">{label}</div>
                   </div>
                 </div>
@@ -90,7 +90,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-xs font-bold tracking-widest text-primary uppercase mb-3">Why AutoMedic</div>
           <h2 className="font-display text-4xl text-dark mb-12">Everything You Need,<br /><em className="text-primary">In One Platform</em></h2>
-          <div className="grid md:grid-cols-3 gap-7">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-5 md:gap-7">
             {[
               { icon: Satellite, bg: 'bg-orange-50', color: 'text-orange-600', title: 'Real-Time Tracking', desc: "Watch your vehicle's repair progress live. No more calling to ask 'is my car ready?'" },
               { icon: CalendarCheck, bg: 'bg-green-50', color: 'text-green-600', title: 'Online Booking', desc: 'Book your service appointment 24/7 from your phone, without waiting in queues.' },

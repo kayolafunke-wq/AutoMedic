@@ -148,32 +148,52 @@ function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, 
   const items = [
     { id:'overview',     icon:Home,          label:'Overview' },
     { id:'repairs',      icon:Settings,      label:'My Repairs' },
-    { id:'inspection',   icon:ClipboardCheck,label:'Inspection Sign-Off', badge:pendingInspection?'1':null, badgeColor:'bg-orange-500' },
-    { id:'history',      icon:History,       label:'Service History' },
+    { id:'inspection',   icon:ClipboardCheck,label:'Inspection', badge:pendingInspection?'1':null, badgeColor:'bg-orange-500' },
+    { id:'history',      icon:History,       label:'History' },
     { id:'invoices',     icon:FileText,      label:'Invoices', badge:unpaidInvoices||null, badgeColor:'bg-red-500' },
-    { id:'notifications',icon:Bell,          label:'Notifications', badge:unread||null },
+    { id:'notifications',icon:Bell,          label:'Alerts', badge:unread||null },
   ]
   return (
-    <aside className="w-[220px] fixed top-16 left-0 bottom-0 bg-white border-r border-gray-100 flex flex-col py-5 z-40">
-      <nav className="flex flex-col gap-0.5 px-3 flex-1">
-        {items.map(({id,icon:Icon,label,badge,badgeColor})=>(
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-[220px] fixed top-16 left-0 bottom-0 bg-white border-r border-gray-100 flex-col py-5 z-40">
+        <nav className="flex flex-col gap-0.5 px-3 flex-1">
+          {items.map(({id,icon:Icon,label,badge,badgeColor})=>(
+            <button key={id} onClick={()=>onChange(id)}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full transition-all
+                ${active===id?'bg-[#B8860B]/10 text-[#B8860B] font-semibold':'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
+              <Icon size={16}/><span className="flex-1">{label}</span>
+              {badge&&<span className={`${badgeColor||'bg-red-500'} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>{badge}</span>}
+            </button>
+          ))}
+          <Link to="/booking" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all">
+            <Calendar size={16}/>Book Service
+          </Link>
+        </nav>
+        <div className="px-3 pt-3 border-t border-gray-100">
+          <button onClick={logout} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full">
+            <LogOut size={16}/>Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex items-center justify-around px-1 py-1.5 shadow-xl">
+        {items.slice(0,5).map(({id,icon:Icon,label,badge,badgeColor})=>(
           <button key={id} onClick={()=>onChange(id)}
-            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full transition-all
-              ${active===id?'bg-[#B8860B]/10 text-[#B8860B] font-semibold':'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
-            <Icon size={16}/><span className="flex-1">{label}</span>
-            {badge&&<span className={`${badgeColor||'bg-red-500'} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>{badge}</span>}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all relative flex-1
+              ${active===id?'text-[#B8860B]':'text-gray-400'}`}>
+            <Icon size={20}/>
+            <span className="text-[9px] font-semibold">{label}</span>
+            {badge&&<span className={`absolute top-1 right-2 ${badgeColor||'bg-red-500'} text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center`}>{badge}</span>}
           </button>
         ))}
-        <Link to="/booking" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all">
-          <Calendar size={16}/>Book Service
-        </Link>
-      </nav>
-      <div className="px-3 pt-3 border-t border-gray-100">
-        <button onClick={logout} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full">
-          <LogOut size={16}/>Logout
+        <button onClick={logout} className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-red-400 flex-1">
+          <LogOut size={20}/>
+          <span className="text-[9px] font-semibold">Logout</span>
         </button>
-      </div>
-    </aside>
+      </nav>
+    </>
   )
 }
 
@@ -341,15 +361,15 @@ export default function CustomerDashboard() {
           <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
           <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
         </Link>
-        <div className="flex items-center gap-2.5">
-          {current&&<span className="bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100">Active Repair</span>}
-          <Link to="/" className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-full hover:border-[#B8860B] hover:text-[#B8860B] transition-all">
-            <span>←</span> Back to Site
+        <div className="flex items-center gap-1.5 md:gap-2.5">
+          {current&&<span className="hidden sm:inline bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100">Active Repair</span>}
+          <Link to="/" className="hidden sm:flex items-center gap-1.5 px-3 md:px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-full hover:border-[#B8860B] hover:text-[#B8860B] transition-all">
+            <span>←</span> <span className="hidden md:inline">Back to Site</span><span className="md:hidden">Site</span>
           </Link>
-          <Link to="/track" className="flex items-center gap-1.5 px-4 py-2 bg-[#B8860B] text-white text-xs font-semibold rounded-full hover:bg-[#8B6508] transition-all hover:shadow-lg hover:shadow-[#B8860B]/30">
-            <Satellite size={13}/>Track Vehicle
+          <Link to="/track" className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-[#B8860B] text-white text-xs font-semibold rounded-full hover:bg-[#8B6508] transition-all">
+            <Satellite size={13}/><span className="hidden sm:inline">Track Vehicle</span>
           </Link>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
             style={{background:'#B8860B'}}>
             {user?.photoURL
               ? <img src={user.photoURL} alt="" className="w-full h-full object-cover"/>
@@ -360,7 +380,7 @@ export default function CustomerDashboard() {
 
       <div className="flex pt-16">
         <Sidebar active={section} onChange={navTo} unread={unread} pendingInspection={!signed && !!pendingInspection} unpaidInvoices={invoices.filter(i=>i.status==='unpaid').length||null} logout={logout}/>
-        <main className="ml-[220px] flex-1 p-7">
+        <main className="w-full md:ml-[220px] flex-1 p-4 md:p-7 pb-24 md:pb-7">
 
           {/* ── OVERVIEW ── */}
           {section==='overview'&&(
@@ -371,7 +391,7 @@ export default function CustomerDashboard() {
                   <Plus size={15}/>New Booking
                 </Link>
               </div>
-              <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 mb-6">
                 {[[Car,total,'Total Services','bg-blue-50 text-blue-500'],[CheckCircle,done,'Completed','bg-green-50 text-green-500'],[Clock,inProg,'In Progress','bg-orange-50 text-orange-500'],[CreditCard,`MK ${(spent/1000).toFixed(0)}K`,'Total Spent','bg-pink-50 text-pink-500']].map(([Icon,val,lbl,cls],i)=>(
                   <div key={i} className="bg-white rounded-2xl p-5 flex items-center gap-4 shadow-sm border border-gray-50">
                     <div className={`w-12 h-12 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}><Icon size={20}/></div>
@@ -389,7 +409,7 @@ export default function CustomerDashboard() {
                   </Link>
                 </div>
               ):(
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   {[
                     {id:'repairs',icon:Settings,bg:'bg-orange-50',color:'text-orange-500',title:'Current Repair',desc:current?`${current.make} ${current.model} — ${current.service_name}`:'No active repairs',badge:current?`${current.progress||0}%`:null,alert:false},
                     {
@@ -449,13 +469,13 @@ export default function CustomerDashboard() {
                     <h2 className="font-bold text-[#1A1A2E]">Current Repair — {current.make} {current.model} ({current.registration_number})</h2>
                     <span className="bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100 capitalize">{current.status?.replace('_',' ')}</span>
                   </div>
-                  <div className="flex gap-6 p-6">
-                    <div className="w-56 h-40 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row gap-5 md:gap-6 p-5 md:p-6">
+                    <div className="w-full sm:w-56 h-36 sm:h-40 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(184,134,11,0.2),transparent_70%)]"/>
                       <span className="text-6xl relative z-10">🚗</span>
                     </div>
                     <div className="flex-1">
-                      <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 mb-4">
                         {[['TRACKING #',current.tracking_number],['SERVICE',current.service_name],['TECHNICIAN',current.technician_name||'Assigned'],['STARTED',current.preferred_date],['EST. COMPLETE','TBD'],['EST. COST',current.estimated_cost?`MK ${Number(current.estimated_cost).toLocaleString()}`:'TBD']].map(([k,v],i)=>(
                           <div key={i}><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{k}</p>
                           <p className={`text-sm font-bold ${k==='EST. COST'?'text-[#B8860B]':'text-[#1A1A2E]'}`}>{v}</p></div>
@@ -688,7 +708,8 @@ export default function CustomerDashboard() {
                 <div className="bg-white rounded-2xl p-12 text-center shadow-sm"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><History size={28} className="text-gray-400"/></div><h3 className="font-bold text-[#1A1A2E] mb-2">No service history yet</h3><p className="text-gray-400 text-sm">Your service history will appear here after your first appointment.</p></div>
               ):(
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-                  <table className="w-full text-sm"><thead><tr className="bg-gray-50/80">{['#','Vehicle','Service','Date','Cost','Status','Invoice'].map(h=><th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[600px]"><thead><tr className="bg-gray-50/80">{['#','Vehicle','Service','Date','Cost','Status','Invoice'].map(h=><th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
                   <tbody>{appointments.map((a,i)=>{
                     const matchedInvoice = invoices.find(inv => inv.appointment_id === a.id)
                     return (
@@ -708,6 +729,7 @@ export default function CustomerDashboard() {
                       </td>
                     </tr>
                   )})}</tbody></table>
+                  </div>
                 </div>
               )}
             </div>
@@ -794,7 +816,7 @@ export default function CustomerDashboard() {
                             </div>
                           </div>
 
-                          <div className="bg-gray-50 rounded-xl p-3 mb-4 grid grid-cols-3 gap-3 text-xs">
+                          <div className="bg-gray-50 rounded-xl p-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs">
                             <div><p className="text-gray-400 mb-0.5">Vehicle</p><p className="font-semibold text-[#1A1A2E]">{inv.make} {inv.model}</p></div>
                             <div><p className="text-gray-400 mb-0.5">Registration</p><p className="font-semibold text-[#1A1A2E]">{inv.registration_number||'—'}</p></div>
                             <div><p className="text-gray-400 mb-0.5">Service</p><p className="font-semibold text-[#1A1A2E] truncate">{inv.service_name||'—'}</p></div>

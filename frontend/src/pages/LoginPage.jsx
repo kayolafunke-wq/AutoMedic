@@ -119,9 +119,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">
 
-      {/* ── LEFT PANEL — static, never scrolls ── */}
+      {/* ── LEFT PANEL — shown on lg+, shown as banner on mobile ── */}
+      <div className="lg:hidden relative h-40 sm:h-52 overflow-hidden flex-shrink-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117] via-[#1A1A2E] to-[#0F3460]">
+          <img src="/login-bg.jpg" alt="" className="w-full h-full object-cover object-top opacity-0 transition-opacity duration-700"
+            onLoad={e => { e.target.style.opacity = '1' }} onError={e => { e.target.style.display = 'none' }} />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117]/70 via-[#1A1A2E]/50 to-[#0F3460]/40 pointer-events-none" />
+        </div>
+        <div className="relative z-10 flex items-center justify-between h-full px-6">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#B8860B] rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xl shadow-[#B8860B]/40">AM</div>
+            <span className="font-black text-lg text-white tracking-tight">AutoMedic</span>
+          </Link>
+          <p className="text-white/70 text-sm font-medium">Lilongwe's Premier <span className="text-[#B8860B]">Garage</span></p>
+        </div>
+      </div>
+
+      {/* ── LEFT PANEL desktop ── */}
       <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] flex-col relative overflow-hidden flex-shrink-0 sticky top-0 h-screen">
         {/* Background — image with gradient overlay, falls back to gradient if image missing */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117] via-[#1A1A2E] to-[#0F3460]">
@@ -206,8 +222,8 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT PANEL — form, scrolls independently ── */}
-      <div className="flex-1 flex items-start justify-center p-6 bg-white overflow-y-auto min-h-screen">
-        <div className="w-full max-w-[380px] py-10">
+      <div className="flex-1 flex items-start justify-center p-4 sm:p-6 bg-white overflow-y-auto">
+        <div className="w-full max-w-[380px] py-6 sm:py-10">
 
           {/* Mode tabs */}
           {mode !== 'forgot' && (

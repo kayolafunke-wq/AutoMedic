@@ -99,8 +99,8 @@ export default function ProductsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.18),transparent_70%)]" />
         <div className="relative z-10 max-w-2xl mx-auto px-6">
           <div className="text-xs font-bold tracking-widest text-primary/80 uppercase mb-3">Parts & Products</div>
-          <h1 className="font-display text-5xl text-white mb-3">Spare Parts & Products</h1>
-          <p className="text-white/70 text-lg mb-8">Quality parts and automotive products in stock</p>
+          <h1 className="font-display text-4xl sm:text-5xl text-white mb-3">Spare Parts & Products</h1>
+          <p className="text-white/70 text-base md:text-lg mb-8">Quality parts and automotive products in stock</p>
 
           {/* Search bar in hero */}
           <div className="relative max-w-md mx-auto">
@@ -122,7 +122,7 @@ export default function ProductsPage() {
       </section>
 
       {/* ── STICKY CATEGORY FILTER BAR ── */}
-      <div className="sticky top-0 z-30 bg-[#F5F3EE]/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="sticky top-[70px] z-30 bg-[#F5F3EE]/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-3 flex gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setCategory('all')}
@@ -208,7 +208,7 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-              <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {shown.map((p, i) => {
                   const Icon  = getCatIcon(p.category)
                   const stock = stockInfo(p.stock_quantity)

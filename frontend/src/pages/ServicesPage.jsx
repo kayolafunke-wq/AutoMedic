@@ -101,8 +101,8 @@ export default function ServicesPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.18),transparent_70%)]" />
         <div className="relative z-10 max-w-2xl mx-auto px-6">
           <div className="text-xs font-bold tracking-widest text-primary/80 uppercase mb-3">What We Offer</div>
-          <h1 className="font-display text-5xl text-white mb-3">Our Services</h1>
-          <p className="text-white/70 text-lg mb-8">
+          <h1 className="font-display text-4xl sm:text-5xl text-white mb-3">Our Services</h1>
+          <p className="text-white/70 text-base md:text-lg mb-8">
             Professional automotive services at transparent prices
           </p>
 
@@ -126,7 +126,7 @@ export default function ServicesPage() {
       </section>
 
       {/* ── CATEGORY FILTER TABS ── */}
-      <div className="sticky top-0 z-30 bg-[#F5F3EE]/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="sticky top-[70px] z-30 bg-[#F5F3EE]/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-3 flex gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setCategory('all')}
@@ -222,7 +222,7 @@ export default function ServicesPage() {
           ) : (
             <>
               {/* Cards grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
                 {shown.map((svc, i) => {
                   const Icon = getIcon(svc.name, svc.category)
                   const dur  = fmtDuration(svc.duration_hours)
