@@ -67,7 +67,7 @@ const NAV_GROUPS = [
 ]
 
 // ── SIDEBAR ──────────────────────────────────────────────────────────────────
-function Sidebar({ logout }) {
+function Sidebar({ logout, open, onClose }) {
   const location = useLocation()
 
   // Default: only Operations (index 1) is open — everything else collapsed
@@ -112,7 +112,13 @@ function Sidebar({ logout }) {
   }, [location.pathname])
 
   return (
-    <aside className="w-[220px] min-h-[calc(100vh-64px)] bg-dark fixed top-16 left-0 bottom-0 flex flex-col py-4 overflow-y-auto">
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={onClose} />
+      )}
+      <aside className={`w-[220px] min-h-[calc(100vh-64px)] bg-dark fixed top-16 left-0 bottom-0 flex flex-col py-4 overflow-y-auto z-40 transition-transform duration-300
+        ${open ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
       <nav className="flex flex-col gap-0.5 px-3 flex-1">
         {NAV_GROUPS.map((group, gIdx) => (
           <div key={gIdx} className={gIdx > 0 ? 'mt-1' : ''}>
@@ -158,7 +164,8 @@ function Sidebar({ logout }) {
           <LogOut size={15} /> Logout
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }
 
@@ -208,7 +215,7 @@ function DashboardView() {
       </div>
 
       {/* Stat cards — all clickable */}
-      <div className="grid grid-cols-4 gap-4 mb-7">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-7">
         <button onClick={() => navigate('/admin/customers')}
           className="bg-white rounded-2xl p-5 shadow-sm text-left hover:shadow-md hover:-translate-y-0.5 transition-all">
           <div className="flex items-center gap-4">
@@ -254,7 +261,7 @@ function DashboardView() {
           </div>
         </button>
       </div>
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl p-5 shadow-sm">
           <div className="flex justify-between items-center mb-4"><h2 className="font-bold text-dark text-sm">Recent Appointments</h2><span className="bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full">Latest</span></div>
           {appointments.length === 0 ? (
@@ -499,7 +506,8 @@ function AppointmentsView() {
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="bg-gray-50/80">
               {['#','Customer','Vehicle','Service','Date','Technician','Status','Action'].map(h => (
@@ -573,6 +581,7 @@ function AppointmentsView() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
       <Pagination
         page={safeApptPg} totalPages={apptPages} total={filtered.length}
@@ -790,7 +799,7 @@ function ReportsView() {
       </div>
 
       {/* KPI cards — all live */}
-      <div className="grid grid-cols-3 gap-4 mb-7">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7">
         {[
           ['👥', customers,                                          'Total Customers',   'bg-blue-50 text-blue-600'],
           ['🔧', activeRep,                                         'Active Repairs',    'bg-orange-50 text-orange-600'],
@@ -806,8 +815,7 @@ function ReportsView() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Top Services — live */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-50 flex justify-between items-center">
             <h2 className="font-bold text-dark text-sm">Top Services</h2>
@@ -936,12 +944,13 @@ function ReportsView() {
           </div>
         ) : (
           <>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50/80">
-                {['#','Product','Category','Cost Price','Selling Price','Margin','Units Sold','Stock','Revenue'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
-                ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[700px]">
+                <thead>
+                  <tr className="bg-gray-50/80">
+                    {['#','Product','Category','Cost Price','Selling Price','Margin','Units Sold','Stock','Revenue'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                    ))}
               </tr>
             </thead>
             <tbody>
@@ -993,12 +1002,13 @@ function ReportsView() {
                 )
               })}
             </tbody>
-          </table>
-          <div className={`px-5 py-3 border-t text-xs ${movTab==='slow'?'bg-red-50 border-red-100 text-red-600':'bg-gray-50 border-gray-100 text-gray-500'}`}>
-            {movTab==='fast'
-              ? `Top ${movRows.length} products · Total: ${fmtP(movRows.reduce((s,p)=>s+Number(p.total_revenue||0),0))}`
-              : `⚠️ ${movRows.length} product${movRows.length!==1?'s':''} with 0–2 units sold — consider promotions or stock review`}
-          </div>
+              </table>
+            </div>
+            <div className={`px-5 py-3 border-t text-xs ${movTab==='slow'?'bg-red-50 border-red-100 text-red-600':'bg-gray-50 border-gray-100 text-gray-500'}`}>
+              {movTab==='fast'
+                ? `Top ${movRows.length} products · Total: ${fmtP(movRows.reduce((s,p)=>s+Number(p.total_revenue||0),0))}`
+                : `⚠️ ${movRows.length} product${movRows.length!==1?'s':''} with 0–2 units sold — consider promotions or stock review`}
+            </div>
           </>
         )}
       </div>
@@ -1065,7 +1075,7 @@ function AnalyticsView() {
       </div>
 
       {/* Row 1 — Monthly appointments + Services */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
           <h2 className="font-bold text-dark text-base mb-1">Monthly Appointments</h2>
           <p className="text-xs text-gray-400 mb-5">Last 6 months</p>
@@ -1118,7 +1128,7 @@ function AnalyticsView() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
               {apptData.map((s, i) => (
                 <div key={i} className="flex items-center gap-2.5">
                   <div className="w-3 h-3 rounded-full flex-shrink-0"
@@ -1135,7 +1145,7 @@ function AnalyticsView() {
       </div>
 
       {/* Row 3 — Fast Moving Parts bar chart + Stock Health donut */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Fast Moving Parts — horizontal bar chart */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
@@ -1335,14 +1345,14 @@ function SettingsView() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Garage Info */}
         <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
           <h2 className="font-bold text-dark text-base mb-5 flex items-center gap-2">
             <span className="w-8 h-8 bg-[#B8860B]/10 text-[#B8860B] rounded-lg flex items-center justify-center text-sm">🏪</span>
             Garage Information
           </h2>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {field('garage_name',   'Garage Name',    'text', 'AutoMedic Garage')}
             {field('phone',         'Phone Number',   'text', '+265 999 000 000')}
             {field('address',       'Address',        'text', 'Area 47, Lilongwe, Malawi')}
@@ -1444,7 +1454,7 @@ function VehiclesView() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           ['🚗', data.length,                              'Total Vehicles',   'bg-blue-50 text-blue-600'],
           ['🔧', data.filter(v=>v.status==='In Repair').length,  'In Repair',   'bg-orange-50 text-orange-600'],
@@ -1467,7 +1477,8 @@ function VehiclesView() {
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[700px]">
           <thead>
             <tr className="bg-gray-50/80">
               {['Registration','Make / Model','Year','Color','Owner','Status','Last Service','Action'].map(h => (
@@ -1512,6 +1523,7 @@ function VehiclesView() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
       <Pagination page={safePage} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="vehicle" />
     </div>
@@ -1696,7 +1708,7 @@ function AdminCheckoutsView() {
 
         {/* Table list */}
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+          <table className="w-full text-xs text-left min-w-[600px]">
             <thead>
               <tr className="bg-gray-50 text-gray-400 font-bold uppercase tracking-wider text-[9px] border-b border-gray-100">
                 <th className="px-4 py-3">Checkout ID</th>
@@ -1763,24 +1775,39 @@ function AdminCheckoutsView() {
 // ---- MAIN ADMIN DASHBOARD ----
 export default function AdminDashboard() {
   const { logout } = useAuth()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const location = useLocation()
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => { setSidebarOpen(false) }, [location.pathname])
+
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
-      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-dark border-b border-white/10 shadow-sm flex items-center justify-between px-6">
-        <div className="flex items-center gap-2">
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-dark border-b border-white/10 shadow-sm flex items-center justify-between px-4 md:px-6">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Hamburger — mobile only */}
+          <button
+            onClick={() => setSidebarOpen(o => !o)}
+            className="md:hidden p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors mr-1">
+            {sidebarOpen
+              ? <X size={20} />
+              : <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="17" y2="6"/><line x1="3" y1="12" x2="17" y2="12"/><line x1="3" y1="18" x2="17" y2="18"/></svg>
+            }
+          </button>
           <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-          <span className="font-black text-white">AutoMedic <span className="text-primary">Admin</span></span>
+          <span className="font-black text-white text-sm md:text-base">AutoMedic <span className="text-primary">Admin</span></span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="bg-white/10 text-white/70 text-xs font-semibold px-3 py-1.5 rounded-full">Administrator</span>
-          <Link to="/" className="text-xs text-white/60 hover:text-white transition-colors">View Site</Link>
+        <div className="flex items-center gap-2 md:gap-3">
+          <span className="hidden sm:inline bg-white/10 text-white/70 text-xs font-semibold px-3 py-1.5 rounded-full">Administrator</span>
+          <Link to="/" className="hidden sm:inline text-xs text-white/60 hover:text-white transition-colors">View Site</Link>
           <button onClick={logout} className="text-xs text-white/60 hover:text-white transition-colors">Logout</button>
           <div className="w-8 h-8 bg-dark-2 border border-white/20 rounded-full flex items-center justify-center text-white font-bold text-xs">AD</div>
         </div>
       </header>
 
       <div className="flex pt-16">
-        <Sidebar logout={logout} />
-        <main className="ml-[220px] flex-1 p-7">
+        <Sidebar logout={logout} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className="w-full md:ml-[220px] flex-1 p-4 md:p-7 min-w-0">
           <Routes>
             <Route index element={<DashboardView />} />
             <Route path="appointments" element={<AppointmentsView />} />
