@@ -4,7 +4,9 @@ import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import {
   List, CheckCheck, StickyNote, Camera, LogOut,
-  Edit2, X, Save, ClipboardCheck, CheckCircle, AlertCircle
+  Edit2, X, Save, ClipboardCheck, CheckCircle, AlertCircle,
+  Menu, Bell, Wrench, Clock, Star, FileText, User, DollarSign, Calendar, Car,
+  AlertTriangle, Sparkles, Check
 } from 'lucide-react'
 import InspectionModule from './InspectionModule'
 
@@ -14,6 +16,7 @@ const NAV = [
   { id: 'inspection',  icon: ClipboardCheck, label: 'Vehicle Inspection' },
   { id: 'notes',       icon: StickyNote,     label: 'Repair Notes' },
   { id: 'photos',      icon: Camera,         label: 'Upload Photos' },
+  { id: 'notifications', icon: Bell,         label: 'Notifications', badge: true },
 ]
 
 export default function TechnicianDashboard() {
@@ -24,6 +27,9 @@ export default function TechnicianDashboard() {
   const [updateForm, setUpdateForm] = useState({ status: '', notes: '', progress: 0, final_cost: '' })
   const [saving, setSaving] = useState(false)
   const [updateError, setUpdateError] = useState({ jobId: null, type: '', message: '' })
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const handleUpdateClick = (job) => {
     const isPendingJob = job.status === 'pending'
@@ -35,7 +41,7 @@ export default function TechnicianDashboard() {
         setUpdateError({
           jobId: job.id,
           type: 'no_inspection',
-          message: '🚫 Complete vehicle inspection before starting repair work.'
+          message: 'Complete vehicle inspection before starting repair work.'
         })
         setTimeout(() => setUpdateError(prev => prev.jobId === job.id ? { jobId: null, type: '', message: '' } : prev), 5000)
         return
@@ -45,7 +51,7 @@ export default function TechnicianDashboard() {
         setUpdateError({
           jobId: job.id,
           type: 'no_signature',
-          message: '⏳ Awaiting customer sign-off. Work cannot begin until customer confirms inspection.'
+          message: 'Awaiting customer sign-off. Work cannot begin until customer confirms inspection.'
         })
         setTimeout(() => setUpdateError(prev => prev.jobId === job.id ? { jobId: null, type: '', message: '' } : prev), 5000)
         return
@@ -88,7 +94,46 @@ export default function TechnicianDashboard() {
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoToast, setPhotoToast]   = useState('')
 
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+
   const showToast = (setter, msg) => { setter(msg); setTimeout(() => setter(''), 3500) }
+
+  const markNotificationRead = async (notifId) => {
+    try {
+      await api.patch(`/notifications/${notifId}/read`)
+      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, is_read: 1 } : n))
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (err) {
+      console.log('Failed to mark notification as read')
+    }
+  }
+
+  const markAllRead = async () => {
+    try {
+      await Promise.all(notifications.filter(n => !n.is_read).map(n => api.patch(`/notifications/${n.id}/read`)))
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })))
+      setUnreadCount(0)
+    } catch (err) {
+      console.log('Failed to mark all as read')
+    }
+  }
+
+  // Load notifications
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const res = await api.get('/notifications')
+        setNotifications(res.data.data || [])
+        setUnreadCount(res.data.data?.filter(n => !n.is_read).length || 0)
+      } catch (err) {
+        console.log('Failed to load notifications')
+      }
+    }
+    loadNotifications()
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(loadNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     api.get('/job-cards/my')
@@ -105,6 +150,8 @@ export default function TechnicianDashboard() {
 
   const active = jobs.filter(j => j.status !== 'completed')
   const done   = jobs.filter(j => j.status === 'completed')
+
+  const closeSidebar = () => setSidebarOpen(false)
 
   const saveUpdate = async () => {
     if (!updateModal) return
@@ -149,10 +196,10 @@ export default function TechnicianDashboard() {
         ? { ...j, technician_notes: noteText, estimated_cost: noteCost ? Number(noteCost) : j.estimated_cost }
         : j
       ))
-      showToast(setNoteToast, '✓ Repair notes saved successfully')
+      showToast(setNoteToast, 'Repair notes saved successfully')
       setNoteText(''); setNoteParts(''); setNoteHours(''); setNoteCost(''); setNoteFinalCost('')
     } catch (err) {
-      showToast(setNoteToast, '✕ Failed to save notes: ' + (err.response?.data?.message || err.message))
+      showToast(setNoteToast, 'Failed to save notes: ' + (err.response?.data?.message || err.message))
     } finally { setNoteSaving(false) }
   }
 
@@ -180,28 +227,131 @@ export default function TechnicianDashboard() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      showToast(setPhotoToast, `✓ ${photoFiles.length} photo${photoFiles.length > 1 ? 's' : ''} uploaded successfully`)
+      showToast(setPhotoToast, `${photoFiles.length} photo${photoFiles.length > 1 ? 's' : ''} uploaded successfully`)
       setPhotoFiles([])
       setPhotoPreviews([])
     } catch (err) {
-      showToast(setPhotoToast, '✕ Upload failed: ' + (err.response?.data?.message || err.message))
+      showToast(setPhotoToast, 'Upload failed: ' + (err.response?.data?.message || err.message))
     } finally { setPhotoUploading(false) }
   }
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={closeSidebar}
+        />
+      )}
 
       {/* TOPBAR */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-gray-100 shadow-sm flex items-center justify-between px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-          <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
-        </Link>
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-gray-100 shadow-sm flex items-center justify-between px-4 lg:px-6">
+        {/* Left side - Brand and mobile menu */}
         <div className="flex items-center gap-3">
-          <span className="bg-green-50 text-green-600 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-green-100">
+          {/* Mobile hamburger menu */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Menu size={18} />
+          </button>
+          
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
+            <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
+          </Link>
+        </div>
+
+        {/* Right side - Status, notifications, and user */}
+        <div className="flex items-center gap-3">
+          {/* Notifications */}
+          <div className="relative">
+            <button 
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors relative"
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            {notificationsOpen && (
+              <>
+                {/* Backdrop */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setNotificationsOpen(false)}
+                />
+                
+                {/* Dropdown Panel */}
+                <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[500px] flex flex-col">
+                  {/* Header */}
+                  <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-xl">
+                    <h3 className="font-bold text-gray-900">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllRead}
+                        className="text-xs text-primary hover:text-primary-dark font-medium"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Notifications List */}
+                  <div className="overflow-y-auto flex-1">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center text-gray-400">
+                        <Bell size={32} className="mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            if (!notif.is_read) markNotificationRead(notif.id)
+                          }}
+                          className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${
+                            !notif.is_read ? 'bg-blue-50/50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                              !notif.is_read ? 'bg-blue-500' : 'bg-gray-300'
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium text-gray-900 ${
+                                !notif.is_read ? 'font-semibold' : ''
+                              }`}>
+                                {notif.title}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {notif.message}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-1">
+                                {new Date(notif.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <span className="bg-green-50 text-green-600 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-green-100 hidden sm:flex">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> On Duty
           </span>
-          <button onClick={logout} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#B8860B] transition-colors font-medium">
+          <button onClick={logout} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#B8860B] transition-colors font-medium hidden sm:flex">
             <LogOut size={14} /> Exit
           </button>
           <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm select-none">
@@ -212,13 +362,37 @@ export default function TechnicianDashboard() {
 
       <div className="flex pt-16">
         {/* SIDEBAR */}
-        <aside className="w-[220px] fixed top-16 left-0 bottom-0 bg-white border-r border-gray-100 flex flex-col py-5 z-40">
+        <aside className={`
+          w-[220px] fixed top-16 left-0 bottom-0 bg-white border-r border-gray-100 flex flex-col py-5 z-40 transition-transform duration-300
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+        `}>
+          {/* Mobile sidebar header */}
+          <div className="flex items-center justify-between mb-4 px-3 lg:hidden">
+            <span className="text-gray-700 font-semibold text-sm">Menu</span>
+            <button
+              onClick={closeSidebar}
+              className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
           <nav className="flex flex-col gap-0.5 px-3 flex-1">
-            {NAV.map(({ id, icon: Icon, label }) => (
-              <button key={id} onClick={() => setSection(id)}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full transition-all
+            {NAV.map(({ id, icon: Icon, label, badge }) => (
+              <button key={id} onClick={() => {
+                setSection(id)
+                closeSidebar()
+              }}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full transition-all relative
                   ${section === id ? 'bg-[#B8860B]/10 text-[#B8860B] font-semibold' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
-                <Icon size={16} />{label}
+                <Icon size={16} />
+                {label}
+                {badge && unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -231,26 +405,28 @@ export default function TechnicianDashboard() {
         </aside>
 
         {/* MAIN */}
-        <main className="ml-[220px] flex-1 p-7">
+        <main className="flex-1 p-4 lg:p-7 lg:ml-[220px]">
 
           {/* ══ MY JOBS ══════════════════════════════════════ */}
           {section === 'jobs' && (
             <div>
               <div className="mb-6">
-                <h1 className="font-display text-2xl text-[#1A1A2E]">Technician Dashboard</h1>
+                <h1 className="font-display text-xl lg:text-2xl text-[#1A1A2E]">Technician Dashboard</h1>
                 <p className="text-gray-400 text-sm">Welcome back, {user?.name} — <strong className="text-[#1A1A2E]">{active.length} active jobs today</strong></p>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-4 gap-4 mb-7">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
                 {[
-                  ['🔧', active.length,  'Active Jobs',      'bg-orange-50 text-orange-600'],
-                  ['✅', done.length,    'Completed Today',  'bg-green-50 text-green-600'],
-                  ['⏰', 2,             'Pending Review',   'bg-blue-50 text-blue-600'],
-                  ['⭐', '4.9',         'Rating',           'bg-purple-50 text-purple-600'],
-                ].map(([icon, val, label, cls], i) => (
+                  [Wrench, active.length,  'Active Jobs',      'bg-orange-50 text-orange-600'],
+                  [CheckCircle, done.length,    'Completed Today',  'bg-green-50 text-green-600'],
+                  [Clock, 2,             'Pending Review',   'bg-blue-50 text-blue-600'],
+                  [Star, '4.9',         'Rating',           'bg-purple-50 text-purple-600'],
+                ].map(([Icon, val, label, cls], i) => (
                   <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex items-center gap-3">
-                    <div className={`w-12 h-12 ${cls} rounded-xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
+                    <div className={`w-12 h-12 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      <Icon size={20} />
+                    </div>
                     <div>
                       <div className="text-2xl font-black text-[#1A1A2E] leading-none">{val}</div>
                       <div className="text-xs text-gray-400 mt-1">{label}</div>
@@ -260,16 +436,18 @@ export default function TechnicianDashboard() {
               </div>
 
               {/* Job Cards */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+              <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-50">
                 <h2 className="font-bold text-[#1A1A2E] mb-5">Assigned Jobs</h2>
                 {active.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 text-3xl">🔧</div>
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                      <Wrench size={32} className="text-gray-400" />
+                    </div>
                     <h3 className="font-bold text-[#1A1A2E] text-base mb-1">No jobs assigned yet.</h3>
                     <p className="text-sm text-gray-400">New job cards assigned by the admin will appear here.</p>
                   </div>
                 ) : (
-                <div className="grid md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {active.map(job => (
                     <div key={job.id}
                       className={`rounded-2xl overflow-hidden border-[1.5px] transition-all hover:shadow-md
@@ -282,16 +460,22 @@ export default function TechnicianDashboard() {
                         </span>
                       </div>
                       {/* Car image placeholder */}
-                      <div className="mx-3.5 mt-3 h-32 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-xl flex items-center justify-center text-5xl relative overflow-hidden">
+                      <div className="mx-3.5 mt-3 h-32 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-xl flex items-center justify-center relative overflow-hidden">
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(184,134,11,0.2),transparent_70%)]" />
-                        <span className="relative z-10">🚗</span>
+                        <Car size={48} className="relative z-10 text-white/80" />
                       </div>
                       <div className="p-4">
                         <h3 className="font-bold text-[#1A1A2E]">{job.make} {job.model}</h3>
                         <div className="space-y-1 mt-2 mb-3">
-                          <p className="text-xs text-gray-400 flex items-center gap-1.5">📋 {job.registration_number}</p>
-                          <p className="text-xs text-gray-400 flex items-center gap-1.5">👤 {job.customer_name}</p>
-                          <p className="text-xs text-gray-400 flex items-center gap-1.5">🔧 {job.service_name}</p>
+                          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                            <FileText size={11} /> {job.registration_number}
+                          </p>
+                          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                            <User size={11} /> {job.customer_name}
+                          </p>
+                          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                            <Wrench size={11} /> {job.service_name}
+                          </p>
                         </div>
                         {/* Progress */}
                         <div className="mb-3">
@@ -344,7 +528,10 @@ export default function TechnicianDashboard() {
                                     ? 'bg-red-50 border-red-200 text-red-800'
                                     : 'bg-amber-50 border-amber-200 text-amber-800'
                                 }`}>
-                                  <span className="text-xs">{updateError.type === 'no_inspection' ? '🚫' : '⏳'}</span>
+                                  {updateError.type === 'no_inspection' ? 
+                                    <AlertTriangle size={12} className="text-red-500 mt-0.5 flex-shrink-0" /> : 
+                                    <Clock size={12} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                                  }
                                   <div className="flex-1 pr-4">
                                     <p className="text-[11px] font-bold leading-normal">{updateError.message}</p>
                                   </div>
@@ -360,14 +547,16 @@ export default function TechnicianDashboard() {
                                 </div>
                               )}
                               {isPendingJob && isInspected && !isCustomerSigned && (
-                                <p className="text-[10px] text-amber-600 mt-2 text-center font-semibold animate-pulse">
-                                  ⏳ Inspection submitted. Awaiting customer sign-off.
-                                </p>
+                                <div className="flex items-center justify-center gap-1.5 text-[10px] text-amber-600 mt-2 font-semibold animate-pulse">
+                                  <Clock size={10} />
+                                  Inspection submitted. Awaiting customer sign-off.
+                                </div>
                               )}
                               {isPendingJob && isCustomerSigned && (
-                                <p className="text-[10px] text-green-600 mt-2 text-center font-bold">
-                                  ✨ Customer signed off! Click "Start Working" to begin repairs.
-                                </p>
+                                <div className="flex items-center justify-center gap-1.5 text-[10px] text-green-600 mt-2 font-bold">
+                                  <Sparkles size={10} />
+                                  Customer signed off! Click "Start Working" to begin repairs.
+                                </div>
                               )}
                             </div>
                           )
@@ -381,26 +570,109 @@ export default function TechnicianDashboard() {
             </div>
           )}
 
+          {/* ══ NOTIFICATIONS ═════════════════════════════════ */}
+          {section === 'notifications' && (
+            <div>
+              <div className="mb-6">
+                <h1 className="font-display text-xl lg:text-2xl text-[#1A1A2E]">Notifications</h1>
+                <p className="text-gray-400 text-sm">Stay updated on job assignments and important alerts</p>
+              </div>
+
+              {unreadCount > 0 && (
+                <div className="mb-4">
+                  <button
+                    onClick={markAllRead}
+                    className="text-sm text-primary hover:text-primary-dark font-medium flex items-center gap-2"
+                  >
+                    <CheckCircle size={16} />
+                    Mark all as read ({unreadCount})
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {notifications.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-50">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Bell size={32} className="text-gray-400" />
+                    </div>
+                    <h3 className="font-bold text-[#1A1A2E] text-base mb-1">No notifications yet</h3>
+                    <p className="text-sm text-gray-400">When you receive job assignments or updates, they'll appear here</p>
+                  </div>
+                ) : (
+                  notifications.map(notif => (
+                    <div
+                      key={notif.id}
+                      onClick={() => {
+                        if (!notif.is_read) markNotificationRead(notif.id)
+                      }}
+                      className={`bg-white rounded-2xl p-5 shadow-sm border transition-all cursor-pointer ${
+                        !notif.is_read 
+                          ? 'border-blue-200 bg-blue-50/30 hover:bg-blue-50/50' 
+                          : 'border-gray-50 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          !notif.is_read ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          <Bell size={18} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className={`font-semibold text-sm ${
+                              !notif.is_read ? 'text-[#1A1A2E]' : 'text-gray-700'
+                            }`}>
+                              {notif.title}
+                            </h3>
+                            {!notif.is_read && (
+                              <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5" />
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {notif.message}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(notif.created_at).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ══ COMPLETED ════════════════════════════════════ */}
           {section === 'completed' && (
             <div>
               <div className="mb-6">
-                <h1 className="font-display text-2xl text-[#1A1A2E]">Completed Jobs</h1>
+                <h1 className="font-display text-xl lg:text-2xl text-[#1A1A2E]">Completed Jobs</h1>
                 <p className="text-gray-400 text-sm">Full history of all jobs you have completed</p>
               </div>
 
               {/* Summary stats */}
-              <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 {[
-                  ['✅', done.length, 'Total Completed', 'bg-green-50 text-green-600'],
-                  ['💰', `MK ${done.reduce((s,j) => s + Number(j.final_cost || j.estimated_cost || 0), 0).toLocaleString()}`, 'Total Revenue', 'bg-[#B8860B]/10 text-[#B8860B]'],
-                  ['📅', done.filter(j => {
+                  [CheckCircle, done.length, 'Total Completed', 'bg-green-50 text-green-600'],
+                  [DollarSign, `MK ${done.reduce((s,j) => s + Number(j.final_cost || j.estimated_cost || 0), 0).toLocaleString()}`, 'Total Revenue', 'bg-[#B8860B]/10 text-[#B8860B]'],
+                  [Calendar, done.filter(j => {
                     const d = j.completed_at || j.updated_at
                     return d && new Date(d).toDateString() === new Date().toDateString()
                   }).length, 'Completed Today', 'bg-blue-50 text-blue-600'],
-                ].map(([icon, val, label, cls], i) => (
+                ].map(([Icon, val, label, cls], i) => (
                   <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 flex items-center gap-3">
-                    <div className={`w-10 h-10 ${cls} rounded-xl flex items-center justify-center text-lg flex-shrink-0`}>{icon}</div>
+                    <div className={`w-10 h-10 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                      <Icon size={18} />
+                    </div>
                     <div>
                       <div className="text-lg font-black text-[#1A1A2E] leading-none">{val}</div>
                       <div className="text-xs text-gray-400 mt-0.5">{label}</div>
@@ -410,66 +682,146 @@ export default function TechnicianDashboard() {
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50/80">
-                      {['Tracking #', 'Vehicle', 'Owner', 'Service', 'Date Completed', 'Final Cost', 'Status'].map(h => (
-                        <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {done.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-16 text-center">
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-2xl">✅</div>
-                            <p className="font-semibold text-gray-500 text-sm">No completed jobs yet</p>
-                            <p className="text-xs text-gray-400">Jobs you complete will appear here permanently</p>
-                          </div>
-                        </td>
+                {/* Desktop Table */}
+                <div className="hidden lg:block">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50/80">
+                        {['Tracking #', 'Vehicle', 'Owner', 'Service', 'Date Completed', 'Final Cost', 'Status'].map(h => (
+                          <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                        ))}
                       </tr>
-                    ) : done.map((j, i) => {
-                      const completedDate = j.completed_at || j.updated_at
-                      const cost = j.final_cost || j.estimated_cost
-                      return (
-                        <tr key={j.id || i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                          <td className="px-4 py-3.5 font-bold text-[#B8860B] text-xs">{j.tracking_number}</td>
-                          <td className="px-4 py-3.5">
-                            <p className="font-medium text-[#1A1A2E]">{j.make} {j.model}</p>
-                            <p className="text-xs text-gray-400">{j.registration_number}</p>
-                          </td>
-                          <td className="px-4 py-3.5 text-gray-500 text-sm">{j.customer_name}</td>
-                          <td className="px-4 py-3.5 text-gray-500 text-xs">{j.service_name || '—'}</td>
-                          <td className="px-4 py-3.5 text-gray-400 text-xs">
-                            {completedDate
-                              ? new Date(completedDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
-                              : j.preferred_date || '—'}
-                          </td>
-                          <td className="px-4 py-3.5 font-semibold text-[#B8860B] text-sm">
-                            {cost ? `MK ${Number(cost).toLocaleString()}` : '—'}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <span className="bg-green-50 text-green-600 text-[10px] font-bold px-2.5 py-1 rounded-full border border-green-100">
-                              Completed
-                            </span>
+                    </thead>
+                    <tbody>
+                      {done.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-16 text-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
+                                <CheckCircle size={28} className="text-gray-400" />
+                              </div>
+                              <p className="font-semibold text-gray-500 text-sm">No completed jobs yet</p>
+                              <p className="text-xs text-gray-400">Jobs you complete will appear here permanently</p>
+                            </div>
                           </td>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                  {done.length > 0 && (
-                    <tfoot>
-                      <tr className="bg-[#1A1A2E]">
-                        <td colSpan={5} className="px-4 py-3 text-white/50 text-xs font-semibold">{done.length} completed job{done.length !== 1 ? 's' : ''}</td>
-                        <td className="px-4 py-3 font-black text-[#B8860B]">
-                          MK {done.reduce((s,j) => s + Number(j.final_cost || j.estimated_cost || 0), 0).toLocaleString()}
-                        </td>
-                        <td />
-                      </tr>
-                    </tfoot>
+                      ) : done.map((j, i) => {
+                        const completedDate = j.completed_at || j.updated_at
+                        const cost = j.final_cost || j.estimated_cost
+                        return (
+                          <tr key={j.id || i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                            <td className="px-4 py-3.5 font-bold text-[#B8860B] text-xs">{j.tracking_number}</td>
+                            <td className="px-4 py-3.5">
+                              <p className="font-medium text-[#1A1A2E]">{j.make} {j.model}</p>
+                              <p className="text-xs text-gray-400">{j.registration_number}</p>
+                            </td>
+                            <td className="px-4 py-3.5 text-gray-500 text-sm">{j.customer_name}</td>
+                            <td className="px-4 py-3.5 text-gray-500 text-xs">{j.service_name || '—'}</td>
+                            <td className="px-4 py-3.5 text-gray-400 text-xs">
+                              {completedDate
+                                ? new Date(completedDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
+                                : j.preferred_date || '—'}
+                            </td>
+                            <td className="px-4 py-3.5 font-semibold text-[#B8860B] text-sm">
+                              {cost ? `MK ${Number(cost).toLocaleString()}` : '—'}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className="bg-green-50 text-green-600 text-[10px] font-bold px-2.5 py-1 rounded-full border border-green-100">
+                                Completed
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    {done.length > 0 && (
+                      <tfoot>
+                        <tr className="bg-[#1A1A2E]">
+                          <td colSpan={5} className="px-4 py-3 text-white/50 text-xs font-semibold">{done.length} completed job{done.length !== 1 ? 's' : ''}</td>
+                          <td className="px-4 py-3 font-black text-[#B8860B]">
+                            MK {done.reduce((s,j) => s + Number(j.final_cost || j.estimated_cost || 0), 0).toLocaleString()}
+                          </td>
+                          <td />
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="lg:hidden">
+                  {done.length === 0 ? (
+                    <div className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
+                          <CheckCircle size={28} className="text-gray-400" />
+                        </div>
+                        <p className="font-semibold text-gray-500 text-sm">No completed jobs yet</p>
+                        <p className="text-xs text-gray-400">Jobs you complete will appear here permanently</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 space-y-3">
+                      {done.map((j, i) => {
+                        const completedDate = j.completed_at || j.updated_at
+                        const cost = j.final_cost || j.estimated_cost
+                        return (
+                          <div key={j.id || i} className="bg-gray-50 rounded-xl p-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-bold text-[#B8860B] text-xs">{j.tracking_number}</span>
+                                  <span className="bg-green-50 text-green-600 text-[8px] font-bold px-2 py-0.5 rounded-full border border-green-100">
+                                    Completed
+                                  </span>
+                                </div>
+                                <h3 className="font-medium text-[#1A1A2E] text-sm">{j.make} {j.model}</h3>
+                                <p className="text-xs text-gray-500">{j.registration_number}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-3">
+                                <div className="font-semibold text-[#B8860B] text-sm">
+                                  {cost ? `MK ${Number(cost).toLocaleString()}` : '—'}
+                                </div>
+                                <div className="text-xs text-gray-400">Final Cost</div>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <span className="text-gray-400 block">Customer</span>
+                                <span className="text-gray-700 font-medium">{j.customer_name}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-400 block">Service</span>
+                                <span className="text-gray-700">{j.service_name || '—'}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-gray-400 block">Completed Date</span>
+                                <span className="text-gray-700">
+                                  {completedDate
+                                    ? new Date(completedDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
+                                    : j.preferred_date || '—'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      
+                      {/* Mobile Summary */}
+                      <div className="bg-[#1A1A2E] rounded-xl p-4 mt-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white/70 text-xs font-semibold">
+                            {done.length} completed job{done.length !== 1 ? 's' : ''}
+                          </span>
+                          <span className="font-black text-[#B8860B]">
+                            MK {done.reduce((s,j) => s + Number(j.final_cost || j.estimated_cost || 0), 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </table>
+                </div>
               </div>
             </div>
           )}
@@ -484,12 +836,12 @@ export default function TechnicianDashboard() {
             <div>
               {noteToast && (
                 <div className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-sm font-semibold shadow-2xl
-                  ${noteToast.startsWith('✓') ? 'bg-[#1A1A2E] text-white' : 'bg-red-500 text-white'}`}>
+                  ${noteToast.includes('successfully') ? 'bg-[#1A1A2E] text-white' : 'bg-red-500 text-white'}`}>
                   {noteToast}
                 </div>
               )}
               <div className="mb-6">
-                <h1 className="font-display text-2xl text-[#1A1A2E]">Repair Notes</h1>
+                <h1 className="font-display text-xl lg:text-2xl text-[#1A1A2E]">Repair Notes</h1>
                 <p className="text-gray-400 text-sm">Add technical notes for active jobs</p>
               </div>
 
@@ -538,7 +890,7 @@ export default function TechnicianDashboard() {
                           placeholder={isPendingJob && (!isInspected || !isCustomerSigned) ? "Cannot add notes — complete vehicle inspection and customer signature first." : "Describe what was done, parts used, observations..."}
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] resize-none disabled:bg-gray-50 disabled:text-gray-400" />
                       </div>
-                      <div className="grid grid-cols-2 gap-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div>
                           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Parts Used</label>
                           <input value={noteParts} onChange={e => setNoteParts(e.target.value)}
@@ -554,7 +906,7 @@ export default function TechnicianDashboard() {
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] disabled:bg-gray-50 disabled:text-gray-400" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div>
                           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Estimated Cost (MK)</label>
                           <input type="number" value={noteCost} onChange={e => setNoteCost(e.target.value)}
@@ -572,7 +924,7 @@ export default function TechnicianDashboard() {
                             className="w-full px-4 py-3 border border-[#B8860B]/40 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] disabled:bg-gray-50 disabled:text-gray-400 bg-[#B8860B]/5" />
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div>
                           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Next Action</label>
                           <select value={noteAction} onChange={e => setNoteAction(e.target.value)}
@@ -605,12 +957,12 @@ export default function TechnicianDashboard() {
             <div>
               {photoToast && (
                 <div className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-sm font-semibold shadow-2xl
-                  ${photoToast.startsWith('✓') ? 'bg-[#1A1A2E] text-white' : 'bg-red-500 text-white'}`}>
+                  ${photoToast.includes('successfully') ? 'bg-[#1A1A2E] text-white' : 'bg-red-500 text-white'}`}>
                   {photoToast}
                 </div>
               )}
               <div className="mb-6">
-                <h1 className="font-display text-2xl text-[#1A1A2E]">Upload Photos</h1>
+                <h1 className="font-display text-xl lg:text-2xl text-[#1A1A2E]">Upload Photos</h1>
                 <p className="text-gray-400 text-sm">Document repair progress with photos for the customer</p>
               </div>
 
@@ -643,7 +995,7 @@ export default function TechnicianDashboard() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-5 mb-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1.5">Select Job</label>
                         <select value={photoJob} onChange={e => setPhotoJob(e.target.value)}
@@ -723,7 +1075,7 @@ export default function TechnicianDashboard() {
       {/* UPDATE STATUS MODAL */}
       {updateModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setUpdateModal(null)}>
-          <div className="bg-white rounded-2xl p-7 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-4 lg:p-7 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-bold text-[#1A1A2E] text-lg">Update Repair Status</h3>
               <button onClick={() => setUpdateModal(null)} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors">
@@ -753,7 +1105,7 @@ export default function TechnicianDashboard() {
                   placeholder="Describe what was done..."
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] resize-none" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Estimated Cost (MK)</label>
                   <input type="number" value={updateModal.estimated_cost || ''}

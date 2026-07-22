@@ -212,6 +212,25 @@ async function sendNewAccountCredentials({ name, email, password, role }) {
 }
 
 /**
+ * Technician job assignment notification
+ */
+async function sendJobAssigned({ name, email, tracking, vehicle, service }) {
+  const html = baseHtml('New Job Assigned', `
+    <div class="badge">🔧 New Job Assigned</div>
+    <h2>You have a new job assignment</h2>
+    <p>Hi ${name}, a new job card has been assigned to you.</p>
+    <div class="card">
+      <div class="row"><span class="row-label">Booking #</span><span class="row-value" style="color:#B8860B;font-size:16px">${tracking}</span></div>
+      <div class="row"><span class="row-label">Vehicle</span><span class="row-value">${vehicle}</span></div>
+      <div class="row"><span class="row-label">Service</span><span class="row-value">${service}</span></div>
+    </div>
+    <p>Please log in to view job details and begin the inspection process.</p>
+    <a href="${process.env.FRONTEND_URL}/technician" class="btn">View Job Details →</a>
+  `)
+  await send(email, `New Job Assignment — ${tracking}`, html)
+}
+
+/**
  * Password reset email (for backend-only users: admin, technician, stockkeeper)
  */
 async function sendPasswordReset({ name, email, resetUrl, role }) {
@@ -238,4 +257,5 @@ module.exports = {
   sendInvoiceReady,
   sendNewAccountCredentials,
   sendPasswordReset,
+  sendJobAssigned,
 }
