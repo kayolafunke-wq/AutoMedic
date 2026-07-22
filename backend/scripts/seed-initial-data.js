@@ -13,8 +13,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Oil Change',
         description: 'Complete engine oil and filter replacement service',
-        price: 15000,
-        duration: 30,
+        base_price: 15000,
+        duration_hours: 0.5,
         category: 'maintenance',
         is_active: 1
       },
@@ -22,8 +22,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Brake Service',
         description: 'Brake pad replacement and brake system inspection',
-        price: 35000,
-        duration: 60,
+        base_price: 35000,
+        duration_hours: 1.0,
         category: 'repair',
         is_active: 1
       },
@@ -31,8 +31,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Tire Rotation',
         description: 'Rotate all four tires for even wear',
-        price: 8000,
-        duration: 20,
+        base_price: 8000,
+        duration_hours: 0.33,
         category: 'maintenance',
         is_active: 1
       },
@@ -40,8 +40,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Engine Diagnostic',
         description: 'Complete engine diagnostic scan and report',
-        price: 12000,
-        duration: 45,
+        base_price: 12000,
+        duration_hours: 0.75,
         category: 'inspection',
         is_active: 1
       },
@@ -49,8 +49,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Battery Replacement',
         description: 'Replace car battery with testing',
-        price: 25000,
-        duration: 30,
+        base_price: 25000,
+        duration_hours: 0.5,
         category: 'repair',
         is_active: 1
       },
@@ -58,8 +58,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Air Conditioning Service',
         description: 'AC system check, regas and repair',
-        price: 45000,
-        duration: 90,
+        base_price: 45000,
+        duration_hours: 1.5,
         category: 'repair',
         is_active: 1
       },
@@ -67,8 +67,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Wheel Alignment',
         description: 'Four-wheel alignment and balancing',
-        price: 18000,
-        duration: 45,
+        base_price: 18000,
+        duration_hours: 0.75,
         category: 'maintenance',
         is_active: 1
       },
@@ -76,8 +76,8 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Transmission Service',
         description: 'Transmission fluid change and inspection',
-        price: 40000,
-        duration: 90,
+        base_price: 40000,
+        duration_hours: 1.5,
         category: 'maintenance',
         is_active: 1
       }
@@ -85,13 +85,13 @@ async function seedInitialData() {
 
     for (const service of services) {
       await db.query(
-        `INSERT INTO services (id, name, description, price, duration, category, is_active, created_at)
+        `INSERT INTO services (id, name, description, base_price, duration_hours, category, is_active, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (id) DO NOTHING`,
-        [service.id, service.name, service.description, service.price, service.duration, 
+        [service.id, service.name, service.description, service.base_price, service.duration_hours, 
          service.category, service.is_active, new Date().toISOString()]
       )
-      console.log(`  ✅ ${service.name} - MWK ${service.price.toLocaleString()}`)
+      console.log(`  ✅ ${service.name} - MWK ${service.base_price.toLocaleString()}`)
     }
 
     // ===== PRODUCTS =====
@@ -102,9 +102,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Engine Oil 5W-30',
         description: 'Synthetic engine oil 5W-30, 4L',
-        unit_price: 12000,
-        quantity: 50,
-        reorder_level: 10,
+        cost_price: 10000,
+        price: 12000,
+        stock_quantity: 50,
+        reorder_point: 10,
         category: 'oil',
         sku: 'OIL-5W30-4L'
       },
@@ -112,9 +113,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Oil Filter',
         description: 'Universal oil filter for most vehicles',
-        unit_price: 2500,
-        quantity: 100,
-        reorder_level: 20,
+        cost_price: 2000,
+        price: 2500,
+        stock_quantity: 100,
+        reorder_point: 20,
         category: 'filter',
         sku: 'FILTER-OIL-001'
       },
@@ -122,9 +124,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Brake Pads (Front)',
         description: 'Front brake pads - ceramic',
-        unit_price: 18000,
-        quantity: 30,
-        reorder_level: 8,
+        cost_price: 15000,
+        price: 18000,
+        stock_quantity: 30,
+        reorder_point: 8,
         category: 'brakes',
         sku: 'BRAKE-PAD-F-001'
       },
@@ -132,9 +135,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Brake Pads (Rear)',
         description: 'Rear brake pads - ceramic',
-        unit_price: 16000,
-        quantity: 30,
-        reorder_level: 8,
+        cost_price: 13000,
+        price: 16000,
+        stock_quantity: 30,
+        reorder_point: 8,
         category: 'brakes',
         sku: 'BRAKE-PAD-R-001'
       },
@@ -142,9 +146,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Car Battery 12V 70Ah',
         description: 'Maintenance-free car battery',
-        unit_price: 35000,
-        quantity: 15,
-        reorder_level: 5,
+        cost_price: 30000,
+        price: 35000,
+        stock_quantity: 15,
+        reorder_point: 5,
         category: 'electrical',
         sku: 'BATTERY-12V-70AH'
       },
@@ -152,9 +157,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Air Filter',
         description: 'Engine air filter - universal fit',
-        unit_price: 3500,
-        quantity: 60,
-        reorder_level: 15,
+        cost_price: 3000,
+        price: 3500,
+        stock_quantity: 60,
+        reorder_point: 15,
         category: 'filter',
         sku: 'FILTER-AIR-001'
       },
@@ -162,9 +168,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Spark Plugs (Set of 4)',
         description: 'Iridium spark plugs',
-        unit_price: 8000,
-        quantity: 40,
-        reorder_level: 10,
+        cost_price: 6500,
+        price: 8000,
+        stock_quantity: 40,
+        reorder_point: 10,
         category: 'electrical',
         sku: 'SPARK-PLUG-4SET'
       },
@@ -172,9 +179,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Windshield Wipers',
         description: 'Universal windshield wiper blades (pair)',
-        unit_price: 4500,
-        quantity: 50,
-        reorder_level: 12,
+        cost_price: 3500,
+        price: 4500,
+        stock_quantity: 50,
+        reorder_point: 12,
         category: 'accessories',
         sku: 'WIPER-BLADE-PAIR'
       },
@@ -182,9 +190,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Coolant 5L',
         description: 'Engine coolant/antifreeze 5L',
-        unit_price: 6500,
-        quantity: 40,
-        reorder_level: 10,
+        cost_price: 5500,
+        price: 6500,
+        stock_quantity: 40,
+        reorder_point: 10,
         category: 'fluid',
         sku: 'COOLANT-5L'
       },
@@ -192,9 +201,10 @@ async function seedInitialData() {
         id: crypto.randomBytes(16).toString('hex'),
         name: 'Brake Fluid',
         description: 'DOT 4 brake fluid 1L',
-        unit_price: 3000,
-        quantity: 35,
-        reorder_level: 10,
+        cost_price: 2500,
+        price: 3000,
+        stock_quantity: 35,
+        reorder_point: 10,
         category: 'fluid',
         sku: 'BRAKE-FLUID-1L'
       }
@@ -202,13 +212,13 @@ async function seedInitialData() {
 
     for (const product of products) {
       await db.query(
-        `INSERT INTO products (id, name, description, unit_price, quantity, reorder_level, category, sku, created_at)
+        `INSERT INTO products (id, name, description, cost_price, price, stock_quantity, reorder_point, category, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO NOTHING`,
-        [product.id, product.name, product.description, product.unit_price, product.quantity,
-         product.reorder_level, product.category, product.sku, new Date().toISOString()]
+        [product.id, product.name, product.description, product.cost_price, product.price, 
+         product.stock_quantity, product.reorder_point, product.category, new Date().toISOString()]
       )
-      console.log(`  ✅ ${product.name} - MWK ${product.unit_price.toLocaleString()} (Stock: ${product.quantity})`)
+      console.log(`  ✅ ${product.name} - MWK ${product.price.toLocaleString()} (Stock: ${product.stock_quantity})`)
     }
 
     console.log('\n✅ Initial data seeded successfully!')
