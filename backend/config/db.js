@@ -1,30 +1,23 @@
-const Database = require('better-sqlite3')
-const path     = require('path')
+const { Pool } = require('pg')
 
-const dbPath = path.join(__dirname, '../automedic.db')
-const db     = new Database(dbPath)
+// Use DATABASE_URL from environment (Railway sets this automatically)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+})
 
-// Enable WAL for better performance
-db.pragma('journal_mode = WAL')
-db.pragma('foreign_keys = ON')
-
-// Promise-like wrapper so routes work the same way
+// PostgreSQL-compatible query wrapper
 module.exports = {
-  query: (sql, params = []) => {
+  query: async (sql, params = []) => {
     try {
-      const stmt = db.prepare(sql)
-
-      const upper = sql.trim().toUpperCase()
-      if (upper.startsWith('SELECT') || upper.startsWith('WITH')) {
-        const rows = stmt.all(...params)
-        return Promise.resolve({ rows })
-      } else {
-        const info = stmt.run(...params)
-        return Promise.resolve({ rows: [], rowCount: info.changes, lastInsertRowid: info.lastInsertRowid })
+      const result = await pool.query(sql, params)
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount
       }
     } catch (err) {
-      return Promise.reject(err)
+      throw err
     }
   },
-  db, // expose raw db for transactions
+  pool, // expose pool for transactions
 }
