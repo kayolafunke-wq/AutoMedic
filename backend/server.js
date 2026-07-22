@@ -7,6 +7,9 @@ const path       = require('path')
 const passport   = require('./config/passport')
 require('dotenv').config()
 
+// Initialize Sentry and Swagger
+const { initSentry, getSentryErrorHandler } = require('./config/sentry')
+const { setupSwagger } = require('./config/swagger')
 const { initSocket } = require('./websocket/tracking.socket')
 
 // Routes
@@ -26,9 +29,13 @@ const invoiceRoutes      = require('./routes/invoice.routes')
 const uploadRoutes       = require('./routes/upload.routes')
 const checkoutRoutes     = require('./routes/checkout.routes')
 const inventoryRoutes    = require('./routes/inventory.routes')
+const settingsRoutes     = require('./routes/settings.routes')
 
 const app    = express()
 const server = http.createServer(app)
+
+// Initialize Sentry FIRST (before other middleware)
+initSentry(app)
 
 // Socket.IO
 initSocket(server)
@@ -62,7 +69,39 @@ app.use(passport.initialize())
 // Static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-// â”€â”€â”€ ROUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Setup Swagger API Documentation
+setupSwagger(app)
+
+// ─── ROUTES ────────────────────────────────────────────────────────
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     tags:
+ *       - Health
+ *     summary: API health check
+ *     description: Returns the API status and version
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 app:
+ *                   type: string
+ *                   example: AutoMedic API
+ *                 version:
+ *                   type: string
+ *                   example: 2.0.0
+ *                 time:
+ *                   type: string
+ *                   format: date-time
+ */
 app.use('/api/auth',          authRoutes)
 app.use('/api/users',         usersRoutes)
 app.use('/api/customers',     customerRoutes)
@@ -75,31 +114,34 @@ app.use('/api/services',      serviceRoutes)
 app.use('/api/products',      productRoutes)
 app.use('/api/reports',       reportRoutes)
 app.use('/api/notifications', notificationRoutes)
-app.use('/api/invoices',     invoiceRoutes)
-app.use('/api/upload',       uploadRoutes)
-app.use('/api/checkout',    checkoutRoutes)
-app.use('/api/inventory',  inventoryRoutes)
+app.use('/api/invoices',      invoiceRoutes)
+app.use('/api/upload',        uploadRoutes)
+app.use('/api/checkout',      checkoutRoutes)
+app.use('/api/inventory',     inventoryRoutes)
+app.use('/api/settings',      settingsRoutes)
 
-// â”€â”€â”€ HEALTH CHECK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HEALTH CHECK ───────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', app: 'AutoMedic API', version: '2.0.0', time: new Date() })
 })
 
-// â”€â”€â”€ ERROR HANDLER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SENTRY ERROR HANDLER (must be before other error handlers) ────
+app.use(getSentryErrorHandler())
+
+// ─── ERROR HANDLER ──────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error('âŒ', err.stack)
+  console.error('❌', err.stack)
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal server error',
   })
 })
 
-// â”€â”€â”€ START â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── START ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000
 server.listen(PORT, () => {
   console.log('')
-  console.log(`ðŸš€ AutoMedic API running on http://localhost:${PORT}`)
-  console.log(`ðŸ“¦ Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`🚀 AutoMedic API running on http://localhost:${PORT}`)
+  console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`)
   console.log('')
 })
-

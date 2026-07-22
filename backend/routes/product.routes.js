@@ -6,6 +6,37 @@ const { authenticate, authorize } = require('../middleware/auth')
 const { createProductRules } = require('../middleware/validate')
 const inventorySvc = require('../services/inventory.service')
 
+/**
+ * @swagger
+ * /api/products:
+ *   get:
+ *     tags:
+ *       - Products
+ *     summary: Get all active products
+ *     description: Retrieve list of active products, optionally filtered by category
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter products by category
+ *         example: lubricants
+ *     responses:
+ *       200:
+ *         description: List of products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ */
 router.get('/', async (req, res) => {
   try {
     const { category } = req.query
@@ -17,14 +48,72 @@ router.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
 
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     tags:
+ *       - Products
+ *     summary: Create a new product (Admin only)
+ *     description: Add a new product to the inventory
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Engine Oil 5W-30
+ *               description:
+ *                 type: string
+ *                 example: High-quality synthetic motor oil
+ *               category:
+ *                 type: string
+ *                 example: lubricants
+ *               cost_price:
+ *                 type: number
+ *                 example: 8000
+ *               price:
+ *                 type: number
+ *                 example: 12000
+ *               stock_quantity:
+ *                 type: integer
+ *                 example: 25
+ *               image_url:
+ *                 type: string
+ *                 example: /uploads/products/oil.jpg
+ *     responses:
+ *       201:
+ *         description: Product created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ */
 router.post('/', authenticate, authorize('admin'), createProductRules, async (req, res) => {
   try {
-    const { name, description, category, cost_price, price, stock_quantity } = req.body
+    const { name, description, category, cost_price, price, stock_quantity, image_url } = req.body
     const id  = crypto.randomBytes(16).toString('hex')
     const qty = stock_quantity ? Number(stock_quantity) : 0
     await db.query(
-      'INSERT INTO products (id,name,description,category,cost_price,price,stock_quantity) VALUES (?,?,?,?,?,?,?)',
-      [id, name, description||null, category||null, cost_price!=null?Number(cost_price):null, price||null, qty]
+      'INSERT INTO products (id,name,description,category,cost_price,price,stock_quantity,image_url) VALUES (?,?,?,?,?,?,?,?)',
+      [id, name, description||null, category||null, cost_price!=null?Number(cost_price):null, price||null, qty, image_url||null]
     )
     // Log initial stock-in if starting with stock
     if (qty > 0) {
@@ -41,7 +130,7 @@ router.post('/', authenticate, authorize('admin'), createProductRules, async (re
 
 router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { name, description, category, cost_price, price, stock_quantity, is_active } = req.body
+    const { name, description, category, cost_price, price, stock_quantity, image_url, is_active } = req.body
     const r = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const p = r.rows[0]
@@ -56,8 +145,10 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
       })
     }
 
+    const finalImageUrl = image_url !== undefined ? image_url : p.image_url
+
     await db.query(
-      'UPDATE products SET name=?,description=?,category=?,cost_price=?,price=?,stock_quantity=?,is_active=? WHERE id=?',
+      'UPDATE products SET name=?,description=?,category=?,cost_price=?,price=?,stock_quantity=?,image_url=?,is_active=? WHERE id=?',
       [
         name||p.name,
         description!==undefined?description:p.description,
@@ -65,13 +156,17 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
         cost_price!=null?Number(cost_price):p.cost_price,
         price||p.price,
         newQty,
+        finalImageUrl,
         is_active!==undefined?(is_active?1:0):p.is_active,
         req.params.id
       ]
     )
+    
     const updated = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
     res.json({ success:true, data:updated.rows[0] })
-  } catch (err) { res.status(400).json({ success:false, message:err.message }) }
+  } catch (err) {
+    res.status(400).json({ success:false, message:err.message })
+  }
 })
 
 module.exports = router

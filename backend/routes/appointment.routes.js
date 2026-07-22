@@ -23,6 +23,36 @@ async function notify(userId, title, message, type = 'info') {
 
 const genTracking = () => 'AC-' + Math.floor(1000 + Math.random() * 9000)
 
+/**
+ * @swagger
+ * /api/appointments:
+ *   get:
+ *     tags:
+ *       - Appointments
+ *     summary: Get all appointments (Admin only)
+ *     description: Retrieve all appointments with customer, vehicle, service, and technician details
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Appointment'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ */
 // GET all (admin)
 router.get('/', authenticate, authorize('admin'), async (req, res) => {
   try {
@@ -41,6 +71,34 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
 
+/**
+ * @swagger
+ * /api/appointments/my:
+ *   get:
+ *     tags:
+ *       - Appointments
+ *     summary: Get my appointments (Customer only)
+ *     description: Retrieve all appointments for the authenticated customer
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of customer's appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Appointment'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
 // GET my appointments (customer)
 router.get('/my', authenticate, authorize('customer'), async (req, res) => {
   try {
@@ -119,6 +177,46 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
           'INSERT INTO job_cards (id,appointment_id,technician_id,progress,status) VALUES (?,?,?,0,?)',
           [jcId, req.params.id, technician_id, 'pending']
         )
+        
+        // Notify technician about new job assignment
+        try {
+          const apptInfo = await db.query(`
+            SELECT a.tracking_number, v.make, v.model, v.registration_number, s.name as service_name
+            FROM appointments a
+            LEFT JOIN vehicles v ON a.vehicle_id = v.id
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE a.id = ?
+          `, [req.params.id])
+          
+          if (apptInfo.rows.length) {
+            const vehicle = apptInfo.rows[0].make && apptInfo.rows[0].model
+              ? `${apptInfo.rows[0].make} ${apptInfo.rows[0].model} (${apptInfo.rows[0].registration_number})`
+              : apptInfo.rows[0].registration_number
+            const service = apptInfo.rows[0].service_name || 'Repair Service'
+            
+            // In-app notification
+            await notify(
+              technician_id,
+              '🔧 New Job Card Assigned',
+              `You have been assigned a new job: ${service} for ${vehicle}. Ref: ${apptInfo.rows[0].tracking_number}`,
+              'info'
+            )
+            
+            // Email notification
+            const techRow = await db.query('SELECT name, email FROM users WHERE id = ?', [technician_id])
+            if (techRow.rows.length && techRow.rows[0].email) {
+              emailService.sendJobAssigned({
+                name:     techRow.rows[0].name,
+                email:    techRow.rows[0].email,
+                tracking: apptInfo.rows[0].tracking_number,
+                vehicle:  vehicle,
+                service:  service,
+              }).catch(() => {})
+            }
+          }
+        } catch (e) {
+          console.error('Failed to send technician notification:', e)
+        }
       }
 
       // Auto-create inspection record so technician can start immediately

@@ -20,6 +20,61 @@ const sign = (user) => jwt.sign(
   { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
 )
 
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Register a new user account
+ *     description: Create a new customer account with email and password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: John Doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
+ *               phone:
+ *                 type: string
+ *                 example: +265999123456
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: SecurePass123
+ *                 description: Minimum 8 characters, at least 1 number and 1 letter
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *       409:
+ *         description: Email already registered
+ *       400:
+ *         description: Missing required fields or validation error
+ */
 // REGISTER
 router.post('/register', registerRules, async (req, res) => {
   try {
@@ -46,6 +101,53 @@ router.post('/register', registerRules, async (req, res) => {
   }
 })
 
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Login to user account
+ *     description: Authenticate with email and password to receive JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: john@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: SecurePass123
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *       401:
+ *         description: Invalid credentials
+ *       400:
+ *         description: Missing email or password
+ */
 // LOGIN
 router.post('/login', loginRules, async (req, res) => {
   try {
@@ -117,11 +219,18 @@ router.post('/firebase-sync', async (req, res) => {
     try {
       decoded = await verifyIdToken(idToken)
     } catch (verifyErr) {
+      console.error('Firebase token verification failed:', verifyErr.message)
       return res.status(401).json({ success: false, message: 'Invalid or expired Firebase token' })
     }
 
     const uid    = decoded.uid || decoded.sub
     const email  = decoded.email
+    
+    // Validate that we have at least uid and email
+    if (!uid || !email) {
+      return res.status(400).json({ success: false, message: 'Invalid token payload - missing uid or email' })
+    }
+    
     const uname  = displayName || decoded.name || decoded.email?.split('@')[0]
     const avatar = decoded.picture || null
 
@@ -144,6 +253,9 @@ router.post('/firebase-sync', async (req, res) => {
         updateFields.splice(3, 0, hash) // insert hash before user.id
       }
       await db.query(updateSql, updateFields)
+      // Re-fetch user to get updated data
+      result = await db.query('SELECT * FROM users WHERE id = ?', [user.id])
+      user = result.rows[0]
     } else {
       // New user
       const id = require('crypto').randomBytes(16).toString('hex')
@@ -163,13 +275,15 @@ router.post('/firebase-sync', async (req, res) => {
     // Update phone if provided
     if (phone && !user.phone) {
       await db.query('UPDATE users SET phone=? WHERE id=?', [phone, user.id])
+      result = await db.query('SELECT * FROM users WHERE id = ?', [user.id])
+      user = result.rows[0]
     }
 
     const { password_hash, ...safe } = user
     const token = sign({ ...safe, id: user.id })
     res.json({ success:true, user:safe, token })
   } catch (err) {
-    console.error('Firebase sync error:', err.message)
+    console.error('Firebase sync error:', err.message, err.stack)
     res.status(500).json({ success:false, message:err.message })
   }
 })
