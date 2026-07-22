@@ -11,6 +11,11 @@
     line-height: 1.6;
   }
   h1, h2, h3 { font-family: 'Playfair Display', serif; }
+  
+  /* Prevent auto-zoom on mobile when focusing inputs */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
 }
 
 @layer utilities {
@@ -18,6 +23,20 @@
 }
 
 /* Animations */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px) scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -27,10 +46,31 @@
   70% { box-shadow: 0 0 0 10px rgba(184,134,11,0); }
   100% { box-shadow: 0 0 0 0 rgba(184,134,11,0); }
 }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .animate-float { animation: float 3s ease-in-out infinite; }
 .animate-pulse-ring { animation: pulse-ring 1.5s infinite; }
+.animate-slide-in { animation: slideIn 0.5s ease-out; }
+.animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
 ::-webkit-scrollbar-thumb { background: #B8860B; border-radius: 3px; }
+
+/* Limit select dropdown height (browser-dependent) */
+select {
+  max-height: 300px;
+}
+
+/* For browsers that support it, limit the option list size */
+select[size] {
+  max-height: 300px;
+  overflow-y: auto;
+}

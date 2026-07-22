@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { FileText, X, Printer, CheckCircle, Clock, AlertCircle, Search, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FileText, X, Printer, CheckCircle, Clock, AlertCircle, AlertTriangle, Search, DollarSign, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../../services/api'
+import { useGarageSettings } from '../../hooks/useGarageSettings'
 import Pagination from '../../components/ui/Pagination'
 
 const PAGE_SIZE = 15
@@ -21,6 +22,7 @@ const STATUS_STYLES = {
 
 // ── INVOICE DETAIL / PRINT MODAL ─────────────────────────────────────────────
 function InvoiceModal({ invoice, onClose, onStatusChange }) {
+  const { settings } = useGarageSettings()
   const [updating, setUpdating] = useState(false)
   const [toast, setToast]       = useState('')
 
@@ -40,10 +42,10 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
     try {
       await api.patch(`/invoices/${invoice.id}/status`, { status })
       onStatusChange(invoice.id, status)
-      setToast(`✓ Marked as ${status}`)
+      setToast(`Invoice marked as ${status}`)
       setTimeout(() => setToast(''), 2500)
     } catch (err) {
-      setToast('✕ ' + (err.response?.data?.message || err.message))
+      setToast('Error: ' + (err.response?.data?.message || err.message))
       setTimeout(() => setToast(''), 3000)
     } finally { setUpdating(false) }
   }
@@ -72,18 +74,18 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
     <div class="hdr">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="logo">AM</div>
-        <div><strong style="font-size:18px">AutoMedic</strong><br/><span style="font-size:11px;color:#888">Area 47, Lilongwe, Malawi · +265 999 000 000</span></div>
+        <div><strong style="font-size:18px">${settings.garage_name}</strong><br/><span style="font-size:11px;color:#888">${settings.address} · ${settings.phone}</span></div>
       </div>
       <div style="text-align:right">
         <div style="font-size:24px;font-weight:900">INVOICE</div>
         <div style="color:#B8860B;font-weight:700;font-size:15px;margin:4px 0">#${invoice.invoice_number}</div>
         <div style="font-size:11px;color:#888">${new Date(invoice.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
-        <span style="display:inline-block;margin-top:6px;padding:3px 12px;border-radius:50px;font-size:11px;font-weight:700;background:${isPaid?'#e8f5e9':'#fff3e0'};color:${isPaid?'#2e7d32':'#e65100'}">${isPaid?'✓ PAID':'UNPAID'}</span>
+        <span style="display:inline-block;margin-top:6px;padding:3px 12px;border-radius:50px;font-size:11px;font-weight:700;background:${isPaid?'#e8f5e9':'#fff3e0'};color:${isPaid?'#2e7d32':'#e65100'}">${isPaid?'PAID':'UNPAID'}</span>
       </div>
     </div>
     <div class="g2">
       <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:8px">From</div>
-        <strong>AutoMedic Garage</strong><br/>Area 47, Lilongwe, Malawi<br/>+265 999 000 000<br/>info@automedic.mw</div>
+        <strong>${settings.garage_name}</strong><br/>${settings.address}<br/>${settings.phone}<br/>${settings.email}</div>
       <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:8px">Bill To</div>
         <strong>${invoice.customer_name||'Customer'}</strong><br/>${invoice.customer_phone||''}</div>
     </div>
@@ -105,26 +107,26 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-10 p-4 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-4 sm:pt-10 p-2 sm:p-4 backdrop-blur-sm overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl mb-8" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#B8860B]/10 rounded-xl flex items-center justify-center">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-9 h-9 bg-[#B8860B]/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <FileText size={16} className="text-[#B8860B]" />
             </div>
-            <div>
-              <p className="font-bold text-[#1A1A2E] text-sm">#{invoice.invoice_number}</p>
-              <p className="text-xs text-gray-400">{invoice.customer_name} · {invoice.tracking_number}</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-[#1A1A2E] text-sm truncate">#{invoice.invoice_number}</p>
+              <p className="text-xs text-gray-400 truncate">{invoice.customer_name} · {invoice.tracking_number}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold px-3 py-1.5 rounded-full capitalize ${STATUS_STYLES[invoice.status] || STATUS_STYLES.unpaid}`}>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className={`text-[10px] font-bold px-2 sm:px-3 py-1.5 rounded-full capitalize ${STATUS_STYLES[invoice.status] || STATUS_STYLES.unpaid}`}>
               {invoice.status}
             </span>
             <button onClick={handlePrint}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#1A1A2E] text-white text-xs font-semibold rounded-full hover:bg-black transition-colors">
-              <Printer size={12} /> Print
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#1A1A2E] text-white text-xs font-semibold rounded-full hover:bg-black transition-colors">
+              <Printer size={12} /> <span className="hidden sm:inline">Print</span>
             </button>
             <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200">
               <X size={14} />
@@ -133,12 +135,12 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
         </div>
 
         {/* Body */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* From / To */}
           <div className="flex justify-between items-start mb-6 pb-5 border-b-2 border-[#1A1A2E]">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-[#B8860B] rounded-xl flex items-center justify-center text-white font-black text-sm">AM</div>
-              <div><p className="font-black text-[#1A1A2E]">AutoMedic</p><p className="text-xs text-gray-400">Area 47, Lilongwe, Malawi</p></div>
+              <div><p className="font-black text-[#1A1A2E]">{settings.garage_name}</p><p className="text-xs text-gray-400">{settings.address}</p></div>
             </div>
             <div className="text-right">
               <p className="text-2xl font-black text-[#1A1A2E]">INVOICE</p>
@@ -147,11 +149,11 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-5">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">From</p>
-              <p className="font-bold text-[#1A1A2E] text-sm">AutoMedic Garage</p>
-              <p className="text-xs text-gray-500 mt-1 leading-relaxed">Area 47, Lilongwe, Malawi<br/>+265 999 000 000</p>
+              <p className="font-bold text-[#1A1A2E] text-sm">{settings.garage_name}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{settings.address}<br/>{settings.phone}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Bill To</p>
@@ -160,38 +162,42 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-xl px-4 py-3 mb-5 text-xs text-gray-600 flex gap-4">
-            <span><strong>Vehicle:</strong> {invoice.make} {invoice.model}</span>
-            <span><strong>Reg:</strong> {invoice.registration_number}</span>
-            <span><strong>Booking:</strong> {invoice.tracking_number}</span>
+          <div className="bg-gray-50 rounded-xl px-4 py-3 mb-5 text-xs text-gray-600">
+            <div className="flex flex-wrap gap-2 sm:gap-4">
+              <span><strong>Vehicle:</strong> {invoice.make} {invoice.model}</span>
+              <span><strong>Reg:</strong> {invoice.registration_number}</span>
+              <span><strong>Booking:</strong> {invoice.tracking_number}</span>
+            </div>
           </div>
 
           {/* Line items */}
-          <table className="w-full text-sm mb-5">
-            <thead>
-              <tr className="bg-gray-50">
-                {['Description','Qty','Unit Price','Total'].map((h,i) => (
-                  <th key={h} className={`px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 ${i > 1 ? 'text-right' : ''}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((item, i) => {
-                const lt = Number(item.qty || 1) * Number(item.unit_price || 0)
-                return (
-                  <tr key={i} className="border-b border-gray-50">
-                    <td className="px-3 py-3 text-[#1A1A2E]">{item.description}</td>
-                    <td className="px-3 py-3 text-gray-500 text-center">{item.qty || 1}</td>
-                    <td className="px-3 py-3 text-gray-500 text-right">MK {Number(item.unit_price || 0).toLocaleString()}</td>
-                    <td className="px-3 py-3 font-bold text-[#1A1A2E] text-right">MK {lt.toLocaleString()}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto mb-5">
+            <table className="w-full text-sm min-w-[500px]">
+              <thead>
+                <tr className="bg-gray-50">
+                  {['Description','Qty','Unit Price','Total'].map((h,i) => (
+                    <th key={h} className={`px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 ${i > 1 ? 'text-right' : ''}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, i) => {
+                  const lt = Number(item.qty || 1) * Number(item.unit_price || 0)
+                  return (
+                    <tr key={i} className="border-b border-gray-50">
+                      <td className="px-3 py-3 text-[#1A1A2E]">{item.description}</td>
+                      <td className="px-3 py-3 text-gray-500 text-center">{item.qty || 1}</td>
+                      <td className="px-3 py-3 text-gray-500 text-right">MK {Number(item.unit_price || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3 font-bold text-[#1A1A2E] text-right">MK {lt.toLocaleString()}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {/* Totals */}
-          <div className="ml-auto w-60 space-y-2 mb-6">
+          <div className="ml-auto w-full sm:w-60 space-y-2 mb-6">
             <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="font-semibold">MK {subtotal.toLocaleString()}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">VAT (16.5%)</span><span className="font-semibold">MK {tax.toLocaleString()}</span></div>
             <div className="flex justify-between text-base font-black border-t-2 border-[#1A1A2E] pt-2.5">
@@ -201,7 +207,8 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
 
           {/* Payment actions */}
           {toast && (
-            <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold ${toast.startsWith('✓') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${toast.includes('marked') || toast.includes('Invoice') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {toast.includes('marked') || toast.includes('Invoice') ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
               {toast}
             </div>
           )}
@@ -218,7 +225,7 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
               <div className="flex gap-2">
                 <button onClick={() => markAs('paid')} disabled={updating}
                   className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white text-sm font-bold rounded-full hover:bg-green-700 transition-colors disabled:opacity-60">
-                  <CheckCircle size={14} /> {updating ? 'Updating...' : 'Mark as Paid ✓'}
+                  <CheckCircle size={14} /> {updating ? 'Updating...' : 'Mark as Paid'}
                 </button>
                 {invoice.status !== 'partial' && (
                   <button onClick={() => markAs('partial')} disabled={updating}
@@ -259,6 +266,7 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
 
 // ── MAIN INVOICES PAGE ────────────────────────────────────────────────────────
 export default function InvoicesManagement() {
+  const { settings } = useGarageSettings()
   const [invoices, setInvoices]       = useState([])
   const [loading,  setLoading]        = useState(true)
   const [selected, setSelected]       = useState(null)
@@ -281,7 +289,7 @@ export default function InvoicesManagement() {
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: newStatus } : inv))
     // Also update the modal's invoice object
     setSelected(prev => prev && prev.id === id ? { ...prev, status: newStatus } : prev)
-    showToast(`✓ Invoice ${newStatus}`)
+    showToast(`Invoice ${newStatus}`)
   }
 
   const filtered = invoices.filter(inv => {
@@ -318,15 +326,15 @@ export default function InvoicesManagement() {
       {selected && <InvoiceModal invoice={selected} onClose={() => setSelected(null)} onStatusChange={handleStatusChange} />}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="font-display text-2xl text-[#1A1A2E]">Invoices</h1>
+          <h1 className="font-display text-xl sm:text-2xl text-[#1A1A2E]">Invoices</h1>
           <p className="text-sm text-gray-400 mt-0.5">Track payments and confirm receipts</p>
         </div>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {[
           [CheckCircle, fmt(totalRevenue),  'Total Collected',    'bg-green-50 text-green-600',  'paid'],
           [AlertCircle, unpaidCount,        'Unpaid Invoices',    'bg-red-50 text-red-500',       'unpaid'],
@@ -334,23 +342,23 @@ export default function InvoicesManagement() {
           [Clock,       partialCount,       'Partial Payments',   'bg-amber-50 text-amber-600',   'partial'],
         ].map(([Icon, val, label, cls, f], i) => (
           <button key={i} onClick={() => setFilter(f)}
-            className={`bg-white rounded-2xl p-5 shadow-sm border flex items-center gap-3 text-left transition-all hover:shadow-md hover:-translate-y-0.5
+            className={`bg-white rounded-2xl p-4 sm:p-5 shadow-sm border flex items-center gap-2 sm:gap-3 text-left transition-all hover:shadow-md hover:-translate-y-0.5
               ${filter === f ? 'border-[#B8860B]/40 shadow-md' : 'border-gray-50'}`}>
-            <div className={`w-11 h-11 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}><Icon size={20} /></div>
-            <div>
-              <div className="text-xl font-black text-[#1A1A2E] leading-none">{val}</div>
-              <div className="text-xs text-gray-400 mt-1">{label}</div>
+            <div className={`w-9 h-9 sm:w-11 sm:h-11 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}><Icon size={16} /></div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg sm:text-xl font-black text-[#1A1A2E] leading-none truncate">{val}</div>
+              <div className="text-xs text-gray-400 mt-1 truncate">{label}</div>
             </div>
           </button>
         ))}
       </div>
 
       {/* Filters + search */}
-      <div className="flex gap-3 mb-5 items-center flex-wrap">
-        <div className="flex gap-1.5 bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row gap-3 mb-5 items-stretch sm:items-center">
+        <div className="flex gap-1.5 bg-white rounded-xl p-1 shadow-sm border border-gray-100 overflow-x-auto">
           {['all','unpaid','partial','paid'].map(f => (
             <button key={f} onClick={() => setFilterAndReset(f)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all whitespace-nowrap
                 ${filter === f ? 'bg-[#B8860B] text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
               {f === 'all' ? 'All' : f}
               <span className="ml-1.5 opacity-70">
@@ -359,10 +367,10 @@ export default function InvoicesManagement() {
             </button>
           ))}
         </div>
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 max-w-full sm:max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearchAndReset(e.target.value)}
-            placeholder="Search invoice, customer, tracking..."
+            placeholder="Search invoice, customer..."
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white" />
         </div>
       </div>
@@ -383,7 +391,56 @@ export default function InvoicesManagement() {
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <table className="w-full text-sm">
+        {/* Mobile card view for small screens */}
+        <div className="block lg:hidden">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-gray-400">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
+                Loading invoices...
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <FileText size={32} className="text-gray-200" />
+                <p className="text-gray-400 text-sm">No invoices found</p>
+              </div>
+            </div>
+          ) : paginated.map((inv) => (
+            <div key={inv.id}
+              className={`border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors
+                ${inv.status === 'unpaid' ? 'bg-red-50/20' : ''}`}
+              onClick={() => setSelected(inv)}>
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <span className="font-bold text-[#B8860B] text-sm">#{inv.invoice_number}</span>
+                  <p className="font-medium text-[#1A1A2E] text-sm mt-1">{inv.customer_name}</p>
+                </div>
+                <div className="text-right">
+                  <span className="font-black text-[#1A1A2E] text-base">{fmt(inv.total)}</span>
+                  <span className={`block text-[10px] font-bold px-2.5 py-1 rounded-full capitalize mt-1 ${STATUS_STYLES[inv.status] || STATUS_STYLES.unpaid}`}>
+                    {inv.status}
+                  </span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 space-y-1">
+                <div>{inv.make} {inv.model} • {inv.registration_number}</div>
+                <div className="font-mono text-[#B8860B] font-bold">{inv.tracking_number}</div>
+                <div>{new Date(inv.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>
+              </div>
+              {inv.status === 'unpaid' && (
+                <p className="text-[10px] text-red-500 font-semibold mt-2 flex items-center gap-1">
+                  <AlertTriangle size={10} />
+                  Awaiting payment
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table view for large screens */}
+        <table className="w-full text-sm hidden lg:table">
           <thead>
             <tr className="bg-gray-50/80">
               {['Invoice #','Customer','Vehicle','Booking','Amount','Status','Date','Action'].map(h => (
@@ -423,7 +480,10 @@ export default function InvoicesManagement() {
                 <td className="px-4 py-3.5">
                   <span className="font-black text-[#1A1A2E] text-base">{fmt(inv.total)}</span>
                   {inv.status === 'unpaid' && (
-                    <p className="text-[10px] text-red-500 font-semibold mt-0.5">⚠ Awaiting payment</p>
+                    <p className="text-[10px] text-red-500 font-semibold mt-0.5 flex items-center gap-1">
+                      <AlertTriangle size={10} />
+                      Awaiting payment
+                    </p>
                   )}
                 </td>
                 <td className="px-4 py-3.5">
@@ -446,10 +506,11 @@ export default function InvoicesManagement() {
                           try {
                             await api.patch(`/invoices/${inv.id}/status`, { status: 'paid' })
                             handleStatusChange(inv.id, 'paid')
-                          } catch { showToast('✕ Failed to update') }
+                          } catch { showToast('Failed to update') }
                         }}
-                        className="text-[10px] font-semibold text-green-600 border border-green-200 px-2.5 py-1.5 rounded-lg hover:bg-green-50 transition-colors whitespace-nowrap">
-                        ✓ Paid
+                        className="text-[10px] font-semibold text-green-600 border border-green-200 px-2.5 py-1.5 rounded-lg hover:bg-green-50 transition-colors whitespace-nowrap flex items-center gap-1">
+                        <CheckCircle size={10} />
+                        Paid
                       </button>
                     )}
                   </div>

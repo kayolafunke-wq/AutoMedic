@@ -14,5 +14,6 @@ uploads/repair-photos/*
 backend/automedic.db
 backend/automedic.db-shm
 backend/automedic.db-wal
+backend/backups/
 frontend/.env
 backend/.env

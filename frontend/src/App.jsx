@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { GarageSettingsProvider } from './context/GarageSettingsContext'
 import { useAuth } from './context/AuthContext'
 import ScrollToTop from './components/ScrollToTop'
 
@@ -46,35 +47,37 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ScrollToTop />
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/services" element={<ServicesPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/track" element={<TrackingPage />} />
-          <Route path="/track/:ref" element={<TrackingPage />} />
+        <GarageSettingsProvider>
+          <ScrollToTop />
+          <Routes>
+            {/* Public */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/track" element={<TrackingPage />} />
+            <Route path="/track/:ref" element={<TrackingPage />} />
 
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          {/* Protected - Customer */}
-          <Route path="/booking" element={<Protected roles={['customer']}><BookingPage /></Protected>} />
-          <Route path="/dashboard" element={<Protected roles={['customer']}><CustomerDashboard /></Protected>} />
-          <Route path="/inspection/:id" element={<Protected roles={['customer']}><InspectionPage /></Protected>} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            {/* Protected - Customer */}
+            <Route path="/booking" element={<Protected roles={['customer']}><BookingPage /></Protected>} />
+            <Route path="/dashboard" element={<Protected roles={['customer']}><CustomerDashboard /></Protected>} />
+            <Route path="/inspection/:id" element={<Protected roles={['customer']}><InspectionPage /></Protected>} />
 
-          {/* Protected - Technician */}
-          <Route path="/technician" element={<Protected roles={['technician']}><TechnicianDashboard /></Protected>} />
+            {/* Protected - Technician */}
+            <Route path="/technician" element={<Protected roles={['technician']}><TechnicianDashboard /></Protected>} />
 
-          {/* Protected - Stock Keeper */}
-          <Route path="/stockkeeper/*" element={<Protected roles={['stockkeeper']}><StockKeeperDashboard /></Protected>} />
+            {/* Protected - Stock Keeper */}
+            <Route path="/stockkeeper/*" element={<Protected roles={['stockkeeper']}><StockKeeperDashboard /></Protected>} />
 
-          {/* Protected - Admin */}
-          <Route path="/admin/*" element={<Protected roles={['admin']}><AdminDashboard /></Protected>} />
+            {/* Protected - Admin */}
+            <Route path="/admin/*" element={<Protected roles={['admin']}><AdminDashboard /></Protected>} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </GarageSettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   )

@@ -2,7 +2,8 @@
 import { useParams } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
-import { CheckCircle, Circle, ArrowRight, Search, MessageCircle, User, Wrench, Calendar } from 'lucide-react'
+import { CheckCircle, Circle, ArrowRight, Search, User, Wrench, Calendar, Car } from 'lucide-react'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import api from '../services/api'
 
 const STEPS = [
@@ -87,7 +88,7 @@ export default function TrackingPage() {
                 <div className="bg-white rounded-2xl p-6 shadow-sm">
                   <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-4 md:gap-5 items-center">
                     <div className="h-32 bg-gradient-to-br from-dark to-dark-2 rounded-xl flex items-center justify-center">
-                      <span className="text-4xl">🚗</span>
+                      <Car size={48} className="text-white" />
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 font-semibold mb-1">Tracking #: <span className="text-primary">{data.tracking_number}</span></p>
@@ -96,8 +97,10 @@ export default function TrackingPage() {
                         {data.job_status || data.status}
                       </span>
                       <div className="flex flex-wrap gap-4 mt-3">
-                        {[['👤', data.customer_name], ['🔧', data.technician_name], ['📅', data.preferred_date]].filter(([,v])=>v).map(([icon, val], i) => (
-                          <span key={i} className="flex items-center gap-1 text-xs text-gray-500">{icon} {val}</span>
+                        {[['customer', User, data.customer_name], ['tech', Wrench, data.technician_name], ['date', Calendar, data.preferred_date]].filter(([,, v]) => v).map(([key, Icon, val], i) => (
+                          <span key={i} className="flex items-center gap-1 text-xs text-gray-500">
+                            <Icon size={12} /> {val}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -147,9 +150,9 @@ export default function TrackingPage() {
                 <div className="bg-white rounded-2xl p-5 shadow-sm">
                   <h4 className="font-bold text-dark text-sm mb-2">Need an update?</h4>
                   <p className="text-xs text-gray-500 mb-3">Message us directly on WhatsApp.</p>
-                  <a href={`https://wa.me/265999000000?text=Hi AutoMedic, please update me on ${data.tracking_number}`} target="_blank" rel="noreferrer"
+                  <a href={`https://wa.me/265994040900?text=Hi AutoMedic, please update me on ${data.tracking_number}`} target="_blank" rel="noreferrer"
                     className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-500 text-white font-semibold text-sm rounded-xl hover:bg-green-600 transition-colors">
-                    <MessageCircle size={15} /> WhatsApp Us
+                    <WhatsAppIcon size={16} /> WhatsApp Us
                   </a>
                 </div>
               </div>

@@ -1,0 +1,11 @@
+# Railway Configuration for AutoMedic
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "echo 'Building AutoMedic...'"
+
+[deploy]
+numReplicas = 1
+sleepApplication = false
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

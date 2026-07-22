@@ -4,7 +4,7 @@ import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import {
   Clock, ArrowRight, Wrench, Car, Zap, Settings, Battery,
-  Wind, AlertCircle, Search, X, ChevronDown, CheckCircle,
+  Wind, AlertCircle, Search, X, ChevronDown, CheckCircle, CalendarCheck, Shield,
 } from 'lucide-react'
 import api from '../services/api'
 
@@ -234,12 +234,30 @@ export default function ServicesPage() {
 
                       {/* Card top image */}
                       <div className={`h-44 bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center relative overflow-hidden`}>
-                        {/* Glow */}
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(184,134,11,0.15),transparent_70%)]" />
-                        {/* Icon */}
-                        <div className="w-18 h-18 w-[72px] h-[72px] rounded-2xl bg-white/8 border border-white/15 flex items-center justify-center group-hover:scale-110 group-hover:border-primary/40 transition-all">
-                          <Icon size={34} className="text-primary drop-shadow-[0_0_14px_rgba(184,134,11,0.6)]" />
-                        </div>
+                        {svc.image_url ? (
+                          <>
+                            <img 
+                              src={svc.image_url} 
+                              alt={svc.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to icon if image fails to load
+                                e.target.style.display = 'none'
+                              }}
+                            />
+                            {/* Gradient overlay for text readability */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                          </>
+                        ) : (
+                          <>
+                            {/* Glow */}
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(184,134,11,0.15),transparent_70%)]" />
+                            {/* Icon */}
+                            <div className="w-18 h-18 w-[72px] h-[72px] rounded-2xl bg-white/8 border border-white/15 flex items-center justify-center group-hover:scale-110 group-hover:border-primary/40 transition-all">
+                              <Icon size={34} className="text-primary drop-shadow-[0_0_14px_rgba(184,134,11,0.6)]" />
+                            </div>
+                          </>
+                        )}
 
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex gap-1.5">
@@ -331,7 +349,19 @@ export default function ServicesPage() {
 
       {/* ── CTA ── */}
       <section className="relative py-20 bg-dark text-center overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.15),transparent_70%)]" />
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="/cta-bg.jpg" 
+            alt="Automotive workshop" 
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-dark/90" />
+          {/* Radial gradient overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.15),transparent_70%)]" />
+        </div>
         <div className="relative z-10 max-w-lg mx-auto px-6">
           <h2 className="font-display text-3xl text-white mb-3">Not Sure What You Need?</h2>
           <p className="text-white/70 mb-6">Book a diagnostic and let our certified technicians assess your vehicle for you.</p>

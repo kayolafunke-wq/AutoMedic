@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import {
   Car, User, ClipboardCheck, Camera, Package, PenLine,
   CheckCircle, AlertTriangle, Printer, Fuel, ShieldAlert,
-  Calendar, Eye
+  Calendar, Eye, X
 } from 'lucide-react'
 
 /* ─── READ-ONLY DAMAGE MAP ─────────────────────────────────────── */
@@ -46,7 +46,7 @@ function ReadOnlyDamageMap({ damages }) {
                 ${marked
                   ? 'bg-red-500 border-red-500 text-white shadow-red-200 animate-pulse'
                   : 'bg-white/90 border-gray-200 text-gray-400'}`}>
-              {marked ? '⚠️ ' : ''}{label}
+              {marked ? <AlertTriangle size={12} className="inline mr-1" /> : null}{label}
             </div>
           )
         })}
@@ -86,7 +86,7 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
   // Checklist Categories
   const categories = [
     {
-      title: '🚗 Exterior',
+      title: 'Exterior',
       items: ['Scratches', 'Dents', 'Cracked Windshield', 'Broken Lights', 'Tyre Condition']
     },
     {
@@ -94,11 +94,11 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
       items: ['Seat Condition', 'Dashboard Damage', 'Radio/Infotainment', 'Air Conditioning', 'Seat Belts']
     },
     {
-      title: '⚙️ Mechanical',
+      title: 'Mechanical',
       items: ['Engine Noise', 'Oil Leak', 'Battery Status', 'Brake Feel', 'Warning Lights']
     },
     {
-      title: '🔧 Under Bonnet',
+      title: 'Under Bonnet',
       items: ['Coolant Level', 'Engine Oil Level', 'Brake Fluid', 'Air Filter', 'Timing Belt (visual)']
     }
   ]
@@ -362,7 +362,7 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
                     onClick={() => setSelectedPhoto(null)}
                     className="absolute -top-10 right-0 text-white hover:text-[#B8860B] font-bold text-sm bg-black/40 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all"
                   >
-                    ✕ Close
+                    <X size={16} /> Close
                   </button>
                 </div>
               </div>
@@ -389,7 +389,7 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
                             ? 'bg-green-50/80 border-green-200 text-green-700'
                             : 'bg-gray-50/30 border-gray-100 text-gray-300 line-through'}`}
                       >
-                        <span className="text-sm">{checked ? '✓' : '—'}</span>
+                        <span className="text-sm">{checked ? <CheckCircle size={14} className="text-green-500" /> : '—'}</span>
                         <span>{name}</span>
                       </div>
                     ))}
@@ -419,8 +419,11 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
                   )}
                 </div>
 
-                <div className="bg-blue-50/50 border border-blue-100/50 rounded-xl p-4 mt-6 text-[11px] text-blue-600 leading-relaxed">
-                  ⚠️ <strong>Disclaimer:</strong> While AutoMedic takes utmost care of vehicles under custody, clients are strictly advised to remove all high-value items/cash prior to leaving the vehicle.
+                <div className="bg-blue-50/50 border border-blue-100/50 rounded-xl p-4 mt-6 text-[11px] text-blue-600 leading-relaxed flex items-start gap-2">
+                  <ShieldAlert size={14} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Disclaimer:</strong> While AutoMedic takes utmost care of vehicles under custody, clients are strictly advised to remove all high-value items/cash prior to leaving the vehicle.
+                  </div>
                 </div>
               </div>
             </div>
@@ -434,7 +437,10 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
               
               {/* Advisor signature */}
               <div className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100/50 text-center">
-                <h4 className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-3">✍️ Service Advisor Sign-Off</h4>
+                <h4 className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-3 flex items-center justify-center gap-2">
+                  <PenLine size={14} />
+                  Service Advisor Sign-Off
+                </h4>
                 <div className="bg-white rounded-xl border border-gray-200 p-4 h-28 flex items-center justify-center relative">
                   {inspection.advisor_signature ? (
                     <img src={inspection.advisor_signature} alt="Advisor signature" className="max-h-full max-w-full object-contain" />
@@ -450,7 +456,10 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
 
               {/* Customer signature */}
               <div className="bg-gray-50/50 rounded-2xl p-5 border border-gray-100/50 text-center">
-                <h4 className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-3">✍️ Customer Confirmation</h4>
+                <h4 className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-3 flex items-center justify-center gap-2">
+                  <PenLine size={14} />
+                  Customer Confirmation
+                </h4>
                 <div className="bg-white rounded-xl border border-gray-200 p-4 h-28 flex items-center justify-center relative">
                   {inspection.customer_signature ? (
                     <img src={inspection.customer_signature} alt="Customer signature" className="max-h-full max-w-full object-contain" />

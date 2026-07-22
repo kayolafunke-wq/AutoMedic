@@ -4,7 +4,7 @@ import api from '../../services/api'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import {
   ArrowLeft, TrendingUp, CheckCircle, Clock, DollarSign,
-  ChevronRight, X, Calendar, Car, User, Wrench
+  ChevronRight, X, Calendar, Car, User, Wrench, FileText
 } from 'lucide-react'
 
 const fmt = (n) => {
@@ -55,7 +55,7 @@ function MonthModal({ month, onClose }) {
             </div>
           ) : jobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-4xl mb-3">📋</div>
+              <FileText size={48} className="text-gray-200 mb-3" />
               <p className="font-semibold text-gray-500">No completed jobs for {month}</p>
               <p className="text-xs text-gray-400 mt-1">Jobs will appear here once marked as completed with a final cost</p>
             </div>
@@ -151,15 +151,15 @@ export default function RevenuePage() {
       {drillMonth && <MonthModal month={drillMonth} onClose={() => setDrillMonth(null)} />}
 
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-7">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-7">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/admin')}
             className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-100 hover:border-[#B8860B] hover:text-[#B8860B] transition-colors">
             <ArrowLeft size={16} />
           </button>
           <div>
-            <h1 className="font-display text-2xl text-[#1A1A2E]">Revenue</h1>
-            <p className="text-sm text-gray-400">Completed job earnings — click any month to drill down</p>
+            <h1 className="font-display text-xl sm:text-2xl text-[#1A1A2E]">Revenue</h1>
+            <p className="text-sm text-gray-400">Completed job earnings — tap any month to drill down</p>
           </div>
         </div>
       </div>
@@ -171,85 +171,78 @@ export default function RevenuePage() {
       ) : (
         <>
           {/* KPI cards */}
-          <div className="grid grid-cols-4 gap-4 mb-7">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-7">
             {[
               [TrendingUp,  fmt(thisMonth),      `This month's revenue`,  completedThisMonth + ' completed jobs', 'bg-[#B8860B]/10 text-[#B8860B]'],
               [DollarSign,  fmt(totalAllTime),   'All-time revenue',      totalJobs + ' total completed jobs',    'bg-green-50 text-green-600'],
               [CheckCircle, totalJobs,           'Completed jobs (total)','Across all time',                      'bg-blue-50 text-blue-600'],
               [Clock,       monthly.length,      'Active months',         'Months with completed jobs',           'bg-purple-50 text-purple-600'],
             ].map(([Icon, val, label, sub, cls], i) => (
-              <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-11 h-11 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                    <Icon size={20} />
+              <div key={i} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-50">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                  <div className={`w-9 h-9 sm:w-11 sm:h-11 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                    <Icon size={16} />
                   </div>
-                  <div>
-                    <div className="text-xl font-black text-[#1A1A2E] leading-none">{val}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-lg sm:text-xl font-black text-[#1A1A2E] leading-none truncate">{val}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 truncate">{label}</div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 pl-14">{sub}</p>
+                <p className="text-xs text-gray-400 pl-11 sm:pl-14 truncate">{sub}</p>
               </div>
             ))}
           </div>
 
           {/* Chart */}
           {chartData.length > 0 && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50 mb-6">
-              <div className="flex items-center justify-between mb-5">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-5">
                 <div>
                   <h2 className="font-bold text-[#1A1A2E]">Monthly Revenue Chart</h2>
                   <p className="text-xs text-gray-400">Last {chartData.length} months — completed jobs only</p>
                 </div>
               </div>
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={chartData} barCategoryGap="35%">
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false}
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#9CA3AF' }} axisLine={false} tickLine={false}
                     tickFormatter={v => v === 0 ? 'MK 0' : `MK ${(v/1000).toFixed(0)}K`} />
                   <Tooltip
                     formatter={(v) => [fmt(v), 'Revenue']}
-                    contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB', fontSize: 12 }} />
+                    contentStyle={{ borderRadius: 12, border: '1px solid #E5E7EB', fontSize: 12 }}
+                    cursor={{ fill: 'rgba(184, 134, 11, 0.1)' }} />
                   <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
                     {chartData.map((d, i) => (
-                      <Cell key={i}
-                        fill={d.revenue === maxRevenue ? '#B8860B' : '#E8D5A3'}
-                        cursor="pointer"
-                        onClick={() => setDrillMonth(d.month)}
-                      />
+                      <Cell key={i} fill={d.revenue === maxRevenue ? '#B8860B' : '#E8D5A3'} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <p className="text-center text-xs text-gray-400 mt-2">Highest month highlighted in gold · Click a bar to see details</p>
+              <p className="text-center text-xs text-gray-400 mt-2">Highest month highlighted in gold · Tap a bar to see details</p>
             </div>
           )}
 
           {/* Monthly table */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-50 flex justify-between items-center">
               <h2 className="font-bold text-[#1A1A2E] text-sm">Monthly Breakdown</h2>
               <span className="text-xs text-gray-400">{monthly.length} month{monthly.length !== 1 ? 's' : ''} with revenue</span>
             </div>
 
             {monthly.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 text-3xl">💰</div>
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                  <DollarSign size={32} className="text-gray-300" />
+                </div>
                 <h3 className="font-bold text-[#1A1A2E] text-base mb-1">No revenue yet</h3>
                 <p className="text-sm text-gray-400 max-w-xs">
                   Revenue will appear here once job cards are marked as <strong>completed</strong> with a final cost set.
                 </p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50/80">
-                    {['Month', 'Completed Jobs', 'Invoice Revenue', 'Walk-in Sales', 'Total Revenue', 'Avg per Job', ''].map(h => (
-                      <th key={h} className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                {/* Mobile card view */}
+                <div className="block lg:hidden">
                   {monthly.map((row, i) => {
                     const rev  = Number(row.total_revenue   || 0)
                     const invR = Number(row.invoice_revenue || 0)
@@ -258,49 +251,97 @@ export default function RevenuePage() {
                     const avg  = jobs > 0 ? Math.round(rev / jobs) : 0
                     const isTop = rev === Math.max(...monthly.map(m => Number(m.total_revenue || 0)))
                     return (
-                      <tr key={i}
-                        className={`border-t border-gray-50 hover:bg-[#B8860B]/3 cursor-pointer transition-colors ${isTop ? 'bg-[#B8860B]/5' : ''}`}
+                      <div key={i}
+                        className={`border-b border-gray-50 p-4 hover:bg-[#B8860B]/3 cursor-pointer transition-colors ${isTop ? 'bg-[#B8860B]/5' : ''}`}
                         onClick={() => setDrillMonth(row.month)}>
-                        <td className="px-5 py-4">
+                        <div className="flex justify-between items-start mb-3">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-[#B8860B]/10 rounded-lg flex items-center justify-center flex-shrink-0">
                               <Calendar size={13} className="text-[#B8860B]" />
                             </div>
-                            <span className="font-semibold text-[#1A1A2E]">{row.month}</span>
-                            {isTop && <span className="text-[10px] bg-[#B8860B] text-white px-2 py-0.5 rounded-full font-bold">Top</span>}
+                            <div>
+                              <span className="font-semibold text-[#1A1A2E]">{row.month}</span>
+                              {isTop && <span className="ml-2 text-[10px] bg-[#B8860B] text-white px-2 py-0.5 rounded-full font-bold">Top</span>}
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="flex items-center gap-1.5 text-gray-600">
-                            <CheckCircle size={12} className="text-green-500" />
-                            {jobs} job{jobs !== 1 ? 's' : ''}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-gray-600 text-xs font-medium">{fmt(invR)}</td>
-                        <td className="px-5 py-4 text-gray-500 text-xs">
-                          {wkR > 0 ? <span className="text-blue-600 font-medium">{fmt(wkR)}</span> : <span className="text-gray-300">—</span>}
-                        </td>
-                        <td className="px-5 py-4 font-black text-[#B8860B] text-base">{fmt(rev)}</td>
-                        <td className="px-5 py-4 text-gray-500 text-xs">{avg > 0 ? fmt(avg) : '—'}</td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-1 text-[#B8860B] text-xs font-semibold hover:gap-2 transition-all">
-                            Details <ChevronRight size={13} />
+                          <div className="text-right">
+                            <div className="font-black text-[#B8860B] text-base">{fmt(rev)}</div>
+                            <div className="text-xs text-gray-500">{jobs} job{jobs !== 1 ? 's' : ''}</div>
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-2">
+                          <div>Invoice: {fmt(invR)}</div>
+                          <div>Walk-in: {wkR > 0 ? fmt(wkR) : '—'}</div>
+                          <div>Avg/job: {avg > 0 ? fmt(avg) : '—'}</div>
+                          <div className="text-[#B8860B] font-semibold">Details →</div>
+                        </div>
+                      </div>
                     )
                   })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-[#1A1A2E]">
-                    <td className="px-5 py-4 font-bold text-white text-sm">All Time Total</td>
-                    <td className="px-5 py-4 text-white/60 text-sm">{totalJobs} jobs</td>
-                    <td colSpan={2} className="px-5 py-4 text-white/50 text-xs">invoices + walk-ins</td>
-                    <td className="px-5 py-4 font-black text-[#B8860B] text-lg">{fmt(totalAllTime)}</td>
-                    <td colSpan={2} />
-                  </tr>
-                </tfoot>
-              </table>
+                </div>
+
+                {/* Desktop table view */}
+                <table className="w-full text-sm hidden lg:table">
+                  <thead>
+                    <tr className="bg-gray-50/80">
+                      {['Month', 'Completed Jobs', 'Invoice Revenue', 'Walk-in Sales', 'Total Revenue', 'Avg per Job', ''].map(h => (
+                        <th key={h} className="px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthly.map((row, i) => {
+                      const rev  = Number(row.total_revenue   || 0)
+                      const invR = Number(row.invoice_revenue || 0)
+                      const wkR  = Number(row.walkin_revenue  || 0)
+                      const jobs = Number(row.appointments    || 0)
+                      const avg  = jobs > 0 ? Math.round(rev / jobs) : 0
+                      const isTop = rev === Math.max(...monthly.map(m => Number(m.total_revenue || 0)))
+                      return (
+                        <tr key={i}
+                          className={`border-t border-gray-50 hover:bg-[#B8860B]/3 cursor-pointer transition-colors ${isTop ? 'bg-[#B8860B]/5' : ''}`}
+                          onClick={() => setDrillMonth(row.month)}>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-[#B8860B]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Calendar size={13} className="text-[#B8860B]" />
+                              </div>
+                              <span className="font-semibold text-[#1A1A2E]">{row.month}</span>
+                              {isTop && <span className="text-[10px] bg-[#B8860B] text-white px-2 py-0.5 rounded-full font-bold">Top</span>}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="flex items-center gap-1.5 text-gray-600">
+                              <CheckCircle size={12} className="text-green-500" />
+                              {jobs} job{jobs !== 1 ? 's' : ''}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-gray-600 text-xs font-medium">{fmt(invR)}</td>
+                          <td className="px-5 py-4 text-gray-500 text-xs">
+                            {wkR > 0 ? <span className="text-blue-600 font-medium">{fmt(wkR)}</span> : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-5 py-4 font-black text-[#B8860B] text-base">{fmt(rev)}</td>
+                          <td className="px-5 py-4 text-gray-500 text-xs">{avg > 0 ? fmt(avg) : '—'}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-1 text-[#B8860B] text-xs font-semibold hover:gap-2 transition-all">
+                              Details <ChevronRight size={13} />
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-[#1A1A2E]">
+                      <td className="px-5 py-4 font-bold text-white text-sm">All Time Total</td>
+                      <td className="px-5 py-4 text-white/60 text-sm">{totalJobs} jobs</td>
+                      <td colSpan={2} className="px-5 py-4 text-white/50 text-xs">invoices + walk-ins</td>
+                      <td className="px-5 py-4 font-black text-[#B8860B] text-lg">{fmt(totalAllTime)}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </>
             )}
           </div>
         </>

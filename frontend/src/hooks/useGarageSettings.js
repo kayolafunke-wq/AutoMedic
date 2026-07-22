@@ -1,0 +1,1 @@
+export { useGarageSettings } from '../context/GarageSettingsContext'

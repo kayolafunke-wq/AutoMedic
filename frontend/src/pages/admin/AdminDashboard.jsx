@@ -3,9 +3,10 @@ import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { LayoutDashboard, Calendar, Car, Users, BarChart2, TrendingUp, Settings, LogOut, Plus, Trash2, Edit2, Globe, ClipboardCheck, X, Search, DollarSign, Package, Save, AlertCircle, FileText, ChevronDown, ChevronRight as ChevronR, Wrench, ShoppingCart, History, Eye, Printer, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Calendar, Car, Users, BarChart2, TrendingUp, Settings, LogOut, Plus, Trash2, Edit2, Globe, ClipboardCheck, X, Search, DollarSign, Package, Save, AlertCircle, FileText, ChevronDown, ChevronRight as ChevronR, Wrench, ShoppingCart, History, Eye, Printer, CheckCircle, ChevronLeft, ChevronRight, Zap, Snail, PartyPopper, AlertTriangle, Archive, UserCheck, Clock, Star, MonitorSpeaker } from 'lucide-react'
 import InspectionModule from '../technician/InspectionModule'
 import UserManagement from './UserManagement'
+import { useGarageSettings } from '../../hooks/useGarageSettings'
 import RevenuePage from './RevenuePage'
 import ProductsManagement from './ProductsManagement'
 import InvoicesManagement from './InvoicesManagement'
@@ -358,9 +359,9 @@ function AppointmentsView() {
     try {
       await api.patch(`/appointments/${id}/status`, { status: 'cancelled' })
       setData(prev => prev.map(a => a.id === id ? { ...a, status: 'cancelled' } : a))
-      showToast(`✓ Appointment ${tracking} cancelled`)
+      showToast(`Appointment ${tracking} cancelled`)
     } catch (err) {
-      showToast('✕ Failed to cancel: ' + (err.response?.data?.message || err.message))
+      showToast('Failed to cancel: ' + (err.response?.data?.message || err.message))
     }
   }
 
@@ -378,7 +379,7 @@ function AppointmentsView() {
       }
       const r = await api.post('/appointments/admin', payload)
       setData(prev => [r.data.data, ...prev])
-      showToast('✓ Appointment created')
+      showToast('Appointment created')
       setAddModal(false)
       setAddForm({ customer_id:'', vehicle_id:'', service_id:'', preferred_date:'', problem_description:'' })
     } catch (err) {
@@ -457,13 +458,13 @@ function AppointmentsView() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="font-display text-2xl text-dark">Appointments</h1>
+          <h1 className="font-display text-xl sm:text-2xl text-[#1A1A2E]">Appointments</h1>
           <p className="text-sm text-gray-400 mt-0.5">Manage all bookings — accept, assign & track</p>
         </div>
         <button onClick={() => setAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-dark transition-colors">
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#B8860B] text-white text-sm font-semibold rounded-full hover:bg-[#8B6508] transition-colors w-full sm:w-auto">
           <Plus size={14} /> Add Appointment
         </button>
       </div>
@@ -486,12 +487,23 @@ function AppointmentsView() {
       )}
 
       {/* Filters + search */}
-      <div className="flex gap-3 mb-5 flex-wrap items-center">
-        <div className="flex gap-2 bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row gap-3 mb-5 items-stretch sm:items-center">
+        <div className="relative order-2 sm:order-1">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input value={search} onChange={e => setSearchReset(e.target.value)}
+            placeholder="Search customer, vehicle, tracking #..."
+            className="pl-10 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white w-full sm:w-64" />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-1.5 flex-wrap order-1 sm:order-2 overflow-x-auto pb-2 sm:pb-0">
           {['all','pending','confirmed','in_progress','completed'].map(f => (
             <button key={f} onClick={() => setFilterReset(f)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all
-                ${filter === f ? 'bg-[#B8860B] text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all whitespace-nowrap
+                ${filter === f ? 'bg-[#B8860B] text-white shadow' : 'text-gray-500 hover:text-gray-700 bg-white border border-gray-100'}`}>
               {f === 'all' ? 'All' : f.replace('_',' ')}
               <span className="ml-1.5 opacity-70">
                 {f === 'all' ? data.length : data.filter(a => a.status === f).length}
@@ -499,15 +511,110 @@ function AppointmentsView() {
             </button>
           ))}
         </div>
-        <input value={search} onChange={e => setSearchReset(e.target.value)}
-          placeholder="Search customer, vehicle, tracking #..."
-          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white" />
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
+        {/* Mobile card view */}
+        <div className="block lg:hidden">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-gray-400">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
+                Loading appointments...
+              </div>
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="px-4 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <Calendar size={32} className="text-gray-200" />
+                <p className="text-gray-400 text-sm font-medium">
+                  {search ? `No appointments match "${search}"` : 'No appointments yet'}
+                </p>
+                {!search && (
+                  <button onClick={() => setAddModal(true)} className="text-[#B8860B] text-xs font-semibold hover:underline">
+                    Add your first appointment →
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : paginated.map(a => (
+            <div key={a.id} className={`border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors ${a.status === 'pending' ? 'bg-amber-50/30' : ''}`}>
+              {/* Row 1: Tracking + Customer + Vehicle */}
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-bold text-[#B8860B] text-sm">{a.tracking_number}</span>
+                <span className="font-medium text-[#1A1A2E] mx-3 flex-1 min-w-0 truncate">{a.customer_name}</span>
+                <span className="text-xs text-gray-500 flex-shrink-0">{a.make} {a.model} {a.registration_number}</span>
+              </div>
+              
+              {/* Row 2: Service + Date + Status */}
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-gray-600">{a.service_name}</span>
+                <span className="text-xs text-gray-400 mx-3">{a.preferred_date}</span>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${statusColor(a.status)}`}>
+                  {a.status.replace('_',' ')}
+                </span>
+              </div>
+
+              {/* Row 3: Technician Info */}
+              {a.technician_name && (
+                <div className="mb-3">
+                  <span className="flex items-center gap-1.5 font-medium text-gray-600 text-xs">
+                    <span className="w-4 h-4 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-[8px]">
+                      {a.technician_name.charAt(0)}
+                    </span>
+                    {a.technician_name}
+                  </span>
+                </div>
+              )}
+              
+              {/* Row 4: Action Buttons */}
+              <div className="flex gap-1.5">
+                {a.status === 'pending' ? (
+                  <>
+                    <button onClick={() => accept(a)}
+                      className="text-[10px] font-semibold bg-[#B8860B] text-white px-3 py-1.5 rounded-lg hover:bg-[#8B6508] transition-colors">
+                      ✓ Accept
+                    </button>
+                    <button onClick={() => reject(a.id)}
+                      className="text-[10px] font-semibold bg-red-50 text-red-500 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
+                      ✕ Reject
+                    </button>
+                    <button onClick={() => accept(a)}
+                      className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                      Edit
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => accept(a)}
+                      className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                      Reassign
+                    </button>
+                    {a.status === 'completed' && (
+                      invoicedIds.has(a.id) ? (
+                        <span className="text-[10px] font-semibold text-green-600 border border-green-200 px-2.5 py-1.5 rounded-lg bg-green-50">✓ Invoiced</span>
+                      ) : (
+                        <button onClick={() => generateInvoice(a)}
+                          disabled={genInvLoading === a.id}
+                          className="text-[10px] font-semibold text-green-600 border border-green-200 px-2.5 py-1.5 rounded-lg hover:bg-green-50 transition-colors disabled:opacity-50">
+                          {genInvLoading === a.id ? '...' : '🧾 Invoice'}
+                        </button>
+                      )
+                    )}
+                  </>
+                )}
+                <button onClick={() => deleteAppointment(a.id, a.tracking_number)}
+                  className="text-[10px] text-gray-400 border border-gray-200 px-2 py-1.5 rounded-lg hover:border-red-400 hover:text-red-500 transition-colors">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table view */}
+        <table className="w-full text-sm hidden lg:table">
           <thead>
             <tr className="bg-gray-50/80">
               {['#','Customer','Vehicle','Service','Date','Technician','Status','Action'].map(h => (
@@ -581,7 +688,6 @@ function AppointmentsView() {
             )}
           </tbody>
         </table>
-        </div>
       </div>
       <Pagination
         page={safeApptPg} totalPages={apptPages} total={filtered.length}
@@ -594,7 +700,7 @@ function AppointmentsView() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#B8860B]/10 rounded-xl flex items-center justify-center">
-                  <span className="text-xl">🔧</span>
+                  <Wrench size={20} className="text-[#B8860B]" />
                 </div>
                 <div>
                   <h3 className="font-bold text-[#1A1A2E] text-base">Accept & Assign</h3>
@@ -663,7 +769,9 @@ function AppointmentsView() {
           <div className="bg-white rounded-2xl p-7 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#B8860B]/10 rounded-xl flex items-center justify-center text-xl">📅</div>
+                <div className="w-10 h-10 bg-[#B8860B]/10 rounded-xl flex items-center justify-center">
+                  <Calendar size={20} className="text-[#B8860B]" />
+                </div>
                 <div>
                   <h3 className="font-bold text-[#1A1A2E] text-base">New Appointment</h3>
                   <p className="text-xs text-gray-400">Book a walk-in or phone appointment</p>
@@ -745,6 +853,34 @@ function ReportsView() {
   const [movement,     setMovement]     = useState(null)
   const [loading,      setLoading]      = useState(true)
   const [movTab,       setMovTab]       = useState('fast')
+  const [techRevenue,  setTechRevenue]  = useState([])
+  const [techHistory,  setTechHistory]  = useState([])
+  const [showHistory,  setShowHistory]  = useState('monthly')
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+  const [monthlyTechRevenue, setMonthlyTechRevenue] = useState([])
+  const [loadingMonthly, setLoadingMonthly] = useState(false)
+
+  const loadMonthlyData = async (month) => {
+    setLoadingMonthly(true)
+    try {
+      console.log('Loading monthly data for month:', month)
+      console.log('API endpoint:', `/reports/technician-revenue/${month}`)
+      const res = await api.get(`/reports/technician-revenue/${month}`)
+      console.log('Monthly data response:', res.data)
+      console.log('Data array:', res.data.data)
+      console.log('Array length:', res.data.data ? res.data.data.length : 'undefined')
+      setMonthlyTechRevenue(res.data.data || [])
+    } catch (err) {
+      console.error('Failed to load monthly technician data:', err)
+      console.error('Error details:', err.response?.data || err.message)
+      setMonthlyTechRevenue([])
+    } finally {
+      setLoadingMonthly(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -753,19 +889,46 @@ function ReportsView() {
       api.get('/reports/services').catch(() => null),
       api.get('/reports/revenue').catch(() => null),
       api.get('/reports/product-movement').catch(() => null),
-    ]).then(([dash, techs, svcs, rev, mov]) => {
-      if (dash)  setDashStats(dash.data.data)
+      api.get('/reports/technician-revenue').catch(() => null),
+      api.get('/reports/technician-revenue-history').catch(() => null),
+    ]).then(([dash, techs, svcs, rev, mov, techRev, techHist]) => {
+      if (dash)     setDashStats(dash.data.data)
       if (techs) setTechPerf((techs.data.data || []).map(t => ({
         name:   t.name,
         jobs:   (t.active_jobs || 0) + (t.completed_jobs || 0),
         active: t.active_jobs || 0,
         done:   t.completed_jobs || 0,
       })))
-      if (svcs)  setServiceStats(svcs.data.data || [])
-      if (rev)   setMonthlyData(rev.data.data || [])
-      if (mov)   setMovement(mov.data.data)
+      if (svcs)     setServiceStats(svcs.data.data || [])
+      if (rev)      setMonthlyData(rev.data.data || [])
+      if (mov)      setMovement(mov.data.data)
+      if (techRev)  setTechRevenue(techRev.data.data || [])
+      if (techHist) setTechHistory(techHist.data.data || [])
     }).finally(() => setLoading(false))
+
+    // Load initial monthly data if we start in monthly mode
+    if (showHistory === 'monthly') {
+      console.log('Initial load: Starting in monthly mode, loading data for:', selectedMonth)
+      loadMonthlyData(selectedMonth)
+    }
   }, [])
+
+  useEffect(() => {
+    if (selectedMonth && showHistory === 'monthly') {
+      console.log('Month or history mode changed, loading data for:', selectedMonth)
+      console.log('Current showHistory state:', showHistory)
+      loadMonthlyData(selectedMonth)
+    }
+  }, [selectedMonth, showHistory])
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('monthlyTechRevenue state updated:', monthlyTechRevenue)
+  }, [monthlyTechRevenue])
+
+  useEffect(() => {
+    console.log('showHistory state updated:', showHistory)
+  }, [showHistory])
 
   const revenue   = dashStats?.monthly_revenue || 0
   const customers = dashStats?.total_customers ?? '—'
@@ -801,12 +964,14 @@ function ReportsView() {
       {/* KPI cards — all live */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7">
         {[
-          ['👥', customers,                                          'Total Customers',   'bg-blue-50 text-blue-600'],
-          ['🔧', activeRep,                                         'Active Repairs',    'bg-orange-50 text-orange-600'],
-          ['💰', revenue > 0 ? `MK ${(revenue/1000000).toFixed(2)}M` : 'MK 0', 'Est. Revenue (job cards)', 'bg-[#B8860B]/10 text-[#B8860B]'],
-        ].map(([icon, val, label, cls], i) => (
+          [Users, customers,                                          'Total Customers',   'bg-blue-50 text-blue-600'],
+          [Wrench, activeRep,                                         'Active Repairs',    'bg-orange-50 text-orange-600'],
+          [DollarSign, revenue > 0 ? `MK ${(revenue/1000000).toFixed(2)}M` : 'MK 0', 'Est. Revenue (job cards)', 'bg-[#B8860B]/10 text-[#B8860B]'],
+        ].map(([Icon, val, label, cls], i) => (
           <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex items-center gap-4">
-            <div className={`w-12 h-12 ${cls} rounded-xl flex items-center justify-center text-2xl flex-shrink-0`}>{icon}</div>
+            <div className={`w-12 h-12 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <Icon size={20} />
+            </div>
             <div>
               <div className="text-2xl font-black text-dark leading-none">{val}</div>
               <div className="text-xs text-gray-400 mt-1">{label}</div>
@@ -884,6 +1049,339 @@ function ReportsView() {
         </div>
       </div>
 
+      {/* Technician Monthly Revenue */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden mb-6">
+        <div className="px-5 py-4 border-b border-gray-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <h2 className="font-bold text-dark text-sm">Technician Revenue</h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowHistory('current')}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                  showHistory === 'current'
+                    ? 'bg-[#B8860B] text-white border-[#B8860B]' 
+                    : 'text-[#B8860B] border-[#B8860B]/30 hover:bg-[#B8860B]/5'
+                }`}
+              >
+                Current
+              </button>
+              <button
+                onClick={() => {
+                  setShowHistory('monthly')
+                  // Force reload monthly data when switching to this view
+                  setTimeout(() => loadMonthlyData(selectedMonth), 100)
+                }}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                  showHistory === 'monthly'
+                    ? 'bg-[#B8860B] text-white border-[#B8860B]' 
+                    : 'text-[#B8860B] border-[#B8860B]/30 hover:bg-[#B8860B]/5'
+                }`}
+              >
+                Select Month
+              </button>
+              <button
+                onClick={() => setShowHistory('history')}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                  showHistory === 'history'
+                    ? 'bg-[#B8860B] text-white border-[#B8860B]' 
+                    : 'text-[#B8860B] border-[#B8860B]/30 hover:bg-[#B8860B]/5'
+                }`}
+              >
+                6 Months
+              </button>
+            </div>
+            
+            {showHistory === 'monthly' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-[#B8860B]"
+                  min="2020-01"
+                  max="2030-12"
+                />
+                <span className="text-xs text-gray-400">
+                  {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+            )}
+            
+            <span className="text-xs text-gray-400">
+              {showHistory === 'current' ? 'Current month' : 
+               showHistory === 'monthly' ? 'Selected month' : 'Historical view'}
+            </span>
+          </div>
+        </div>
+        
+        {showHistory === 'current' ? (
+          <>
+            {/* Current Month View - Desktop Table */}
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead><tr className="bg-gray-50/80">
+                  {['Technician','Jobs Completed','Total Revenue','Avg per Job','This Month'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {techRevenue.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No revenue data available</td></tr>
+                  ) : techRevenue.map((t, i) => {
+                    const avgPerJob = t.jobs_completed > 0 ? t.total_revenue / t.jobs_completed : 0
+                    return (
+                      <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-xs">{t.technician_name?.charAt(0) || 'T'}</div>
+                            <span className="font-medium text-dark text-xs">{t.technician_name || 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-dark">{t.jobs_completed || 0}</td>
+                        <td className="px-4 py-3 font-semibold text-[#B8860B]">MK {(t.total_revenue || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-gray-600">MK {Math.round(avgPerJob).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                            {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Current Month View - Mobile Cards */}
+            <div className="lg:hidden">
+              {techRevenue.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">No revenue data available</div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {techRevenue.map((t, i) => {
+                    const avgPerJob = t.jobs_completed > 0 ? t.total_revenue / t.jobs_completed : 0
+                    return (
+                      <div key={i} className="bg-gray-50 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-xs">{t.technician_name?.charAt(0) || 'T'}</div>
+                            <span className="font-medium text-dark text-sm">{t.technician_name || 'Unknown'}</span>
+                          </div>
+                          <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                            {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <span className="text-gray-400 block">Jobs Completed</span>
+                            <span className="font-bold text-dark">{t.jobs_completed || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block">Total Revenue</span>
+                            <span className="font-semibold text-[#B8860B]">MK {(t.total_revenue || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-400 block">Average per Job</span>
+                            <span className="text-gray-600 font-medium">MK {Math.round(avgPerJob).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        ) : showHistory === 'monthly' ? (
+          <>
+            {/* Selected Month View - Desktop Table */}
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead><tr className="bg-gray-50/80">
+                  {['Technician','Jobs Completed','Total Revenue','Avg per Job','Selected Month'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {loadingMonthly ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Loading monthly data...
+                      </div>
+                    </td></tr>
+                  ) : monthlyTechRevenue.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                      <div>No data for selected month</div>
+                      <div className="text-xs mt-2">Debug: Array length = {monthlyTechRevenue.length}</div>
+                      <div className="text-xs">Selected month: {selectedMonth}</div>
+                      <div className="text-xs">Show history: {showHistory}</div>
+                      <div className="text-xs">Loading: {loadingMonthly ? 'Yes' : 'No'}</div>
+                    </td></tr>
+                  ) : monthlyTechRevenue.map((t, i) => {
+                    const avgPerJob = t.jobs_completed > 0 ? t.total_revenue / t.jobs_completed : 0
+                    return (
+                      <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-xs">{t.technician_name?.charAt(0) || 'T'}</div>
+                            <span className="font-medium text-dark text-xs">{t.technician_name || 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-dark">{t.jobs_completed || 0}</td>
+                        <td className="px-4 py-3 font-semibold text-[#B8860B]">MK {(t.total_revenue || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-gray-600">MK {Math.round(avgPerJob).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                            {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Selected Month View - Mobile Cards */}
+            <div className="lg:hidden">
+              {loadingMonthly ? (
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    Loading monthly data...
+                  </div>
+                </div>
+              ) : monthlyTechRevenue.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">
+                  <div>No data for selected month</div>
+                  <div className="text-xs mt-2">Debug: Array length = {monthlyTechRevenue.length}</div>
+                  <div className="text-xs">Selected month: {selectedMonth}</div>
+                  <div className="text-xs">Show history: {showHistory}</div>
+                  <div className="text-xs">Loading: {loadingMonthly ? 'Yes' : 'No'}</div>
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {monthlyTechRevenue.map((t, i) => {
+                    const avgPerJob = t.jobs_completed > 0 ? t.total_revenue / t.jobs_completed : 0
+                    return (
+                      <div key={i} className="bg-gray-50 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-xs">{t.technician_name?.charAt(0) || 'T'}</div>
+                            <span className="font-medium text-dark text-sm">{t.technician_name || 'Unknown'}</span>
+                          </div>
+                          <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                            {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <span className="text-gray-400 block">Jobs Completed</span>
+                            <span className="font-bold text-dark">{t.jobs_completed || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block">Total Revenue</span>
+                            <span className="font-semibold text-[#B8860B]">MK {(t.total_revenue || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-400 block">Average per Job</span>
+                            <span className="text-gray-600 font-medium">MK {Math.round(avgPerJob).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Historical View - Desktop Table */}
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead><tr className="bg-gray-50/80">
+                  {['Technician','Month','Jobs','Revenue','Avg/Job'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {techHistory.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No historical data available</td></tr>
+                  ) : techHistory.map((t, i) => {
+                    const avgPerJob = t.jobs_completed > 0 ? t.total_revenue / t.jobs_completed : 0
+                    const monthName = new Date(t.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                    return (
+                      <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-[10px]">{t.technician_name?.charAt(0) || 'T'}</div>
+                            <span className="font-medium text-dark text-xs">{t.technician_name || 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                            {monthName}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-dark">{t.jobs_completed || 0}</td>
+                        <td className="px-4 py-3 font-semibold text-[#B8860B]">MK {(t.total_revenue || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-gray-600">MK {Math.round(avgPerJob).toLocaleString()}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Historical View - Mobile Cards */}
+            <div className="lg:hidden">
+              {techHistory.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-400 text-sm">No historical data available</div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {techHistory.map((t, i) => {
+                    const avgPerJob = t.jobs_completed > 0 ? t.total_revenue / t.jobs_completed : 0
+                    const monthName = new Date(t.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                    return (
+                      <div key={i} className="bg-gray-50 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-[#B8860B]/10 text-[#B8860B] rounded-full flex items-center justify-center font-black text-[10px]">{t.technician_name?.charAt(0) || 'T'}</div>
+                            <span className="font-medium text-dark text-sm">{t.technician_name || 'Unknown'}</span>
+                          </div>
+                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                            {monthName}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <span className="text-gray-400 block">Jobs Done</span>
+                            <span className="font-bold text-dark">{t.jobs_completed || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block">Revenue</span>
+                            <span className="font-semibold text-[#B8860B]">MK {(t.total_revenue || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-400 block">Average per Job</span>
+                            <span className="text-gray-600 font-medium">MK {Math.round(avgPerJob).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Monthly Appointments Summary — live from /reports/revenue */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center">
@@ -916,15 +1414,18 @@ function ReportsView() {
 
       {/* ── PRODUCT & PARTS MOVEMENT ──────────────────────────────────────── */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden mt-6">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="font-bold text-dark text-sm">📦 Product &amp; Parts Movement</h2>
+            <h2 className="font-bold text-[#1A1A2E] text-sm flex items-center gap-2">
+              <Package size={16} className="text-[#B8860B]" />
+              Product &amp; Parts Movement
+            </h2>
             <p className="text-xs text-gray-400 mt-0.5">Stock checkouts — last 90 days</p>
           </div>
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-            {[['fast','⚡ Fast Moving','bg-[#B8860B] text-white'],['slow','🐌 Slow Moving','bg-[#1A1A2E] text-white']].map(([key,label,active]) => (
+            {[['fast','Fast Moving','bg-[#B8860B] text-white'],['slow','Slow Moving','bg-[#1A1A2E] text-white']].map(([key,label,active]) => (
               <button key={key} onClick={() => setMovTab(key)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${movTab === key ? active + ' shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+                className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all ${movTab === key ? active + ' shadow' : 'text-gray-500 hover:text-gray-700'}`}>
                 {label}
               </button>
             ))}
@@ -937,77 +1438,156 @@ function ReportsView() {
           </div>
         ) : movRows.length === 0 ? (
           <div className="flex flex-col items-center py-12 text-center">
-            <div className="text-4xl mb-2">{movTab === 'fast' ? '⚡' : '🎉'}</div>
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-2">
+              {movTab === 'fast' ? <Zap size={32} className="text-gray-400" /> : <PartyPopper size={32} className="text-gray-400" />}
+            </div>
             <p className="text-sm font-semibold text-gray-500">
               {movTab === 'fast' ? 'No sales in the last 90 days yet' : 'All products are moving well!'}
             </p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="block lg:hidden">
+              {movRows.map((p, i) => {
+                const margin    = p.cost_price != null && p.selling_price != null ? Number(p.selling_price) - Number(p.cost_price) : null
+                const marginPct = p.cost_price > 0 && margin != null ? Math.round((margin / Number(p.cost_price)) * 100) : null
+                const maxQty    = movRows[0]?.total_qty_sold || 1
+                return (
+                  <div key={p.product_id} className="border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors">
+                    {/* Row 1: Rank + Product Name + Category */}
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0
+                          ${movTab==='fast' ? i===0?'bg-[#B8860B] text-white':i===1?'bg-gray-200 text-gray-700':i===2?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-500' : 'bg-red-50 text-red-400 border border-red-100'}`}>
+                          {movTab==='fast' ? (i<3?['🥇','🥈','🥉'][i]:i+1) : '!'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-[#1A1A2E] text-sm truncate">{p.name}</p>
+                          <p className="text-[10px] text-gray-400">{p.transactions} txn{p.transactions!==1?'s':''}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize flex-shrink-0">{p.category||'—'}</span>
+                    </div>
+
+                    {/* Row 2: Pricing Info */}
+                    <div className="grid grid-cols-3 gap-3 mb-3">
+                      <div>
+                        <div className="text-xs text-gray-500">Cost Price</div>
+                        <span className="text-xs text-gray-500">{p.cost_price!=null?fmtP(p.cost_price):'—'}</span>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Selling Price</div>
+                        <span className="text-xs font-semibold text-[#B8860B]">{fmtP(p.selling_price)}</span>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Margin</div>
+                        {margin!=null ? (
+                          <div className="flex flex-col">
+                            <span className={`text-xs font-bold ${margin>=0?'text-green-600':'text-red-500'}`}>
+                              {margin>=0?'+':''}{fmtP(margin)}
+                            </span>
+                            {marginPct!=null&&<span className={`text-[10px] px-1.5 py-0.5 rounded-full ${marginPct>=30?'bg-green-50 text-green-600':marginPct>=10?'bg-amber-50 text-amber-600':'bg-red-50 text-red-500'}`}>{marginPct}%</span>}
+                          </div>
+                        ) : <span className="text-gray-300 text-xs">—</span>}
+                      </div>
+                    </div>
+
+                    {/* Row 3: Units Sold + Stock + Revenue */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <div className="text-xs text-gray-500">Units Sold</div>
+                        <div className="flex items-center gap-1">
+                          <div className="w-8 h-1 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${movTab==='fast'?'bg-[#B8860B]':'bg-red-300'}`}
+                              style={{width:`${Math.min(100,(p.total_qty_sold/maxQty)*100)}%`}} />
+                          </div>
+                          <span className={`text-xs font-black ${movTab==='fast'?'text-[#B8860B]':'text-red-500'}`}>{p.total_qty_sold}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Stock</div>
+                        <span className={`text-xs font-bold ${p.stock_quantity===0?'text-red-500':p.stock_quantity<5?'text-amber-500':'text-gray-700'}`}>
+                          {p.stock_quantity}
+                          {p.stock_quantity===0&&<span className="ml-1 text-[10px] bg-red-50 text-red-500 px-1 py-0.5 rounded border border-red-100">Out</span>}
+                          {p.stock_quantity>0&&p.stock_quantity<5&&<span className="ml-1 text-[10px] bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-100">Low</span>}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Revenue</div>
+                        <span className="text-xs font-semibold text-gray-700">{fmtP(p.total_revenue)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
                 <thead>
                   <tr className="bg-gray-50/80">
                     {['#','Product','Category','Cost Price','Selling Price','Margin','Units Sold','Stock','Revenue'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
                     ))}
-              </tr>
-            </thead>
-            <tbody>
-              {movRows.map((p, i) => {
-                const margin    = p.cost_price != null && p.selling_price != null ? Number(p.selling_price) - Number(p.cost_price) : null
-                const marginPct = p.cost_price > 0 && margin != null ? Math.round((margin / Number(p.cost_price)) * 100) : null
-                const maxQty    = movRows[0]?.total_qty_sold || 1
-                return (
-                  <tr key={p.product_id} className="border-t border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black
-                        ${movTab==='fast' ? i===0?'bg-[#B8860B] text-white':i===1?'bg-gray-200 text-gray-700':i===2?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-500' : 'bg-red-50 text-red-400 border border-red-100'}`}>
-                        {movTab==='fast' ? (i<3?['🥇','🥈','🥉'][i]:i+1) : '!'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-dark text-xs">{p.name}</p>
-                      <p className="text-[10px] text-gray-400">{p.transactions} txn{p.transactions!==1?'s':''}</p>
-                    </td>
-                    <td className="px-4 py-3"><span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{p.category||'—'}</span></td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{p.cost_price!=null?fmtP(p.cost_price):<span className="text-gray-300">—</span>}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-[#B8860B]">{fmtP(p.selling_price)}</td>
-                    <td className="px-4 py-3">
-                      {margin!=null ? (
-                        <span className={`text-xs font-bold ${margin>=0?'text-green-600':'text-red-500'}`}>
-                          {margin>=0?'+':''}{fmtP(margin)}
-                          {marginPct!=null&&<span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${marginPct>=30?'bg-green-50 text-green-600':marginPct>=10?'bg-amber-50 text-amber-600':'bg-red-50 text-red-500'}`}>{marginPct}%</span>}
-                        </span>
-                      ) : <span className="text-gray-300 text-xs">—</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${movTab==='fast'?'bg-[#B8860B]':'bg-red-300'}`}
-                            style={{width:`${Math.min(100,(p.total_qty_sold/maxQty)*100)}%`}} />
-                        </div>
-                        <span className={`text-xs font-black ${movTab==='fast'?'text-[#B8860B]':'text-red-500'}`}>{p.total_qty_sold}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-bold ${p.stock_quantity===0?'text-red-500':p.stock_quantity<5?'text-amber-500':'text-gray-700'}`}>
-                        {p.stock_quantity}
-                        {p.stock_quantity===0&&<span className="ml-1 text-[10px] bg-red-50 text-red-500 px-1 py-0.5 rounded border border-red-100">Out</span>}
-                        {p.stock_quantity>0&&p.stock_quantity<5&&<span className="ml-1 text-[10px] bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-100">Low</span>}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs font-semibold text-gray-700">{fmtP(p.total_revenue)}</td>
                   </tr>
-                )
-              })}
-            </tbody>
+                </thead>
+                <tbody>
+                  {movRows.map((p, i) => {
+                    const margin    = p.cost_price != null && p.selling_price != null ? Number(p.selling_price) - Number(p.cost_price) : null
+                    const marginPct = p.cost_price > 0 && margin != null ? Math.round((margin / Number(p.cost_price)) * 100) : null
+                    const maxQty    = movRows[0]?.total_qty_sold || 1
+                    return (
+                      <tr key={p.product_id} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black
+                            ${movTab==='fast' ? i===0?'bg-[#B8860B] text-white':i===1?'bg-gray-200 text-gray-700':i===2?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-500' : 'bg-red-50 text-red-400 border border-red-100'}`}>
+                            {movTab==='fast' ? (i<3?['🥇','🥈','🥉'][i]:i+1) : '!'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-[#1A1A2E] text-xs">{p.name}</p>
+                          <p className="text-[10px] text-gray-400">{p.transactions} txn{p.transactions!==1?'s':''}</p>
+                        </td>
+                        <td className="px-4 py-3"><span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{p.category||'—'}</span></td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{p.cost_price!=null?fmtP(p.cost_price):<span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-xs font-semibold text-[#B8860B]">{fmtP(p.selling_price)}</td>
+                        <td className="px-4 py-3">
+                          {margin!=null ? (
+                            <span className={`text-xs font-bold ${margin>=0?'text-green-600':'text-red-500'}`}>
+                              {margin>=0?'+':''}{fmtP(margin)}
+                              {marginPct!=null&&<span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${marginPct>=30?'bg-green-50 text-green-600':marginPct>=10?'bg-amber-50 text-amber-600':'bg-red-50 text-red-500'}`}>{marginPct}%</span>}
+                            </span>
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${movTab==='fast'?'bg-[#B8860B]':'bg-red-300'}`}
+                                style={{width:`${Math.min(100,(p.total_qty_sold/maxQty)*100)}%`}} />
+                            </div>
+                            <span className={`text-xs font-black ${movTab==='fast'?'text-[#B8860B]':'text-red-500'}`}>{p.total_qty_sold}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-bold ${p.stock_quantity===0?'text-red-500':p.stock_quantity<5?'text-amber-500':'text-gray-700'}`}>
+                            {p.stock_quantity}
+                            {p.stock_quantity===0&&<span className="ml-1 text-[10px] bg-red-50 text-red-500 px-1 py-0.5 rounded border border-red-100">Out</span>}
+                            {p.stock_quantity>0&&p.stock_quantity<5&&<span className="ml-1 text-[10px] bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-100">Low</span>}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-700">{fmtP(p.total_revenue)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
               </table>
             </div>
-            <div className={`px-5 py-3 border-t text-xs ${movTab==='slow'?'bg-red-50 border-red-100 text-red-600':'bg-gray-50 border-gray-100 text-gray-500'}`}>
+            <div className={`px-4 sm:px-5 py-3 border-t text-xs ${movTab==='slow'?'bg-red-50 border-red-100 text-red-600':'bg-gray-50 border-gray-100 text-gray-500'}`}>
               {movTab==='fast'
                 ? `Top ${movRows.length} products · Total: ${fmtP(movRows.reduce((s,p)=>s+Number(p.total_revenue||0),0))}`
-                : `⚠️ ${movRows.length} product${movRows.length!==1?'s':''} with 0–2 units sold — consider promotions or stock review`}
+                : `${movRows.length} product${movRows.length!==1?'s':''} with 0–2 units sold — consider promotions or stock review`}
             </div>
           </>
         )}
@@ -1062,7 +1642,9 @@ function AnalyticsView() {
 
   const noData = (
     <div className="flex flex-col items-center justify-center h-40 text-gray-300">
-      <div className="text-4xl mb-2">📊</div>
+      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-2">
+        <BarChart2 size={24} className="text-gray-400" />
+      </div>
       <p className="text-sm">No data yet</p>
     </div>
   )
@@ -1108,7 +1690,7 @@ function AnalyticsView() {
       </div>
 
       {/* Row 2 — Appointment status breakdown */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50 mb-6">
         <h2 className="font-bold text-dark text-base mb-5">Appointment Status Breakdown</h2>
         {apptData.length === 0 ? noData : (
           <div className="flex items-center gap-10">
@@ -1149,7 +1731,10 @@ function AnalyticsView() {
 
         {/* Fast Moving Parts — horizontal bar chart */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
-          <h2 className="font-bold text-dark text-base mb-1">⚡ Fast Moving Parts</h2>
+          <h2 className="font-bold text-dark text-base mb-1 flex items-center gap-2">
+            <Zap size={18} className="text-[#B8860B]" />
+            Fast Moving Parts
+          </h2>
           <p className="text-xs text-gray-400 mb-5">Top 8 by units sold — last 90 days</p>
           {!movement || movement.fast_moving.length === 0 ? noData : (
             <ResponsiveContainer width="100%" height={280}>
@@ -1173,7 +1758,10 @@ function AnalyticsView() {
 
         {/* Stock Health — donut showing in-stock vs low vs out */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
-          <h2 className="font-bold text-dark text-base mb-1">🗃️ Inventory Health</h2>
+          <h2 className="font-bold text-dark text-base mb-1 flex items-center gap-2">
+            <Archive size={18} className="text-[#B8860B]" />
+            Inventory Health
+          </h2>
           <p className="text-xs text-gray-400 mb-5">Current stock status across all active products</p>
           {!movement || movement.all.length === 0 ? noData : (() => {
             const all = movement.all
@@ -1219,7 +1807,7 @@ function AnalyticsView() {
                 {/* Slow mover alert */}
                 {slowCount > 0 && (
                   <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 flex items-start gap-2">
-                    <span className="text-amber-500 text-base flex-shrink-0">🐌</span>
+                    <AlertTriangle size={16} className="text-amber-500 flex-shrink-0" />
                     <div>
                       <p className="text-xs font-bold text-amber-700">
                         {slowCount} slow-moving product{slowCount!==1?'s':''} detected
@@ -1256,27 +1844,109 @@ function CustomersView() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6"><div><h1 className="font-display text-2xl text-dark">Customers</h1></div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-dark transition-colors"><Plus size={14} /> Add Customer</button>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl text-[#1A1A2E]">Customers</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Manage all customer accounts and profiles</p>
+        </div>
+        <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#B8860B] text-white text-sm font-semibold rounded-full hover:bg-[#8B6508] transition-colors w-full sm:w-auto">
+          <Plus size={14} /> Add Customer
+        </button>
       </div>
+
       <div className="mb-4">
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Search by name or phone..."
-          className="w-full max-w-sm px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-white" />
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Search by name or phone..."
+            className="pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white w-full sm:w-80" />
+        </div>
       </div>
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead><tr className="bg-gray-50">{['Name','Phone','Vehicles','Total Services','Last Visit'].map(h=><th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+        {/* Mobile card view */}
+        <div className="block lg:hidden">
+          {paginated.length === 0 ? (
+            <div className="px-4 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <Users size={32} className="text-gray-200" />
+                <p className="text-gray-400 text-sm font-medium">
+                  {search ? `No customers match "${search}"` : 'No customers registered yet'}
+                </p>
+                {!search && (
+                  <button className="text-[#B8860B] text-xs font-semibold hover:underline">
+                    Add your first customer →
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : paginated.map((c, i) => (
+            <div key={i} className="border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors">
+              {/* Row 1: Name + Phone */}
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-semibold text-[#1A1A2E] text-sm">{c.name}</span>
+                <span className="text-xs text-gray-500 flex-shrink-0">{c.phone}</span>
+              </div>
+              
+              {/* Row 2: Stats */}
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <div>
+                  <div className="text-xs text-gray-500">Vehicles</div>
+                  <span className="font-semibold text-[#B8860B] text-sm">{c.vehicle_count}</span>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Services</div>
+                  <span className="font-semibold text-[#B8860B] text-sm">{c.total_services}</span>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Last Visit</div>
+                  <span className="text-xs text-gray-400">{c.last_visit}</span>
+                </div>
+              </div>
+              
+              {/* Row 3: Action Buttons */}
+              <div className="flex gap-1.5">
+                <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-3 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                  View
+                </button>
+                <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                  Edit
+                </button>
+                <button className="text-[10px] text-gray-400 border border-gray-200 px-2 py-1.5 rounded-lg hover:border-red-400 hover:text-red-500 transition-colors">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table view */}
+        <table className="w-full text-sm hidden lg:table">
+          <thead>
+            <tr className="bg-gray-50/80">
+              {['Name','Phone','Vehicles','Total Services','Last Visit','Action'].map(h=>
+                <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+              )}
+            </tr>
+          </thead>
           <tbody>
             {paginated.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 text-sm">No customers found</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-gray-400 text-sm">No customers found</td></tr>
             ) : paginated.map((c, i) => (
-              <tr key={i} className="border-t border-gray-50 hover:bg-gray-50">
-                <td className="px-4 py-3 font-semibold text-dark">{c.name}</td>
-                <td className="px-4 py-3 text-gray-500">{c.phone}</td>
-                <td className="px-4 py-3 text-center">{c.vehicle_count}</td>
-                <td className="px-4 py-3 text-center">{c.total_services}</td>
-                <td className="px-4 py-3 text-gray-500">{c.last_visit}</td>
+              <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                <td className="px-4 py-3.5 font-semibold text-[#1A1A2E]">{c.name}</td>
+                <td className="px-4 py-3.5 text-gray-500">{c.phone}</td>
+                <td className="px-4 py-3.5 text-center font-medium text-[#B8860B]">{c.vehicle_count}</td>
+                <td className="px-4 py-3.5 text-center font-medium text-[#B8860B]">{c.total_services}</td>
+                <td className="px-4 py-3.5 text-gray-500 text-xs">{c.last_visit}</td>
+                <td className="px-4 py-3.5">
+                  <div className="flex gap-1.5">
+                    <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">View</button>
+                    <button className="w-7 h-7 border border-gray-200 rounded-lg flex items-center justify-center hover:border-red-400 hover:text-red-500 transition-colors">
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1289,30 +1959,41 @@ function CustomersView() {
 
 // ---- SETTINGS VIEW ----
 function SettingsView() {
-  const GARAGE_DEFAULTS = {
-    garage_name:   'AutoMedic Garage',
-    phone:         '+265 999 000 000',
-    address:       'Area 47, Lilongwe, Malawi',
-    whatsapp:      '+265999000000',
-    working_hours: 'Mon–Sat: 7am – 6pm',
-    email:         'info@automedic.mw',
-    vat_rate:      '16.5',
-    currency:      'MK',
-  }
-
-  const [form, setForm]   = useState(() => {
-    try { return { ...GARAGE_DEFAULTS, ...JSON.parse(localStorage.getItem('automedic_settings') || '{}') } }
-    catch { return GARAGE_DEFAULTS }
-  })
-  const [saved,  setSaved]  = useState(false)
+  const { refreshSettings } = useGarageSettings()
+  const [form, setForm]     = useState({})
+  const [loading, setLoading] = useState(true)
+  const [saved, setSaved]   = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
+
+  // Load settings from backend
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await api.get('/settings/garage')
+        setForm(response.data.data)
+      } catch (err) {
+        console.error('Failed to load settings:', err)
+        setError('Failed to load settings')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadSettings()
+  }, [])
 
   const save = async () => {
     setSaving(true)
+    setError('')
     try {
-      localStorage.setItem('automedic_settings', JSON.stringify(form))
+      const response = await api.put('/settings/garage', form)
       setSaved(true)
+      // Refresh the global settings context
+      refreshSettings()
       setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error('Failed to save settings:', err)
+      setError(err.response?.data?.message || 'Failed to save settings')
     } finally {
       setSaving(false)
     }
@@ -1331,6 +2012,17 @@ function SettingsView() {
     </div>
   )
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-500">Loading settings...</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -1338,11 +2030,20 @@ function SettingsView() {
           <h1 className="font-display text-2xl text-dark">Settings</h1>
           <p className="text-sm text-gray-400 mt-0.5">Garage profile and system configuration</p>
         </div>
-        {saved && (
-          <span className="flex items-center gap-2 text-green-600 text-sm font-semibold bg-green-50 px-4 py-2 rounded-full border border-green-100">
-            ✓ Settings saved
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {error && (
+            <span className="flex items-center gap-2 text-red-600 text-sm font-semibold bg-red-50 px-4 py-2 rounded-full border border-red-100">
+              <AlertTriangle size={14} />
+              {error}
+            </span>
+          )}
+          {saved && (
+            <span className="flex items-center gap-2 text-green-600 text-sm font-semibold bg-green-50 px-4 py-2 rounded-full border border-green-100">
+              <CheckCircle size={14} />
+              Settings saved successfully
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1357,7 +2058,7 @@ function SettingsView() {
             {field('phone',         'Phone Number',   'text', '+265 999 000 000')}
             {field('address',       'Address',        'text', 'Area 47, Lilongwe, Malawi')}
             {field('email',         'Contact Email',  'email','info@automedic.mw')}
-            {field('whatsapp',      'WhatsApp Number','text', '+265999000000')}
+            {field('whatsapp',      'WhatsApp Number','text', '+265994040900')}
             {field('working_hours', 'Working Hours',  'text', 'Mon–Sat: 7am – 6pm')}
           </div>
         </div>
@@ -1366,7 +2067,9 @@ function SettingsView() {
         <div className="space-y-5">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
             <h2 className="font-bold text-dark text-base mb-5 flex items-center gap-2">
-              <span className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center text-sm">💰</span>
+              <span className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center text-sm">
+                <DollarSign size={16} />
+              </span>
               Billing
             </h2>
             <div className="space-y-4">
@@ -1395,13 +2098,9 @@ function SettingsView() {
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button onClick={save} disabled={saving}
+        <button onClick={save} disabled={saving || loading}
           className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-full hover:bg-primary-dark transition-colors text-sm disabled:opacity-60">
           <Save size={14} /> {saving ? 'Saving...' : 'Save Settings'}
-        </button>
-        <button onClick={() => { setForm(GARAGE_DEFAULTS); localStorage.removeItem('automedic_settings') }}
-          className="px-6 py-3 border border-gray-200 text-gray-500 text-sm font-semibold rounded-full hover:border-red-300 hover:text-red-500 transition-colors">
-          Reset to Defaults
         </button>
       </div>
     </div>
@@ -1443,42 +2142,114 @@ function VehiclesView() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="font-display text-2xl text-dark">Vehicles</h1>
+          <h1 className="font-display text-xl sm:text-2xl text-[#1A1A2E]">Vehicles</h1>
           <p className="text-sm text-gray-400 mt-0.5">All vehicles registered in the system</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-dark transition-colors">
+        <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#B8860B] text-white text-sm font-semibold rounded-full hover:bg-[#8B6508] transition-colors w-full sm:w-auto">
           <Plus size={14} /> Add Vehicle
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {[
-          ['🚗', data.length,                              'Total Vehicles',   'bg-blue-50 text-blue-600'],
-          ['🔧', data.filter(v=>v.status==='In Repair').length,  'In Repair',   'bg-orange-50 text-orange-600'],
-          ['📅', data.filter(v=>v.status==='Booked').length,     'Booked',      'bg-yellow-50 text-yellow-600'],
-          ['✅', data.filter(v=>v.status==='Completed').length,  'Completed',   'bg-green-50 text-green-600'],
-        ].map(([icon, val, label, cls], i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 flex items-center gap-3">
-            <div className={`w-11 h-11 ${cls} rounded-xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
-            <div><div className="text-xl font-black text-dark leading-none">{val}</div><div className="text-xs text-gray-400 mt-1">{label}</div></div>
+          [Car, data.length,                              'Total Vehicles',   'bg-blue-50 text-blue-600'],
+          [Wrench, data.filter(v=>v.status==='In Repair').length,  'In Repair',   'bg-orange-50 text-orange-600'],
+          [Calendar, data.filter(v=>v.status==='Booked').length,     'Booked',      'bg-yellow-50 text-yellow-600'],
+          [CheckCircle, data.filter(v=>v.status==='Completed').length,  'Completed',   'bg-green-50 text-green-600'],
+        ].map(([Icon, val, label, cls], i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-50 flex items-center gap-2 sm:gap-3">
+            <div className={`w-9 h-9 sm:w-11 sm:h-11 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <Icon size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg sm:text-xl font-black text-[#1A1A2E] leading-none truncate">{val}</div>
+              <div className="text-xs text-gray-400 mt-1 truncate">{label}</div>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Search */}
       <div className="mb-4">
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Search by registration, make, model or owner..."
-          className="w-full max-w-sm px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-white" />
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Search by registration, make, model or owner..."
+            className="pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] bg-white w-full sm:w-80" />
+        </div>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[700px]">
+        {/* Mobile card view */}
+        <div className="block lg:hidden">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-gray-400">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
+                Loading vehicles...
+              </div>
+            </div>
+          ) : paginated.length === 0 ? (
+            <div className="px-4 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <Car size={32} className="text-gray-200" />
+                <p className="text-gray-400 text-sm font-medium">
+                  {search ? `No vehicles match "${search}"` : 'No vehicles registered yet'}
+                </p>
+                {!search && (
+                  <button className="text-[#B8860B] text-xs font-semibold hover:underline">
+                    Add your first vehicle →
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : paginated.map((v, i) => (
+            <div key={i} className="border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors">
+              {/* Row 1: Registration + Make/Model + Status */}
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-bold text-[#B8860B] text-sm">{v.reg}</span>
+                <span className="font-medium text-[#1A1A2E] mx-3 flex-1 min-w-0 truncate">{v.make} {v.model}</span>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusColor(v.status)} flex-shrink-0`}>{v.status}</span>
+              </div>
+              
+              {/* Row 2: Year + Color + Owner */}
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-gray-600">{v.year}</span>
+                <div className="flex items-center gap-2 mx-3">
+                  <div className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0"
+                    style={{ background: v.color.toLowerCase() === 'silver' ? '#C0C0C0' : v.color.toLowerCase() === 'white' ? '#F5F5F5' : v.color.toLowerCase() }} />
+                  <span className="text-xs text-gray-500">{v.color}</span>
+                </div>
+                <span className="text-xs text-gray-500 flex-shrink-0">{v.owner}</span>
+              </div>
+
+              {/* Row 3: Last Service */}
+              <div className="mb-3">
+                <span className="text-xs text-gray-400">Last Service: {v.last_service}</span>
+              </div>
+              
+              {/* Row 4: Action Buttons */}
+              <div className="flex gap-1.5">
+                <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-3 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                  View
+                </button>
+                <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                  Edit
+                </button>
+                <button className="text-[10px] text-gray-400 border border-gray-200 px-2 py-1.5 rounded-lg hover:border-red-400 hover:text-red-500 transition-colors">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table view */}
+        <table className="w-full text-sm hidden lg:table">
           <thead>
             <tr className="bg-gray-50/80">
               {['Registration','Make / Model','Year','Color','Owner','Status','Last Service','Action'].map(h => (
@@ -1489,12 +2260,12 @@ function VehiclesView() {
           <tbody>
             {loading ? (
               <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">
-                <div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"/>Loading vehicles...</div>
+                <div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin"/>Loading vehicles...</div>
               </td></tr>
             ) : paginated.map((v, i) => (
               <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                <td className="px-4 py-3.5 font-bold text-primary text-sm">{v.reg}</td>
-                <td className="px-4 py-3.5 font-medium text-dark">{v.make} {v.model}</td>
+                <td className="px-4 py-3.5 font-bold text-[#B8860B] text-sm">{v.reg}</td>
+                <td className="px-4 py-3.5 font-medium text-[#1A1A2E]">{v.make} {v.model}</td>
                 <td className="px-4 py-3.5 text-gray-500">{v.year}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
@@ -1503,14 +2274,14 @@ function VehiclesView() {
                     <span className="text-gray-500 text-xs">{v.color}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 font-medium text-dark text-xs">{v.owner}</td>
+                <td className="px-4 py-3.5 font-medium text-[#1A1A2E] text-xs">{v.owner}</td>
                 <td className="px-4 py-3.5">
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusColor(v.status)}`}>{v.status}</span>
                 </td>
                 <td className="px-4 py-3.5 text-gray-400 text-xs">{v.last_service}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex gap-1.5">
-                    <button className="text-[10px] font-semibold text-primary border border-primary/30 px-2.5 py-1.5 rounded-lg hover:bg-primary/5 transition-colors">View</button>
+                    <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">View</button>
                     <button className="w-7 h-7 border border-gray-200 rounded-lg flex items-center justify-center hover:border-red-400 hover:text-red-500 transition-colors">
                       <Trash2 size={11} />
                     </button>
@@ -1523,7 +2294,6 @@ function VehiclesView() {
             )}
           </tbody>
         </table>
-        </div>
       </div>
       <Pagination page={safePage} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} label="vehicle" />
     </div>
@@ -1689,12 +2459,14 @@ function AdminCheckoutsView() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl text-dark">Checkout Logs</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Audit history of all products and parts checkouts across all stock keepers</p>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl text-[#1A1A2E]">Checkout Logs</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Audit history of all products and parts checkouts across all stock keepers</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-50 space-y-4">
         {/* Search */}
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1702,23 +2474,79 @@ function AdminCheckoutsView() {
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search checkouts by customer name, checkout ID, vehicle tracking no, stock keeper..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B]"
           />
         </div>
 
         {/* Table list */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[600px]">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+          {/* Mobile card view */}
+          <div className="block lg:hidden">
+            {loading ? (
+              <div className="px-4 py-10 text-center text-gray-400">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
+                  Loading history logs...
+                </div>
+              </div>
+            ) : paginated.length === 0 ? (
+              <div className="px-4 py-16 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <ShoppingCart size={32} className="text-gray-200" />
+                  <p className="text-gray-400 text-sm font-medium">
+                    {search ? `No checkouts match "${search}"` : 'No checkouts recorded yet'}
+                  </p>
+                </div>
+              </div>
+            ) : paginated.map(h => (
+              <div key={h.id} className="border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors">
+                {/* Row 1: Checkout ID + Date + Type */}
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-mono text-[#B8860B] text-xs">{h.id.slice(0, 10)}...</span>
+                  <span className="text-xs text-gray-500 mx-3 flex-1 min-w-0 truncate">
+                    {new Date(h.created_at).toLocaleDateString('en-GB')} {new Date(h.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded font-bold text-[8px] uppercase flex-shrink-0
+                    ${h.type === 'job_card' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'}`}>
+                    {h.type}
+                  </span>
+                </div>
+                
+                {/* Row 2: Customer + Tracking */}
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-[#1A1A2E] font-semibold">{h.customer_display_name || h.customer_name || 'Walk-in Guest'}</span>
+                  <span className="text-xs text-gray-500 font-mono">{h.tracking_number || 'None'}</span>
+                </div>
+
+                {/* Row 3: Logged By + Total */}
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs text-gray-500">By: {h.created_by_name || 'System'}</span>
+                  <span className="font-bold text-[#B8860B] text-sm">{fmt(h.total)}</span>
+                </div>
+                
+                {/* Row 4: Action Button */}
+                <div className="flex">
+                  <button onClick={() => setViewing(h)}
+                    className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 py-2 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                    <Eye size={11} /> View Details
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table view */}
+          <table className="w-full text-xs text-left hidden lg:table">
             <thead>
-              <tr className="bg-gray-50 text-gray-400 font-bold uppercase tracking-wider text-[9px] border-b border-gray-100">
-                <th className="px-4 py-3">Checkout ID</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Job Card Ref</th>
-                <th className="px-4 py-3">Logged By</th>
-                <th className="px-4 py-3 text-right">Total Cost</th>
-                <th className="px-4 py-3 text-center">Actions</th>
+              <tr className="bg-gray-50/80 text-gray-400 font-bold uppercase tracking-wider text-[9px] border-b border-gray-100">
+                <th className="px-4 py-3.5">Checkout ID</th>
+                <th className="px-4 py-3.5">Date</th>
+                <th className="px-4 py-3.5">Type</th>
+                <th className="px-4 py-3.5">Customer</th>
+                <th className="px-4 py-3.5">Job Card Ref</th>
+                <th className="px-4 py-3.5">Logged By</th>
+                <th className="px-4 py-3.5 text-right">Total Cost</th>
+                <th className="px-4 py-3.5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -1726,14 +2554,14 @@ function AdminCheckoutsView() {
                 <tr>
                   <td colSpan={8} className="text-center py-10 text-gray-400">
                     <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin" />
                       Loading history logs...
                     </div>
                   </td>
                 </tr>
               ) : filtered.length ? paginated.map(h => (
                 <tr key={h.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-4 py-3.5 font-mono text-gray-400 text-[10px]">{h.id.slice(0, 10)}...</td>
+                  <td className="px-4 py-3.5 font-mono text-[#B8860B] text-[10px]">{h.id.slice(0, 10)}...</td>
                   <td className="px-4 py-3.5 text-gray-500">{new Date(h.created_at).toLocaleDateString('en-GB')} {new Date(h.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-4 py-3.5">
                     <span className={`px-2 py-0.5 rounded font-bold text-[8px] uppercase
@@ -1741,10 +2569,10 @@ function AdminCheckoutsView() {
                       {h.type}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 font-semibold text-dark">{h.customer_display_name || h.customer_name || 'Walk-in Guest'}</td>
+                  <td className="px-4 py-3.5 font-semibold text-[#1A1A2E]">{h.customer_display_name || h.customer_name || 'Walk-in Guest'}</td>
                   <td className="px-4 py-3.5 font-mono text-gray-500 text-[10px]">{h.tracking_number || 'None'}</td>
                   <td className="px-4 py-3.5 text-gray-500">{h.created_by_name || 'System'}</td>
-                  <td className="px-4 py-3.5 text-right font-bold text-dark">{fmt(h.total)}</td>
+                  <td className="px-4 py-3.5 text-right font-bold text-[#B8860B]">{fmt(h.total)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <button onClick={() => setViewing(h)}
                       className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600 rounded-lg transition-all">

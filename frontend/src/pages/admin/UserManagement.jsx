@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../../services/api'
-import { Plus, X, Trash2, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, ShieldAlert, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, X, Trash2, RefreshCw, Eye, EyeOff, CheckCircle, AlertCircle, ShieldAlert, Search, ChevronLeft, ChevronRight, Users, Wrench, User } from 'lucide-react'
 
 const PAGE_SIZE = 10
 
@@ -132,41 +132,43 @@ export default function UserManagement() {
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="font-display text-2xl text-dark">User Management</h1>
+          <h1 className="font-display text-xl sm:text-2xl text-dark">User Management</h1>
           <p className="text-sm text-gray-400 mt-0.5">Create and manage technician, admin, customer and stock keeper accounts</p>
         </div>
         <button
           onClick={() => { setModal('create'); setForm({ name: '', email: '', phone: '', role: 'technician', password: '' }) }}
-          className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-dark transition-all hover:shadow-lg hover:shadow-primary/30">
+          className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-dark transition-all hover:shadow-lg hover:shadow-primary/30">
           <Plus size={15} /> Create Account
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {[
-          ['👥', users.length,                                   'Total Users',   'bg-blue-50 text-blue-600'],
-          ['🔧', users.filter(u => u.role === 'technician').length, 'Technicians', 'bg-orange-50 text-orange-600'],
-          ['👤', users.filter(u => u.role === 'customer').length,   'Customers',  'bg-green-50 text-green-600'],
-          ['✅', users.filter(u => u.is_active).length,             'Active',     'bg-purple-50 text-purple-600'],
-        ].map(([icon, val, label, cls], i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-50 flex items-center gap-3">
-            <div className={`w-11 h-11 ${cls} rounded-xl flex items-center justify-center text-xl flex-shrink-0`}>{icon}</div>
-            <div>
-              <div className="text-xl font-black text-dark leading-none">{val}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+          [Users, users.length,                                   'Total Users',   'bg-blue-50 text-blue-600'],
+          [Wrench, users.filter(u => u.role === 'technician').length, 'Technicians', 'bg-orange-50 text-orange-600'],
+          [User, users.filter(u => u.role === 'customer').length,   'Customers',  'bg-green-50 text-green-600'],
+          [CheckCircle, users.filter(u => u.is_active).length,             'Active',     'bg-purple-50 text-purple-600'],
+        ].map(([Icon, val, label, cls], i) => (
+          <div key={i} className="bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-50 flex items-center gap-2 sm:gap-3">
+            <div className={`w-9 h-9 sm:w-11 sm:h-11 ${cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <Icon size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-lg sm:text-xl font-black text-dark leading-none">{val}</div>
+              <div className="text-xs text-gray-400 mt-0.5 truncate">{label}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
         {['all', 'admin', 'technician', 'customer', 'stockkeeper'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-full text-xs font-semibold capitalize transition-all border
+            className={`px-4 py-2 rounded-full text-xs font-semibold capitalize transition-all border whitespace-nowrap
               ${filter === f ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-primary hover:text-primary'}`}>
             {f} {f !== 'all' && <span className="ml-1 opacity-70">({users.filter(u => u.role === f).length})</span>}
           </button>
@@ -192,7 +194,63 @@ export default function UserManagement() {
 
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-        <table className="w-full text-sm">
+        {/* Mobile card view */}
+        <div className="block lg:hidden">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-gray-400">
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                Loading users...
+              </div>
+            </div>
+          ) : paginated.map(u => (
+            <div key={u.id} className={`border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors ${!u.is_active ? 'opacity-60' : ''}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center font-black text-xs flex-shrink-0">
+                    {u.name.charAt(0)}{u.name.split(' ')[1]?.charAt(0) || ''}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold text-dark block truncate">{u.name}</span>
+                    <span className="text-xs text-gray-500 truncate block">{u.email}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${roleColor(u.role)}`}>{u.role}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                <span>{u.phone || '—'}</span>
+                <span className={`font-bold px-2.5 py-1 rounded-full ${u.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
+                  {u.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <div className="flex gap-1.5">
+                <button onClick={() => { setSelected(u); setModal('reset') }}
+                  className="flex-1 text-xs font-semibold text-primary border border-primary/30 py-2 rounded-lg hover:bg-primary/5 transition-colors">
+                  Reset Password
+                </button>
+                <button onClick={() => toggleActive(u)}
+                  className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-colors border
+                    ${u.is_active ? 'border-gray-200 hover:border-amber-400 hover:text-amber-500' : 'border-green-200 text-green-500 hover:bg-green-50'}`}>
+                  {u.is_active ? 'Deactivate' : 'Activate'}
+                </button>
+                <button onClick={() => openDelete(u)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg hover:border-red-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {!loading && paginated.length === 0 && (
+            <div className="px-4 py-10 text-center text-gray-400">
+              {search ? `No users match "${search}"` : 'No users found'}
+            </div>
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <table className="w-full text-sm hidden lg:table">
           <thead>
             <tr className="bg-gray-50/80">
               {['Name', 'Email', 'Phone', 'Role', 'Status', 'Last Login', 'Actions'].map(h => (

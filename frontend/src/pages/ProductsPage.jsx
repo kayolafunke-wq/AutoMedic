@@ -1,10 +1,13 @@
 ﻿import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import {
-  MessageCircle, Battery, Zap, Filter, Settings, X,
+  Battery, Zap, Filter, Settings, X,
   Search, ChevronDown, CheckCircle, Package, ShoppingBag,
+  CalendarCheck, Car, Wrench, Shield,
 } from 'lucide-react'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import api from '../services/api'
 
 // ── Icon by category ──────────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ export default function ProductsPage() {
 
   const openWhatsApp = (name) => {
     const msg = encodeURIComponent(`Hi AutoMedic! I'm interested in: ${name}. Is it available and what's the price?`)
-    window.open(`https://wa.me/265999000000?text=${msg}`, '_blank')
+    window.open(`https://wa.me/265994040900?text=${msg}`, '_blank')
   }
 
   return (
@@ -208,7 +211,7 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
                 {shown.map((p, i) => {
                   const Icon  = getCatIcon(p.category)
                   const stock = stockInfo(p.stock_quantity)
@@ -218,11 +221,29 @@ export default function ProductsPage() {
                       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300 group flex flex-col border border-gray-100">
 
                       {/* Card image area */}
-                      <div className={`h-44 bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center relative overflow-hidden`}>
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(184,134,11,0.15),transparent_70%)]" />
-                        <div className="w-[68px] h-[68px] rounded-2xl bg-white/8 border border-white/15 flex items-center justify-center group-hover:scale-110 group-hover:border-primary/40 transition-all">
-                          <Icon size={32} className="text-primary drop-shadow-[0_0_12px_rgba(184,134,11,0.6)]" />
-                        </div>
+                      <div className={`h-44 sm:h-48 bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center relative overflow-hidden`}>
+                        {p.image_url ? (
+                          <>
+                            <img 
+                              src={p.image_url} 
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to icon if image fails to load
+                                e.target.style.display = 'none'
+                              }}
+                            />
+                            {/* Gradient overlay for text readability */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                          </>
+                        ) : (
+                          <>
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_70%,rgba(184,134,11,0.15),transparent_70%)]" />
+                            <div className="w-[68px] h-[68px] rounded-2xl bg-white/8 border border-white/15 flex items-center justify-center group-hover:scale-110 group-hover:border-primary/40 transition-all">
+                              <Icon size={32} className="text-primary drop-shadow-[0_0_12px_rgba(184,134,11,0.6)]" />
+                            </div>
+                          </>
+                        )}
 
                         {/* Stock badge */}
                         <div className="absolute top-3 right-3">
@@ -240,20 +261,31 @@ export default function ProductsPage() {
                       </div>
 
                       {/* Card body */}
-                      <div className="p-4 flex flex-col flex-1">
-                        <h3 className="font-bold text-[#1A1A2E] text-sm mb-1.5 leading-snug">{p.name}</h3>
-                        <p className="text-xs text-gray-500 leading-relaxed flex-1 line-clamp-2">
+                      <div className="p-3.5 sm:p-4 flex flex-col flex-1">
+                        <h3 className="font-bold text-[#1A1A2E] text-sm sm:text-base mb-1.5 leading-snug">{p.name}</h3>
+                        <p className="text-xs text-gray-500 leading-relaxed flex-1 line-clamp-2 mb-3">
                           {p.description || 'Quality automotive part from AutoMedic.'}
                         </p>
 
                         {/* Price row */}
-                        <div className="flex items-center justify-between mt-3.5 pt-3 border-t border-gray-100">
+                        <div className="flex items-end justify-between mb-3 pb-3 border-b border-gray-100">
                           <div>
                             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-0.5">Price</p>
-                            <p className="font-black text-primary text-base">{fmt(p.price)}</p>
+                            <p className="font-black text-primary text-base sm:text-lg">{fmt(p.price)}</p>
                           </div>
                           {p.stock_quantity > 0 && (
-                            <p className="text-xs text-gray-400">{p.stock_quantity} left</p>
+                            <div className="text-right">
+                              <p className={`text-xs sm:text-sm font-bold ${
+                                p.stock_quantity <= 3 ? 'text-red-500' : 
+                                p.stock_quantity <= 8 ? 'text-orange-500' : 
+                                'text-green-600'
+                              }`}>
+                                {p.stock_quantity} left
+                              </p>
+                              {p.stock_quantity <= 3 && (
+                                <p className="text-[9px] text-red-400 mt-0.5">Low stock!</p>
+                              )}
+                            </div>
                           )}
                         </div>
 
@@ -261,9 +293,9 @@ export default function ProductsPage() {
                         <button
                           onClick={() => setInquiryProduct(p)}
                           disabled={!p.stock_quantity || p.stock_quantity === 0}
-                          className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed group-hover:shadow-md">
-                          <MessageCircle size={14} />
-                          {p.stock_quantity === 0 ? 'Out of Stock' : 'Inquire on WhatsApp'}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 sm:py-3 px-3 bg-green-500 text-white text-sm font-semibold rounded-xl hover:bg-green-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed group-hover:shadow-md">
+                          <WhatsAppIcon size={18} className="flex-shrink-0" />
+                          <span>{p.stock_quantity === 0 ? 'Out of Stock' : 'Inquire on WhatsApp'}</span>
                         </button>
                       </div>
                     </div>
@@ -302,14 +334,26 @@ export default function ProductsPage() {
 
       {/* ── CTA ── */}
       <section className="relative py-20 bg-dark text-center overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.15),transparent_70%)]" />
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="/cta-bg.jpg" 
+            alt="Automotive workshop" 
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-dark/90" />
+          {/* Radial gradient overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.15),transparent_70%)]" />
+        </div>
         <div className="relative z-10 max-w-lg mx-auto px-6">
           <h2 className="font-display text-3xl text-white mb-3">Can't Find What You Need?</h2>
           <p className="text-white/70 mb-6">Contact us on WhatsApp and we'll source any part for your vehicle.</p>
-          <a href="https://wa.me/265999000000?text=Hi%20AutoMedic!%20I%20need%20help%20finding%20a%20spare%20part."
+          <a href="https://wa.me/265994040900?text=Hi%20AutoMedic!%20I%20need%20help%20finding%20a%20spare%20part."
             target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-2 px-7 py-3.5 bg-green-500 text-white font-semibold rounded-full hover:bg-green-600 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/30">
-            <MessageCircle size={18} /> Chat on WhatsApp
+            <WhatsAppIcon size={20} /> Chat on WhatsApp
           </a>
         </div>
       </section>
@@ -321,7 +365,7 @@ export default function ProductsPage() {
             <div className="flex justify-between items-start mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
-                  <MessageCircle size={18} className="text-green-600" />
+                  <WhatsAppIcon size={20} className="text-green-600" />
                 </div>
                 <div>
                   <h3 className="font-bold text-[#1A1A2E] text-base">Product Inquiry</h3>
@@ -345,7 +389,7 @@ export default function ProductsPage() {
             </p>
             <button onClick={() => { openWhatsApp(inquiryProduct.name); setInquiryProduct(null) }}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-500 text-white font-bold rounded-full hover:bg-green-600 transition-colors text-sm">
-              <MessageCircle size={16} /> Send WhatsApp Message
+              <WhatsAppIcon size={18} /> Send WhatsApp Message
             </button>
           </div>
         </div>

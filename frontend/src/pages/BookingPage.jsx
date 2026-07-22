@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import { useAuth } from '../context/AuthContext'
+import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import api from '../services/api'
-import { CalendarCheck, CheckCircle, Satellite, MessageCircle, Tag } from 'lucide-react'
+import { CalendarCheck, CheckCircle, Satellite, Tag } from 'lucide-react'
 
 export default function BookingPage() {
   const { user } = useAuth()
@@ -45,25 +46,39 @@ export default function BookingPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      // Step 1: Get/refresh backend token
+      // Step 1: Get/refresh Firebase token and sync with backend
       const { auth } = await import('../config/firebase')
       const firebaseUser = auth.currentUser
-      if (firebaseUser) {
-        const idToken = await firebaseUser.getIdToken(true)
-        const syncRes = await api.post('/auth/firebase-sync', { idToken })
-        // Store backend JWT so subsequent calls use it
-        if (syncRes.data.token) {
-          localStorage.setItem('am_token', syncRes.data.token)
-          localStorage.setItem('am_user', JSON.stringify(syncRes.data.user))
-        }
+      
+      if (!firebaseUser) {
+        throw new Error('You must be logged in to book an appointment')
       }
+      
+      // Force refresh the Firebase ID token to ensure it's fresh
+      console.log('Refreshing Firebase token...')
+      const idToken = await firebaseUser.getIdToken(true) // true forces refresh
+      console.log('Firebase token refreshed, syncing with backend...')
+      
+      // Sync with backend to get our JWT
+      const syncRes = await api.post('/auth/firebase-sync', { idToken })
+      
+      if (!syncRes.data.success || !syncRes.data.token) {
+        throw new Error('Failed to sync authentication')
+      }
+      
+      // Store backend JWT so subsequent calls use it
+      localStorage.setItem('am_token', syncRes.data.token)
+      localStorage.setItem('am_user', JSON.stringify(syncRes.data.user))
+      console.log('Backend sync successful')
 
       // Step 2: Create/find vehicle
       let vehicleId
       const existingVeh = vehicles.find(v => v.registration_number === form.registration_number)
       if (existingVeh) {
         vehicleId = existingVeh.id
+        console.log('Using existing vehicle:', vehicleId)
       } else {
+        console.log('Creating new vehicle...')
         const vRes = await api.post('/vehicles', {
           make: form.make, model: form.model,
           year: form.year || null, color: form.color || null,
@@ -71,19 +86,23 @@ export default function BookingPage() {
           chassis_number: form.chassis_number || null,
         })
         vehicleId = vRes.data.data.id
+        console.log('Vehicle created:', vehicleId)
       }
 
       // Step 3: Create appointment
+      console.log('Creating appointment...')
       const res = await api.post('/appointments', {
         vehicle_id:          vehicleId,
         service_id:          form.service_id || null,
         preferred_date:      form.preferred_date,
         problem_description: form.problem_description
       })
+      console.log('Appointment created successfully!')
       setSubmitted(res.data.data)
     } catch (err) {
       console.error('Booking error:', err)
-      alert(err.response?.data?.message || 'Booking failed. Please try again.')
+      const message = err.response?.data?.message || err.message || 'Booking failed. Please try again.'
+      alert(message)
     } finally {
       setLoading(false)
     }
@@ -138,13 +157,13 @@ export default function BookingPage() {
                       className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold rounded-full text-sm hover:bg-primary-dark transition-colors">
                       <Satellite size={15} /> Track Vehicle
                     </button>
-                    <a href={`https://wa.me/265999000000?text=${encodeURIComponent(
+                    <a href={`https://wa.me/265994040900?text=${encodeURIComponent(
                       `Hello AutoMedic!\n\nNew Appointment:\nName: ${user?.name || 'Customer'}\nVehicle: ${form.make} ${form.model}\nReg: ${form.registration_number}\nService: ${services.find(s => s.id === form.service_id)?.name || 'Repair Service'}\nDate: ${form.preferred_date}\nTracking: ${submitted.tracking_number}`
                     )}`}
                       target="_blank" rel="noreferrer"
                       onClick={() => { setTimeout(() => navigate('/dashboard'), 500) }}
                       className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white font-semibold rounded-full text-sm hover:bg-green-600 transition-colors">
-                      <MessageCircle size={15} /> Send WhatsApp Confirm
+                      <WhatsAppIcon size={16} /> Send WhatsApp Confirm
                     </a>
                     <button onClick={() => navigate('/dashboard')}
                       className="px-5 py-2.5 border-2 border-primary text-primary font-semibold rounded-full text-sm hover:bg-primary hover:text-white transition-colors">
@@ -214,7 +233,7 @@ export default function BookingPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Service Needed <span className="text-red-500">*</span></label>
-                      <select value={form.service_id} onChange={e=>set('service_id',e.target.value)} required className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white h-[50px]">
+                      <select value={form.service_id} onChange={e=>set('service_id',e.target.value)} required className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 bg-white h-[50px]" size="1" style={{appearance: 'auto'}}>
                         <option value="">-- Select a service --</option>
                         {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
@@ -234,8 +253,23 @@ export default function BookingPage() {
             {/* SIDEBAR INFO */}
             <div className="sticky top-24">
               <div className="h-52 bg-gradient-to-br from-dark to-[#0F3460] rounded-2xl flex items-center justify-center mb-7 relative overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.2),transparent_70%)]" />
-                <CalendarCheck size={56} className="text-primary/70 relative z-10 drop-shadow-[0_0_20px_rgba(184,134,11,0.4)]" />
+                {/* Background image */}
+                <img 
+                  src="/booking-bg.jpg" 
+                  alt="" 
+                  className="absolute inset-0 w-full h-full object-cover object-center opacity-0 transition-opacity duration-700"
+                  style={{ imageRendering: '-webkit-optimize-contrast' }}
+                  onLoad={e => { e.target.style.opacity = '0.85' }}
+                  onError={e => { e.target.style.display = 'none' }}
+                />
+                {/* Subtle dark overlay only for icon visibility */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                {/* Gold glow for premium feel */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(184,134,11,0.15),transparent_60%)]" />
+                {/* Icon with enhanced glow */}
+                <div className="relative z-10 flex flex-col items-center">
+                  <CalendarCheck size={56} className="text-primary drop-shadow-[0_0_30px_rgba(184,134,11,0.9)]" />
+                </div>
               </div>
               <h3 className="font-display text-2xl text-dark mb-1">Quick & Easy</h3>
               <p className="font-bold text-primary mb-3 text-sm">Book in Under 2 Minutes</p>
@@ -244,7 +278,7 @@ export default function BookingPage() {
                 {[
                   [CheckCircle, 'Instant Confirmation', 'Get a WhatsApp confirmation within 1 hour'],
                   [Satellite, 'Track Progress', "After booking, track your vehicle's repair status live"],
-                  [MessageCircle, 'WhatsApp Updates', "Get notified at every stage of your vehicle's repair"],
+                  [WhatsAppIcon, 'WhatsApp Updates', "Get notified at every stage of your vehicle's repair"],
                   [Tag, 'Transparent Pricing', 'All prices shown upfront — no surprise bills'],
                 ].map(([Icon, title, desc], i) => (
                   <div key={i} className="flex gap-3">

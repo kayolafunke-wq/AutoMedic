@@ -66,16 +66,75 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - Stunning dropdown */}
       {open && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-2">
-          {[['/', 'Home'], ['/services', 'Services'], ['/products', 'Products'], ['/booking', 'Book Appointment'], ['/track', 'Track Vehicle']].map(([path, label]) => (
-            <Link key={path} to={path} onClick={() => setOpen(false)} className={`py-2 text-sm font-medium ${isActive(path) ? 'text-primary' : 'text-gray-600'}`}>{label}</Link>
+        <div className="md:hidden absolute top-[70px] right-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 py-3 min-w-[220px] z-50 animate-fadeIn">
+          {/* Decorative gradient bar */}
+          <div className="h-1 bg-gradient-to-r from-primary via-yellow-500 to-primary mx-4 rounded-full mb-3"></div>
+          
+          {[
+            ['/', 'Home'],
+            ['/services', 'Services'], 
+            ['/products', 'Products'], 
+            ['/booking', 'Book Appointment'], 
+            ['/track', 'Track Vehicle']
+          ].map(([path, label]) => (
+            <Link 
+              key={path} 
+              to={path} 
+              onClick={() => setOpen(false)} 
+              className={`group flex items-center gap-3 px-5 py-3.5 mx-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105 ${
+                isActive(path) 
+                  ? 'text-white bg-gradient-to-r from-primary to-primary-dark shadow-lg shadow-primary/30' 
+                  : 'text-gray-700 hover:bg-primary/10 hover:text-primary'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                isActive(path) ? 'bg-white' : 'bg-primary/30 group-hover:bg-primary'
+              }`}></div>
+              {label}
+            </Link>
           ))}
-          {user
-            ? <button onClick={() => { logout(); setOpen(false) }} className="py-2 text-sm font-medium text-left text-gray-600">Logout</button>
-            : <Link to="/login" onClick={() => setOpen(false)} className="py-2 text-sm font-medium text-gray-600">Login</Link>
-          }
+          
+          {/* Elegant divider */}
+          <div className="flex items-center gap-3 my-4 mx-5">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+            <div className="w-2 h-2 bg-primary/20 rounded-full"></div>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+          </div>
+          
+          {/* User actions with icons */}
+          {user ? (
+            <>
+              <Link 
+                to={dashLink} 
+                onClick={() => setOpen(false)}
+                className="group flex items-center gap-3 px-5 py-3.5 mx-2 rounded-xl text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 hover:scale-105"
+              >
+                <div className="w-2 h-2 rounded-full bg-blue-400/30 group-hover:bg-blue-500 transition-all duration-200"></div>
+                Dashboard
+              </Link>
+              <button 
+                onClick={() => { logout(); setOpen(false) }} 
+                className="group flex items-center gap-3 w-full text-left px-5 py-3.5 mx-2 rounded-xl text-sm font-semibold text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200 hover:scale-105"
+              >
+                <div className="w-2 h-2 rounded-full bg-red-400/30 group-hover:bg-red-500 transition-all duration-200"></div>
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link 
+              to="/login" 
+              onClick={() => setOpen(false)} 
+              className="group flex items-center gap-3 px-5 py-3.5 mx-2 rounded-xl text-sm font-semibold text-gray-700 hover:bg-green-50 hover:text-green-600 transition-all duration-200 hover:scale-105"
+            >
+              <div className="w-2 h-2 rounded-full bg-green-400/30 group-hover:bg-green-500 transition-all duration-200"></div>
+              Login
+            </Link>
+          )}
+          
+          {/* Bottom gradient accent */}
+          <div className="h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent mx-4 rounded-full mt-3"></div>
         </div>
       )}
     </nav>

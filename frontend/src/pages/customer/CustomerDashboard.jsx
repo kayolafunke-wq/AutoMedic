@@ -1,19 +1,28 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGarageSettings } from '../../hooks/useGarageSettings'
 import { useTrackingSocket } from '../../hooks/useTrackingSocket'
+import WhatsAppIcon from '../../components/icons/WhatsAppIcon'
 import api from '../../services/api'
 import {
   Home, Settings, History, FileText, Bell, Calendar, LogOut,
-  Car, CheckCircle, Clock, CreditCard, Satellite, MessageCircle,
+  Car, CheckCircle, Clock, CreditCard, Satellite,
   ChevronRight, ClipboardCheck, Printer, PenLine, Shield,
-  AlertTriangle, Camera, Package, X, Download, Plus
+  AlertTriangle, Camera, Package, X, Download, Plus, Globe, Menu
 } from 'lucide-react'
 import InspectionReportDetails from '../../components/InspectionReportDetails'
 
 /* ─── INVOICE MODAL ─────────────────────────────────── */
-function InvoiceModal({ invoice, onClose }) {
+function InvoiceModal({ invoice, onClose, settings }) {
   if (!invoice) return null
+  
+  // Use provided settings or fallback
+  const safeSettings = settings || {
+    garage_name: 'AutoMedic Garage',
+    phone: '+265 999 000 000',
+    address: 'Area 47, Lilongwe, Malawi',
+  }
 
   const refNum   = invoice.invoice_number || invoice.tracking_number
   const subtotal = Number(invoice.subtotal ?? invoice.estimated_cost ?? invoice.final_cost ?? 0)
@@ -51,7 +60,7 @@ function InvoiceModal({ invoice, onClose }) {
     .footer{margin-top:28px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:14px}
     @media print{body{padding:20px}}</style></head><body>
     <div class="header">
-      <div style="display:flex;align-items:center;gap:10px"><div class="logo-sq">AM</div><div><strong style="font-size:18px">AutoMedic</strong><div style="font-size:11px;color:#888">Area 47, Lilongwe, Malawi</div></div></div>
+      <div style="display:flex;align-items:center;gap:10px"><div class="logo-sq">AM</div><div><strong style="font-size:18px">${safeSettings.garage_name}</strong><div style="font-size:11px;color:#888">${safeSettings.address}</div></div></div>
       <div style="text-align:right"><div style="font-size:22px;font-weight:900">INVOICE</div>
       <div style="color:#B8860B;font-weight:700;margin:4px 0">#${refNum}</div>
       <div style="font-size:11px;color:#888">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
@@ -59,7 +68,7 @@ function InvoiceModal({ invoice, onClose }) {
     </div>
     <div class="grid2">
       <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:8px">From</div>
-      <strong>AutoMedic Garage</strong><br/>Area 47, Lilongwe, Malawi<br/>+265 999 000 000</div>
+      <strong>${safeSettings.garage_name}</strong><br/>${safeSettings.address}<br/>${safeSettings.phone}</div>
       <div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:8px">Bill To</div>
       <strong>${invoice.customer_name||'Customer'}</strong><br/>${invoice.customer_phone||''}</div>
     </div>
@@ -99,7 +108,7 @@ function InvoiceModal({ invoice, onClose }) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-6 mb-5">
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">From</p><p className="font-bold text-[#1A1A2E] text-sm">AutoMedic Garage</p><p className="text-xs text-gray-500 mt-1 leading-relaxed">Area 47, Lilongwe, Malawi<br/>+265 999 000 000</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">From</p><p className="font-bold text-[#1A1A2E] text-sm">{safeSettings.garage_name}</p><p className="text-xs text-gray-500 mt-1 leading-relaxed">{safeSettings.address}<br/>{safeSettings.phone}</p></div>
             <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Bill To</p><p className="font-bold text-[#1A1A2E] text-sm">{invoice.customer_name||'Customer'}</p></div>
           </div>
           {(invoice.make || invoice.registration_number) && (
@@ -144,55 +153,62 @@ function StepPill({ done, active, label }) {
 }
 
 /* ─── SIDEBAR ────────────────────────────────────────── */
-function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, logout }) {
+function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, logout, sidebarOpen, setSidebarOpen }) {
   const items = [
     { id:'overview',     icon:Home,          label:'Overview' },
     { id:'repairs',      icon:Settings,      label:'My Repairs' },
     { id:'inspection',   icon:ClipboardCheck,label:'Inspection', badge:pendingInspection?'1':null, badgeColor:'bg-orange-500' },
-    { id:'history',      icon:History,       label:'History' },
+    { id:'history',      icon:History,       label:'Service History' },
     { id:'invoices',     icon:FileText,      label:'Invoices', badge:unpaidInvoices||null, badgeColor:'bg-red-500' },
-    { id:'notifications',icon:Bell,          label:'Alerts', badge:unread||null },
+    { id:'notifications',icon:Bell,          label:'Notifications', badge:unread||null },
   ]
+
+  const closeSidebar = () => setSidebarOpen(false)
+  
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-[220px] fixed top-16 left-0 bottom-0 bg-white border-r border-gray-100 flex-col py-5 z-40">
+      {/* Sidebar */}
+      <aside className={`
+        w-[220px] bg-white border-r border-gray-100 flex flex-col py-5 z-40 fixed top-16 left-0 bottom-0 transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+      `}>
+        {/* Mobile sidebar header */}
+        <div className="flex items-center justify-between mb-4 px-3 lg:hidden">
+          <span className="text-gray-700 font-semibold text-sm">Menu</span>
+          <button
+            onClick={closeSidebar}
+            className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
         <nav className="flex flex-col gap-0.5 px-3 flex-1">
           {items.map(({id,icon:Icon,label,badge,badgeColor})=>(
-            <button key={id} onClick={()=>onChange(id)}
+            <button key={id} onClick={() => {
+              onChange(id)
+              closeSidebar()
+            }}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-left w-full transition-all
                 ${active===id?'bg-[#B8860B]/10 text-[#B8860B] font-semibold':'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>
               <Icon size={16}/><span className="flex-1">{label}</span>
               {badge&&<span className={`${badgeColor||'bg-red-500'} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>{badge}</span>}
             </button>
           ))}
-          <Link to="/booking" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all">
+          <Link to="/booking" onClick={closeSidebar} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all">
             <Calendar size={16}/>Book Service
           </Link>
         </nav>
         <div className="px-3 pt-3 border-t border-gray-100">
+          <Link to="/" onClick={closeSidebar} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-all w-full mb-1">
+            <Globe size={16}/>Back to Website
+          </Link>
           <button onClick={logout} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full">
             <LogOut size={16}/>Logout
           </button>
         </div>
       </aside>
-
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex items-center justify-around px-1 py-1.5 shadow-xl">
-        {items.slice(0,5).map(({id,icon:Icon,label,badge,badgeColor})=>(
-          <button key={id} onClick={()=>onChange(id)}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all relative flex-1
-              ${active===id?'text-[#B8860B]':'text-gray-400'}`}>
-            <Icon size={20}/>
-            <span className="text-[9px] font-semibold">{label}</span>
-            {badge&&<span className={`absolute top-1 right-2 ${badgeColor||'bg-red-500'} text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center`}>{badge}</span>}
-          </button>
-        ))}
-        <button onClick={logout} className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-red-400 flex-1">
-          <LogOut size={20}/>
-          <span className="text-[9px] font-semibold">Logout</span>
-        </button>
-      </nav>
     </>
   )
 }
@@ -200,6 +216,14 @@ function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, 
 /* ─── MAIN DASHBOARD ────────────────────────────────── */
 export default function CustomerDashboard() {
   const { user, logout } = useAuth()
+  const { settings } = useGarageSettings()
+  
+  // Safety check for settings
+  const safeSettings = settings || {
+    garage_name: 'AutoMedic Garage',
+    phone: '+265 999 000 000',
+    address: 'Area 47, Lilongwe, Malawi',
+  }
   const [section, setSection]       = useState('overview')
   const [appointments, setAppts]    = useState([])
   const [invoices, setInvoices]     = useState([])
@@ -210,11 +234,30 @@ export default function CustomerDashboard() {
   const [signedAt, setSignedAt]     = useState('')
   const [pendingInspection, setPendingInspection] = useState(null)
   const [activeInspection, setActiveInspection]   = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const sigRef = useRef(null)
 
   const SECTIONS = ['overview','repairs','inspection','history','invoices','notifications']
 
-  const navTo = (id) => { setSection(id); window.scrollTo(0,0) }
+  const navTo = (id) => { 
+    setSection(id); 
+    window.scrollTo(0,0);
+    
+    // Mark notifications as read when user views notifications section
+    if (id === 'notifications' && notifications.some(n => !n.is_read)) {
+      markNotificationsAsRead();
+    }
+  }
+  
+  const markNotificationsAsRead = async () => {
+    try {
+      await api.patch('/notifications/read-all/all');
+      // Update local state to mark all notifications as read
+      setNotifs(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error('Failed to mark notifications as read:', err);
+    }
+  }
   const [refreshing, setRefreshing] = useState(false)
 
   const loadData = (isRefresh = false) => {
@@ -353,14 +396,34 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F0F2F5]">
-      {selectedInvoice && <InvoiceModal invoice={selectedInvoice} onClose={()=>setInvoice(null)}/>}
+      {selectedInvoice && <InvoiceModal invoice={selectedInvoice} onClose={()=>setInvoice(null)} settings={safeSettings}/>}
+      
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* TOPBAR */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-gray-100 shadow-sm flex items-center justify-between px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-          <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
-        </Link>
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white border-b border-gray-100 shadow-sm flex items-center justify-between px-4 lg:px-6">
+        {/* Left side - Brand and mobile menu */}
+        <div className="flex items-center gap-3">
+          {/* Mobile hamburger menu */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Menu size={18} />
+          </button>
+          
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
+            <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
+          </Link>
+        </div>
+        
         <div className="flex items-center gap-1.5 md:gap-2.5">
           {current&&<span className="hidden sm:inline bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100">Active Repair</span>}
           <Link to="/" className="hidden sm:flex items-center gap-1.5 px-3 md:px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-full hover:border-[#B8860B] hover:text-[#B8860B] transition-all">
@@ -379,15 +442,24 @@ export default function CustomerDashboard() {
       </header>
 
       <div className="flex pt-16">
-        <Sidebar active={section} onChange={navTo} unread={unread} pendingInspection={!signed && !!pendingInspection} unpaidInvoices={invoices.filter(i=>i.status==='unpaid').length||null} logout={logout}/>
-        <main className="w-full md:ml-[220px] flex-1 p-4 md:p-7 pb-24 md:pb-7">
+        <Sidebar 
+          active={section} 
+          onChange={navTo} 
+          unread={unread} 
+          pendingInspection={!signed && !!pendingInspection} 
+          unpaidInvoices={invoices.filter(i=>i.status==='unpaid').length||null} 
+          logout={logout}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+        />
+        <main className="w-full lg:ml-[220px] flex-1 p-4 lg:p-7">
 
           {/* ── OVERVIEW ── */}
           {section==='overview'&&(
             <div>
-              <div className="flex justify-between items-start mb-7">
-                <div><h1 className="font-display text-2xl font-bold text-[#1A1A2E]">Welcome back, {user?.displayName||user?.name||'there'} 👋</h1><p className="text-gray-400 text-sm mt-0.5">Here's your vehicle service overview</p></div>
-                <Link to="/booking" className="flex items-center gap-2 px-5 py-2.5 bg-[#B8860B] text-white text-sm font-semibold rounded-full hover:bg-[#8B6508] transition-all hover:shadow-lg hover:shadow-[#B8860B]/30">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-7">
+                <div><h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">Welcome back, {user?.displayName||user?.name||'there'} 👋</h1><p className="text-gray-400 text-sm mt-0.5">Here's your vehicle service overview</p></div>
+                <Link to="/booking" className="flex items-center gap-2 px-5 py-2.5 bg-[#B8860B] text-white text-sm font-semibold rounded-full hover:bg-[#8B6508] transition-all hover:shadow-lg hover:shadow-[#B8860B]/30 self-start">
                   <Plus size={15}/>New Booking
                 </Link>
               </div>
@@ -453,7 +525,7 @@ export default function CustomerDashboard() {
           {/* ── MY REPAIRS ── */}
           {section==='repairs'&&(
             <div>
-              <div className="mb-6"><h1 className="font-display text-2xl font-bold text-[#1A1A2E]">My Repairs</h1><p className="text-gray-400 text-sm">Current and recent repair jobs</p></div>
+              <div className="mb-6"><h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">My Repairs</h1><p className="text-gray-400 text-sm">Current and recent repair jobs</p></div>
               {!current?(
                 <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><Settings size={28} className="text-gray-400"/></div>
@@ -579,8 +651,8 @@ export default function CustomerDashboard() {
                         <Link to={`/track/${current.tracking_number}`} className="flex items-center gap-2 px-5 py-2.5 bg-[#B8860B] text-white text-sm font-semibold rounded-full hover:bg-[#8B6508] transition-all">
                           <Satellite size={14}/>Full Tracking
                         </Link>
-                        <a href="https://wa.me/265999000000" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white text-sm font-semibold rounded-full hover:bg-green-600 transition-all">
-                          <MessageCircle size={14}/>WhatsApp Update
+                        <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white text-sm font-semibold rounded-full hover:bg-green-600 transition-all">
+                          <WhatsAppIcon size={16}/>WhatsApp Update
                         </a>
                       </div>
                     </div>
@@ -595,7 +667,7 @@ export default function CustomerDashboard() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h1 className="font-display text-2xl font-bold text-[#1A1A2E]">Inspection Sign-Off</h1>
+                  <h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">Inspection Sign-Off</h1>
                   <p className="text-gray-400 text-sm">Review the full inspection report — your signature authorises AutoMedic to begin repair work</p>
                 </div>
                 <button onClick={() => loadData(true)} disabled={refreshing}
@@ -656,7 +728,7 @@ export default function CustomerDashboard() {
                       <div className="flex gap-3 mt-4">
                         <button onClick={()=>{const c=sigRef.current;if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-50"><X size={12}/>Clear</button>
                         <button onClick={confirmSign} className="flex items-center gap-2 px-6 py-2.5 bg-[#B8860B] text-white rounded-full text-sm font-semibold hover:bg-[#8B6508] transition-colors shadow-lg shadow-[#B8860B]/20"><CheckCircle size={14}/>Confirm &amp; Authorise Repairs</button>
-                        <a href="https://wa.me/265999000000" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2.5 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"><MessageCircle size={12}/>Ask a Question</a>
+                        <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2.5 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"><MessageCircle size={12}/>Ask a Question</a>
                       </div>
                     </div>
                   </div>
@@ -703,32 +775,103 @@ export default function CustomerDashboard() {
           {/* ── SERVICE HISTORY ── */}
           {section==='history'&&(
             <div>
-              <div className="mb-6"><h1 className="font-display text-2xl font-bold text-[#1A1A2E]">Service History</h1><p className="text-gray-400 text-sm">All your past and current repairs</p></div>
+              <div className="mb-6">
+                <h1 className="font-display text-xl sm:text-2xl font-bold text-[#1A1A2E]">Service History</h1>
+                <p className="text-gray-400 text-sm">All your past and current repairs</p>
+              </div>
               {appointments.length===0?(
-                <div className="bg-white rounded-2xl p-12 text-center shadow-sm"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><History size={28} className="text-gray-400"/></div><h3 className="font-bold text-[#1A1A2E] mb-2">No service history yet</h3><p className="text-gray-400 text-sm">Your service history will appear here after your first appointment.</p></div>
+                <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <History size={24} className="text-gray-400 sm:w-7 sm:h-7"/>
+                  </div>
+                  <h3 className="font-bold text-[#1A1A2E] mb-2">No service history yet</h3>
+                  <p className="text-gray-400 text-sm">Your service history will appear here after your first appointment.</p>
+                </div>
               ):(
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-                  <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[600px]"><thead><tr className="bg-gray-50/80">{['#','Vehicle','Service','Date','Cost','Status','Invoice'].map(h=><th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
-                  <tbody>{appointments.map((a,i)=>{
-                    const matchedInvoice = invoices.find(inv => inv.appointment_id === a.id)
-                    return (
-                    <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3.5 font-bold text-[#B8860B] text-xs">{a.tracking_number}</td>
-                      <td className="px-4 py-3.5 font-medium text-[#1A1A2E] text-xs">{a.make} {a.model} <span className="text-gray-400">{a.registration_number}</span></td>
-                      <td className="px-4 py-3.5 text-gray-500 text-xs">{a.service_name||'—'}</td>
-                      <td className="px-4 py-3.5 text-gray-400 text-xs">{a.preferred_date}</td>
-                      <td className="px-4 py-3.5 font-semibold text-xs">{a.estimated_cost?`MK ${Number(a.estimated_cost).toLocaleString()}`:'TBD'}</td>
-                      <td className="px-4 py-3.5"><span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${a.status==='completed'?'bg-green-50 text-green-600 border border-green-100':'bg-orange-50 text-orange-500 border border-orange-100'}`}>{a.status?.replace('_',' ')}</span></td>
-                      <td className="px-4 py-3.5">
-                        {matchedInvoice ? (
-                          <button onClick={()=>setInvoice(matchedInvoice)} className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors flex items-center gap-1"><Printer size={10}/>View Invoice</button>
-                        ) : a.status === 'completed' ? (
-                          <span className="text-[10px] text-gray-400 italic">Generating...</span>
-                        ) : null}
-                      </td>
-                    </tr>
-                  )})}</tbody></table>
+                  {/* Mobile card view */}
+                  <div className="block lg:hidden">
+                    {appointments.map((a,i)=>{
+                      const matchedInvoice = invoices.find(inv => inv.appointment_id === a.id)
+                      return (
+                        <div key={i} className="border-b border-gray-50 p-4 hover:bg-gray-50/50 transition-colors">
+                          {/* Row 1: Tracking + Vehicle + Status */}
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-bold text-[#B8860B] text-sm">{a.tracking_number}</span>
+                            <span className="font-medium text-[#1A1A2E] mx-3 flex-1 min-w-0 truncate text-sm">
+                              {a.make} {a.model} <span className="text-gray-400">{a.registration_number}</span>
+                            </span>
+                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize flex-shrink-0 ${a.status==='completed'?'bg-green-50 text-green-600 border border-green-100':'bg-orange-50 text-orange-500 border border-orange-100'}`}>
+                              {a.status?.replace('_',' ')}
+                            </span>
+                          </div>
+                          
+                          {/* Row 2: Service + Date + Cost */}
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-sm text-gray-600">{a.service_name||'—'}</span>
+                            <span className="text-xs text-gray-400 mx-3">{a.preferred_date}</span>
+                            <span className="font-semibold text-sm text-[#B8860B] flex-shrink-0">
+                              {a.estimated_cost?`MK ${Number(a.estimated_cost).toLocaleString()}`:'TBD'}
+                            </span>
+                          </div>
+                          
+                          {/* Row 3: Invoice Action */}
+                          {matchedInvoice ? (
+                            <div className="flex">
+                              <button onClick={()=>setInvoice(matchedInvoice)} 
+                                className="flex-1 flex items-center justify-center gap-2 text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 py-2 rounded-lg hover:bg-[#B8860B]/5 transition-colors">
+                                <Printer size={12}/>View Invoice
+                              </button>
+                            </div>
+                          ) : a.status === 'completed' ? (
+                            <div className="flex justify-center">
+                              <span className="text-[10px] text-gray-400 italic">Generating invoice...</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Desktop table view */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full text-sm min-w-[600px]">
+                      <thead>
+                        <tr className="bg-gray-50/80">
+                          {['#','Vehicle','Service','Date','Cost','Status','Invoice'].map(h=>
+                            <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {appointments.map((a,i)=>{
+                          const matchedInvoice = invoices.find(inv => inv.appointment_id === a.id)
+                          return (
+                            <tr key={i} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                              <td className="px-4 py-3.5 font-bold text-[#B8860B] text-xs">{a.tracking_number}</td>
+                              <td className="px-4 py-3.5 font-medium text-[#1A1A2E] text-xs">{a.make} {a.model} <span className="text-gray-400">{a.registration_number}</span></td>
+                              <td className="px-4 py-3.5 text-gray-500 text-xs">{a.service_name||'—'}</td>
+                              <td className="px-4 py-3.5 text-gray-400 text-xs">{a.preferred_date}</td>
+                              <td className="px-4 py-3.5 font-semibold text-xs">{a.estimated_cost?`MK ${Number(a.estimated_cost).toLocaleString()}`:'TBD'}</td>
+                              <td className="px-4 py-3.5">
+                                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${a.status==='completed'?'bg-green-50 text-green-600 border border-green-100':'bg-orange-50 text-orange-500 border border-orange-100'}`}>
+                                  {a.status?.replace('_',' ')}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {matchedInvoice ? (
+                                  <button onClick={()=>setInvoice(matchedInvoice)} className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors flex items-center gap-1">
+                                    <Printer size={10}/>View Invoice
+                                  </button>
+                                ) : a.status === 'completed' ? (
+                                  <span className="text-[10px] text-gray-400 italic">Generating...</span>
+                                ) : null}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -739,7 +882,7 @@ export default function CustomerDashboard() {
           {section==='invoices'&&(
             <div>
               <div className="flex items-center justify-between mb-6">
-                <div><h1 className="font-display text-2xl font-bold text-[#1A1A2E]">Invoices</h1><p className="text-gray-400 text-sm mt-0.5">Your service billing history</p></div>
+                <div><h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">Invoices</h1><p className="text-gray-400 text-sm mt-0.5">Your service billing history</p></div>
                 <button onClick={()=>loadData(true)} disabled={refreshing} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:border-[#B8860B] hover:text-[#B8860B] transition-colors disabled:opacity-60">
                   {refreshing?<><span className="w-3 h-3 border-2 border-[#B8860B] border-t-transparent rounded-full animate-spin"/>Refreshing...</>:'↻ Refresh'}
                 </button>
@@ -766,12 +909,12 @@ export default function CustomerDashboard() {
                           Please settle payment at the AutoMedic reception desk when collecting your vehicle.
                         </p>
                         <div className="flex gap-3 mt-3">
-                          <a href="https://wa.me/265999000000" target="_blank" rel="noreferrer"
+                          <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer"
                             className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-green-500 hover:bg-green-600 transition-colors px-3 py-1.5 rounded-full">
                             💬 WhatsApp Us
                           </a>
                           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-600 bg-red-100 px-3 py-1.5 rounded-full">
-                            📍 Area 47, Lilongwe · +265 999 000 000
+                            {safeSettings.address} · {safeSettings.phone}
                           </span>
                         </div>
                       </div>
@@ -864,7 +1007,7 @@ export default function CustomerDashboard() {
           {/* ── NOTIFICATIONS ── */}
           {section==='notifications'&&(
             <div>
-              <div className="mb-6"><h1 className="font-display text-2xl font-bold text-[#1A1A2E]">Notifications</h1></div>
+              <div className="mb-6"><h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">Notifications</h1></div>
               {notifications.length===0?(
                 <div className="bg-white rounded-2xl p-12 text-center shadow-sm"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><Bell size={28} className="text-gray-400"/></div><h3 className="font-bold text-[#1A1A2E] mb-2">No notifications</h3><p className="text-gray-400 text-sm">You'll see updates about your vehicles here.</p></div>
               ):(

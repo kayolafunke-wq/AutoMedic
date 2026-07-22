@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
+import ImageSlider from '../components/ImageSlider'
 import { CalendarCheck, Satellite, Bell, History, Camera, Tag, CheckCircle, ArrowRight, Car, Wrench, Shield } from 'lucide-react'
 
 const StatusStep = ({ done, active, label }) => (
@@ -11,6 +12,15 @@ const StatusStep = ({ done, active, label }) => (
 )
 
 export default function HomePage() {
+  // Image slider configuration
+  const heroImages = [
+    { src: '/hello-1.jfif', alt: 'AutoMedic Workshop - Professional Service' },
+    { src: '/hello-2.jpg', alt: 'AutoMedic Workshop - Expert Technicians' },
+    { src: '/hello-3.jpg', alt: 'AutoMedic Workshop - Modern Equipment' },
+    { src: '/hello-4.jpg', alt: 'AutoMedic Workshop - Quality Service' },
+    { src: '/hello-5.jpg', alt: 'AutoMedic Workshop - Trusted Garage' }
+  ]
+
   return (
     <div>
       <Navbar />
@@ -51,16 +61,14 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Hero Image + Floating Card */}
+          {/* Hero Image Slider + Floating Card */}
           <div className="relative w-full">
-            <div className="h-[280px] sm:h-[380px] md:h-[560px] rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-dark via-dark-2 to-[#0F3460] flex items-center justify-center">
-              <div className="text-center text-white px-4">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-full bg-primary/20 border-2 border-primary/40 flex items-center justify-center mx-auto mb-4 animate-pulse-ring">
-                  <Car size={42} className="text-primary drop-shadow-[0_0_20px_rgba(184,134,11,0.6)] md:w-14 md:h-14" />
-                </div>
-                <p className="font-display text-xl sm:text-2xl font-bold">AutoMedic Workshop</p>
-                <p className="text-white/50 text-xs sm:text-sm uppercase tracking-widest mt-1">Professional Service — Lilongwe</p>
-              </div>
+            <div className="h-[280px] sm:h-[380px] md:h-[560px] rounded-3xl overflow-hidden shadow-2xl">
+              <ImageSlider 
+                images={heroImages} 
+                autoSlideInterval={5000}
+                className="rounded-3xl"
+              />
             </div>
 
             {/* Floating status card */}
@@ -113,7 +121,17 @@ export default function HomePage() {
 
       {/* CTA */}
       <section className="relative py-24 bg-dark overflow-hidden">
+        {/* Background Image */}
         <div className="absolute inset-0">
+          <img 
+            src="/cta-bg.jpg" 
+            alt="Automotive workshop" 
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none' }}
+          />
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-dark/95 via-dark/90 to-dark/95" />
+          {/* Decorative blur elements */}
           <div className="absolute left-1/4 top-1/2 -translate-y-1/2 w-72 h-72 bg-primary/20 rounded-full blur-3xl" />
           <div className="absolute right-1/4 top-1/2 -translate-y-1/2 w-56 h-56 bg-blue-600/15 rounded-full blur-3xl" />
         </div>

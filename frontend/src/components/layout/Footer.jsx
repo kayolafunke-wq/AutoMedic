@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom'
 import { MapPin, Phone, Clock, Facebook, Instagram } from 'lucide-react'
+import { useGarageSettings } from '../../hooks/useGarageSettings'
 
 export default function Footer() {
+  const { settings } = useGarageSettings()
+
   return (
     <footer className="bg-dark text-white/80 pt-16">
       <div className="max-w-7xl mx-auto px-6 pb-10 grid grid-cols-1 md:grid-cols-4 gap-10">
@@ -41,14 +44,23 @@ export default function Footer() {
         <div>
           <h4 className="text-xs font-bold uppercase tracking-widest text-white/50 mb-4">Contact</h4>
           <div className="flex flex-col gap-3">
-            <p className="flex items-center gap-2.5 text-sm text-white/70"><MapPin size={15} className="text-primary flex-shrink-0" /> Area 47, Lilongwe, Malawi</p>
-            <p className="flex items-center gap-2.5 text-sm text-white/70"><Phone size={15} className="text-primary flex-shrink-0" /> +265 999 000 000</p>
-            <p className="flex items-center gap-2.5 text-sm text-white/70"><Clock size={15} className="text-primary flex-shrink-0" /> Mon–Sat: 7am – 6pm</p>
+            <p className="flex items-center gap-2.5 text-sm text-white/70">
+              <MapPin size={15} className="text-primary flex-shrink-0" /> 
+              {settings.address}
+            </p>
+            <p className="flex items-center gap-2.5 text-sm text-white/70">
+              <Phone size={15} className="text-primary flex-shrink-0" /> 
+              {settings.phone}
+            </p>
+            <p className="flex items-center gap-2.5 text-sm text-white/70">
+              <Clock size={15} className="text-primary flex-shrink-0" /> 
+              {settings.working_hours}
+            </p>
           </div>
         </div>
       </div>
       <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">
-        © 2024 AutoMedic Garage Management Platform. Lilongwe, Malawi.
+        © 2024 {settings.garage_name}. {settings.address?.split(',').slice(-1)[0]?.trim() || 'Malawi'}.
       </div>
     </footer>
   )

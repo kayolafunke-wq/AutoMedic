@@ -80,12 +80,12 @@ function CheckItem({ label, options, value, onChange }) {
     onChange({ checked, value: e.target.value })
   }
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-gray-50">
+    <div className="flex items-start gap-2 py-2 border-b border-gray-50">
       <input type="checkbox" checked={checked} onChange={handleCheck}
-        className="w-4 h-4 accent-[#B8860B] cursor-pointer flex-shrink-0" />
-      <span className={`text-sm flex-1 ${checked ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{label}</span>
+        className="w-4 h-4 mt-0.5 accent-[#B8860B] cursor-pointer flex-shrink-0" />
+      <span className={`text-xs sm:text-sm flex-1 leading-snug ${checked ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>{label}</span>
       <select value={value} onChange={handleVal}
-        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-[#B8860B] text-gray-600">
+        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-[#B8860B] text-gray-600 flex-shrink-0 min-w-[80px]">
         {options.map(o => <option key={o}>{o}</option>)}
       </select>
     </div>
@@ -179,7 +179,7 @@ function DamageMap({ damages, onChange }) {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
         {['Front Bumper', 'Rear Bumper', 'Roof', 'Hood/Bonnet', 'Boot/Trunk', 'Left Side', 'Right Side', 'Windshield', 'Left Wing', 'Right Wing', 'Rear Window', 'Underbody'].map(z => {
           const marked = damages.includes(z)
           return (
@@ -670,9 +670,9 @@ function InspectionForm({ job, existingInsp, onBack }) {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
             {/* Exterior */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+            <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-gray-50">
               <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">🚗 Exterior</h4>
               {[
                 ['Scratches', ['None', 'Minor', 'Moderate', 'Severe']],
@@ -687,7 +687,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
               ))}
             </div>
             {/* Interior */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+            <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-gray-50">
               <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">🪑 Interior</h4>
               {[
                 ['Seat Condition', ['Good', 'Fair', 'Poor']],
@@ -702,7 +702,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
               ))}
             </div>
             {/* Mechanical */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+            <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-gray-50">
               <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">⚙️ Mechanical</h4>
               {[
                 ['Engine Noise', ['None', 'Minor', 'Loud']],
@@ -717,7 +717,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
               ))}
             </div>
             {/* Under Bonnet */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50">
+            <div className="bg-white rounded-2xl p-4 lg:p-5 shadow-sm border border-gray-50">
               <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">🔧 Under Bonnet</h4>
               {[
                 ['Coolant Level', ['Full', 'Low', 'Empty']],
@@ -738,7 +738,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
       {/* ─ STEP 3: PHOTOS ─ */}
       {step === 2 && (
         <div className="space-y-5">
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
             <PhotoZone title="Before Repair" type="before" icon={Car} hint="Front, rear, left side, right side, interior" photos={photos} setPhotos={setPhotos} />
             <PhotoZone title="Damage Evidence" type="damage" icon={AlertTriangle} hint="Close-ups of all identified damages" photos={photos} setPhotos={setPhotos} />
             <PhotoZone title="Dashboard & Odometer" type="dashboard" icon={Camera} hint="Fuel gauge, odometer, warning lights" photos={photos} setPhotos={setPhotos} />
@@ -753,12 +753,12 @@ function InspectionForm({ job, existingInsp, onBack }) {
       {/* ─ STEP 4: ACCESSORIES ─ */}
       {step === 3 && (
         <div className="space-y-5">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center"><Package size={15} className="text-green-500" /></div>
               <h3 className="font-bold text-[#1A1A2E] text-sm">Keys &amp; Documents</h3>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {['🔑 Car Keys', '🔑 Spare Key', '📒 Vehicle Logbook', '📄 Insurance Card', '📋 Road Tax', '🏅 Fitness Certificate'].map(label => (
                 <AccItem key={label} icon={Package} label={label}
                   checked={!!accessories[label]}
@@ -766,12 +766,12 @@ function InspectionForm({ job, existingInsp, onBack }) {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center"><Car size={15} className="text-purple-500" /></div>
               <h3 className="font-bold text-[#1A1A2E] text-sm">Equipment &amp; Accessories</h3>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {['🛞 Spare Tyre', '🔧 Car Jack', '⚠️ Warning Triangle', '📻 Radio Remote', '🎯 Floor Mats', '🎥 Dash Camera', '👶 Child Seat', '🔌 Phone Charger'].map(label => (
                 <AccItem key={label} icon={Package} label={label}
                   checked={!!accessories[label]}
@@ -779,7 +779,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50">
             <div className="flex items-start gap-3 bg-orange-50 border border-orange-100 rounded-xl p-4 mb-4">
               <AlertTriangle size={16} className="text-orange-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-orange-600"><strong>Important:</strong> AutoMedic is not responsible for valuables left in the vehicle.</p>
@@ -801,11 +801,11 @@ function InspectionForm({ job, existingInsp, onBack }) {
         <div className="space-y-5">
 
           {/* Info banner */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
             <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <ClipboardCheck size={20} className="text-amber-600" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-amber-800 text-sm mb-1">Customer sign-off is done on the Customer Portal</p>
               <p className="text-xs text-amber-700 leading-relaxed">
                 Once you submit this report, the customer will receive a notification on their dashboard.
@@ -815,13 +815,13 @@ function InspectionForm({ job, existingInsp, onBack }) {
           </div>
 
           {/* Inspection summary */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 bg-[#B8860B]/10 rounded-lg flex items-center justify-center"><ClipboardCheck size={15} className="text-[#B8860B]" /></div>
               <h3 className="font-bold text-[#1A1A2E] text-sm">Inspection Summary</h3>
-              <span className="ml-auto text-[#B8860B] font-bold text-sm">{inspRef}</span>
+              <span className="ml-auto text-[#B8860B] font-bold text-xs sm:text-sm">{inspRef}</span>
             </div>
-            <div className="grid grid-cols-2 gap-x-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-8">
               {[
                 ['Reference', inspRef],
                 ['Vehicle', `${job.make} ${job.model}`],
@@ -832,9 +832,9 @@ function InspectionForm({ job, existingInsp, onBack }) {
                 ['Damages Flagged', damages.length > 0 ? damages.length + ' area(s)' : 'None'],
                 ['Photos Taken', photos.length > 0 ? photos.length + ' photo(s)' : 'None'],
               ].map(([k, v], i) => (
-                <div key={i} className="flex justify-between py-2.5 border-b border-gray-50 text-sm">
+                <div key={i} className="flex justify-between py-2.5 border-b border-gray-50 text-xs sm:text-sm">
                   <span className="text-gray-400">{k}</span>
-                  <span className="font-semibold text-[#1A1A2E]">{v}</span>
+                  <span className="font-semibold text-[#1A1A2E] text-right break-words ml-2">{v}</span>
                 </div>
               ))}
             </div>
@@ -852,7 +852,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
 
           {/* Accessories summary */}
           {Object.values(accessories).some(Boolean) && (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50">
               <h3 className="font-bold text-[#1A1A2E] text-sm mb-3">Received With Vehicle</h3>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(accessories).filter(([, v]) => v).map(([k]) => (
@@ -863,14 +863,16 @@ function InspectionForm({ job, existingInsp, onBack }) {
           )}
 
           {/* Advisor signature */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center"><User size={15} className="text-blue-500" /></div>
-              <h3 className="font-bold text-[#1A1A2E] text-sm">Service Advisor / Technician Sign-Off</h3>
+          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-50">
+            <div className="flex items-start sm:items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <User size={15} className="text-blue-500" />
+              </div>
+              <h3 className="font-bold text-[#1A1A2E] text-xs sm:text-sm leading-tight">Service Advisor / Technician Sign-Off</h3>
             </div>
             <p className="text-xs text-gray-400 mb-4">Sign below to confirm that this inspection report is accurate and ready to be sent to the customer.</p>
             <SigPad label="" id="advisorSigCanvas" />
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Technician Name</label>
                 <input defaultValue={''} placeholder="Your name" className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B]" />
@@ -883,7 +885,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
           </div>
 
           {/* What happens next */}
-          <div className="bg-[#1A1A2E] rounded-2xl p-5">
+          <div className="bg-[#1A1A2E] rounded-2xl p-4 sm:p-5">
             <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-3">What happens after you submit</p>
             <div className="space-y-3">
               {[
@@ -892,11 +894,11 @@ function InspectionForm({ job, existingInsp, onBack }) {
                 ['✍️', 'Customer signs digitally', 'They sign on their own device to authorise repair work'],
                 ['🔧', 'You begin repairs', 'Once signed, you get a notification and can start work immediately'],
               ].map(([icon, title, desc], i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <span className="text-lg flex-shrink-0 mt-0.5">{icon}</span>
-                  <div>
+                <div key={i} className="flex items-start gap-2.5 sm:gap-3">
+                  <span className="text-base sm:text-lg flex-shrink-0 mt-0.5">{icon}</span>
+                  <div className="min-w-0 flex-1">
                     <p className="text-white text-xs font-semibold">{title}</p>
-                    <p className="text-white/50 text-[11px]">{desc}</p>
+                    <p className="text-white/50 text-[11px] leading-relaxed">{desc}</p>
                   </div>
                 </div>
               ))}
@@ -906,25 +908,25 @@ function InspectionForm({ job, existingInsp, onBack }) {
       )}
 
       {/* NAV BUTTONS */}
-      <div className="flex justify-between items-center mt-6 pt-4">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mt-6 pt-4">
         <button onClick={back} disabled={step === 0}
-          className="flex items-center gap-2 px-6 py-3 border border-gray-200 text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-sm">
+          className="flex items-center justify-center gap-2 px-6 py-3 border border-gray-200 text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-sm">
           <ChevronLeft size={15} /> Back
         </button>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           {step < 4 ? (
             <button onClick={next}
-              className="flex items-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm">
+              className="flex items-center justify-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm">
               Next <ChevronRight size={15} />
             </button>
           ) : (
             <>
               <button onClick={() => window.print()}
-                className="flex items-center gap-2 px-5 py-3 border border-gray-200 text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-all text-sm">
+                className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-all text-sm">
                 <Printer size={14} /> Print
               </button>
               <button onClick={submit} disabled={saving}
-                className="flex items-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm disabled:opacity-60">
+                className="flex items-center justify-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm disabled:opacity-60 whitespace-nowrap">
                 <ClipboardCheck size={15} /> {saving ? 'Submitting...' : 'Submit to Customer Portal'}
               </button>
             </>

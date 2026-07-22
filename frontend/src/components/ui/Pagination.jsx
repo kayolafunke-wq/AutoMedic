@@ -25,9 +25,9 @@ export default function Pagination({ page, totalPages, total, pageSize, onPage, 
   }
 
   return (
-    <div className="flex items-center justify-between mt-4 px-1 flex-wrap gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 px-1 gap-3">
       {/* Label */}
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-400 order-2 sm:order-1 text-center sm:text-left">
         Showing{' '}
         <strong className="text-gray-600">{from}–{to}</strong>{' '}
         of <strong className="text-gray-600">{total}</strong>{' '}
@@ -35,7 +35,7 @@ export default function Pagination({ page, totalPages, total, pageSize, onPage, 
       </p>
 
       {/* Controls */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-center gap-1 order-1 sm:order-2">
         {/* Prev */}
         <button
           onClick={() => onPage(page - 1)}
@@ -44,8 +44,14 @@ export default function Pagination({ page, totalPages, total, pageSize, onPage, 
           <ChevronLeft size={14} />
         </button>
 
-        {/* Page numbers */}
-        {pages.map((p, i) =>
+        {/* Page numbers - show fewer on mobile */}
+        {pages.filter((p, i, arr) => {
+          // On mobile, show only current page and adjacent pages
+          if (typeof window !== 'undefined' && window.innerWidth < 640) {
+            return p === '...' || p === 1 || p === totalPages || Math.abs(p - page) <= 1
+          }
+          return true
+        }).map((p, i) =>
           p === '...'
             ? <span key={`e${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-xs">…</span>
             : <button key={p} onClick={() => onPage(p)}

@@ -119,7 +119,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row">
 
       {/* ── LEFT PANEL — shown on lg+, shown as banner on mobile ── */}
       <div className="lg:hidden relative h-40 sm:h-52 overflow-hidden flex-shrink-0">
@@ -138,7 +138,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── LEFT PANEL desktop ── */}
-      <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] flex-col relative overflow-hidden flex-shrink-0 sticky top-0 h-screen">
+      <div className="hidden lg:flex lg:w-[45%] xl:w-[48%] flex-col relative overflow-hidden flex-shrink-0 lg:sticky lg:top-0 lg:h-screen">
         {/* Background — image with gradient overlay, falls back to gradient if image missing */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117] via-[#1A1A2E] to-[#0F3460]">
           <img
@@ -222,7 +222,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT PANEL — form, scrolls independently ── */}
-      <div className="flex-1 flex items-start justify-center p-4 sm:p-6 bg-white overflow-y-auto">
+      <div className="flex-1 flex items-start justify-center p-4 sm:p-6 bg-white min-h-screen">
         <div className="w-full max-w-[380px] py-6 sm:py-10">
 
           {/* Mode tabs */}
