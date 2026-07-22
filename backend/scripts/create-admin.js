@@ -52,7 +52,7 @@ async function createAdmin() {
     await db.query(
       `INSERT INTO users (id, name, email, password_hash, role, is_active, created_at) 
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, name, email, passwordHash, 'admin', true, new Date().toISOString()]
+      [id, name, email, passwordHash, 'admin', 1, new Date().toISOString()]
     )
     
     console.log('\n✅ Admin user created successfully!')
