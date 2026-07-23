@@ -82,14 +82,14 @@ router.post('/register', registerRules, async (req, res) => {
     if (!name || !email || !password)
       return res.status(400).json({ success:false, message:'Name, email and password required' })
 
-    const exists = await db.query('SELECT id FROM users WHERE email = ?', [email])
+    const exists = await db.query('SELECT id FROM users WHERE email = $1', [email])
     if (exists.rows.length)
       return res.status(409).json({ success:false, message:'Email already registered' })
 
     const hash = bcrypt.hashSync(password, 12)
     const id   = require('crypto').randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO users (id,name,email,phone,password_hash,role) VALUES (?,?,?,?,?,?)',
+      'INSERT INTO users (id,name,email,phone,password_hash,role) VALUES ($1,$2,$3,$4,$5,$6)',
       [id, name, email, phone||null, hash, 'customer']
     )
     const user = { id, name, email, phone, role:'customer' }
@@ -155,7 +155,7 @@ router.post('/login', loginRules, async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ success:false, message:'Email and password required' })
 
-    const result = await db.query('SELECT * FROM users WHERE email = ? AND is_active = 1', [email])
+    const result = await db.query('SELECT * FROM users WHERE email = $1 AND is_active = 1', [email])
     if (!result.rows.length)
       return res.status(401).json({ success:false, message:'Invalid credentials' })
 
@@ -173,7 +173,7 @@ router.post('/login', loginRules, async (req, res) => {
     if (!valid)
       return res.status(401).json({ success:false, message:'Invalid credentials' })
 
-    await db.query('UPDATE users SET last_login = ? WHERE id = ?', [new Date().toISOString(), user.id])
+    await db.query('UPDATE users SET last_login = $1 WHERE id = $2', [new Date().toISOString(), user.id])
     const { password_hash, ...safe } = user
     res.json({ success:true, user:safe, token: sign(safe) })
   } catch (err) {
