@@ -62,9 +62,23 @@ async function verifyIdToken(idToken) {
   const padding = parts[1].length % 4
   const padded  = padding ? parts[1] + '='.repeat(4 - padding) : parts[1]
   const decoded = JSON.parse(Buffer.from(padded, 'base64url').toString())
-  if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+  
+  // In development mode without Firebase Admin configured, be more lenient with expiration
+  if (process.env.NODE_ENV === 'production' && decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
     throw new Error('Token has expired')
   }
+  
+  // Log token info for debugging
+  if (decoded.exp) {
+    const now = Math.floor(Date.now() / 1000)
+    const timeLeft = decoded.exp - now
+    if (timeLeft < 0) {
+      console.warn(`⚠️  Token expired ${Math.abs(timeLeft)}s ago (allowed in dev mode)`)
+    } else {
+      console.log(`✓ Token valid for ${timeLeft}s`)
+    }
+  }
+  
   return decoded
 }
 

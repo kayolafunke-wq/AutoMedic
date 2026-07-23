@@ -24,12 +24,12 @@ router.get('/all', authenticate, authorize('admin'), async (req, res) => {
 // POST create
 router.post('/', authenticate, authorize('admin'), createServiceRules, async (req, res) => {
   try {
-    const { name, description, category, base_price, duration_hours } = req.body
+    const { name, description, category, base_price, duration_hours, image_url } = req.body
     if (!name) return res.status(400).json({ success:false, message:'Service name is required' })
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO services (id,name,description,category,base_price,duration_hours) VALUES (?,?,?,?,?,?)',
-      [id, name, description||null, category||'general', base_price||null, duration_hours||null]
+      'INSERT INTO services (id,name,description,category,base_price,duration_hours,image_url) VALUES (?,?,?,?,?,?,?)',
+      [id, name, description||null, category||'general', base_price||null, duration_hours||null, image_url||null]
     )
     const r = await db.query('SELECT * FROM services WHERE id = ?', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
@@ -39,18 +39,19 @@ router.post('/', authenticate, authorize('admin'), createServiceRules, async (re
 // PATCH update
 router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
-    const { name, description, category, base_price, duration_hours, is_active } = req.body
+    const { name, description, category, base_price, duration_hours, image_url, is_active } = req.body
     const r = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const s = r.rows[0]
     await db.query(
-      'UPDATE services SET name=?,description=?,category=?,base_price=?,duration_hours=?,is_active=? WHERE id=?',
+      'UPDATE services SET name=?,description=?,category=?,base_price=?,duration_hours=?,image_url=?,is_active=? WHERE id=?',
       [
         name            || s.name,
         description     !== undefined ? description     : s.description,
         category        || s.category,
         base_price      !== undefined ? base_price      : s.base_price,
         duration_hours  !== undefined ? duration_hours  : s.duration_hours,
+        image_url       !== undefined ? image_url       : s.image_url,
         is_active       !== undefined ? (is_active ? 1 : 0) : s.is_active,
         req.params.id,
       ]

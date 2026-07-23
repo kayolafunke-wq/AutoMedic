@@ -16,8 +16,10 @@ const makeStorage = (folder) => multer.diskStorage({
   },
 })
 
-const repairUpload  = multer({ storage: makeStorage('repair-photos'),  limits: { fileSize: 10 * 1024 * 1024 } })
-const vehicleUpload = multer({ storage: makeStorage('vehicle-photos'), limits: { fileSize: 10 * 1024 * 1024 } })
+const repairUpload   = multer({ storage: makeStorage('repair-photos'),   limits: { fileSize: 10 * 1024 * 1024 } })
+const vehicleUpload  = multer({ storage: makeStorage('vehicle-photos'),  limits: { fileSize: 10 * 1024 * 1024 } })
+const serviceUpload  = multer({ storage: makeStorage('service-photos'),  limits: { fileSize: 5 * 1024 * 1024 } })
+const productUpload  = multer({ storage: makeStorage('product-photos'),  limits: { fileSize: 5 * 1024 * 1024 } })
 
 // ── REPAIR PHOTOS ─────────────────────────────────────────────────────────────
 // POST /api/upload/repair/:job_card_id
@@ -73,6 +75,66 @@ router.post('/vehicle/:vehicle_id', authenticate, vehicleUpload.array('photos', 
 
     res.status(201).json({ success: true, data: uploaded, count: uploaded.length })
   } catch (err) {
+    res.status(400).json({ success: false, message: err.message })
+  }
+})
+
+// ── SERVICE PHOTOS ────────────────────────────────────────────────────────────
+// POST /api/upload/service/:service_id
+router.post('/service/:service_id', authenticate, authorize('admin'), serviceUpload.single('image'), async (req, res) => {
+  try {
+    const { service_id } = req.params
+
+    // Verify service exists
+    const service = await db.query('SELECT id, image_url FROM services WHERE id = ?', [service_id])
+    if (!service.rows.length) return res.status(404).json({ success: false, message: 'Service not found' })
+
+    const imageUrl = `/uploads/service-photos/${req.file.filename}`
+    
+    // DON'T update database here - let frontend handle it
+    // await db.query('UPDATE services SET image_url = ? WHERE id = ?', [imageUrl, service_id])
+
+    res.status(201).json({ 
+      success: true, 
+      data: { 
+        service_id,
+        image_url: imageUrl,
+        filename: req.file.filename
+      }
+    })
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message })
+  }
+})
+
+// ── PRODUCT PHOTOS ────────────────────────────────────────────────────────────
+// POST /api/upload/product/:product_id
+router.post('/product/:product_id', authenticate, authorize('admin'), productUpload.single('image'), async (req, res) => {
+  try {
+    const { product_id } = req.params
+
+    // Verify product exists
+    const product = await db.query('SELECT id, image_url FROM products WHERE id = ?', [product_id])
+    if (!product.rows.length) {
+      return res.status(404).json({ success: false, message: 'Product not found' })
+    }
+
+    const imageUrl = `/uploads/product-photos/${req.file.filename}`
+    
+    // DON'T update database here - let frontend handle it
+    // await db.query('UPDATE products SET image_url = ? WHERE id = ?', [imageUrl, product_id])
+
+    const response = { 
+      success: true, 
+      data: { 
+        product_id,
+        image_url: imageUrl,
+        filename: req.file.filename
+      }
+    }
+    res.status(201).json(response)
+  } catch (err) {
+    console.error('Upload error:', err)
     res.status(400).json({ success: false, message: err.message })
   }
 })

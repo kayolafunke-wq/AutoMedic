@@ -266,4 +266,94 @@ router.get('/product-movement', authenticate, authorize('admin'), async (req, re
   } catch (err) { res.status(500).json({ success: false, message: err.message }) }
 })
 
+// ── TECHNICIAN MONTHLY REVENUE ────────────────────────────────────────────────
+router.get('/technician-revenue', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    // Get current month's revenue per technician from completed job cards
+    // Include all technicians even if they have no completed jobs
+    const techRevenue = await db.query(`
+      SELECT 
+        t.name AS technician_name,
+        t.id AS technician_id,
+        COUNT(DISTINCT jc.id) AS jobs_completed,
+        COALESCE(SUM(CASE 
+          WHEN jc.final_cost IS NOT NULL AND jc.final_cost > 0 THEN jc.final_cost
+          ELSE jc.estimated_cost
+        END), 0) AS total_revenue
+      FROM users t
+      LEFT JOIN job_cards jc ON jc.technician_id = t.id 
+        AND jc.status = 'completed'
+        AND strftime('%Y-%m', jc.updated_at) = strftime('%Y-%m', 'now')
+      WHERE t.role = 'technician'
+      GROUP BY t.id, t.name
+      ORDER BY total_revenue DESC, t.name
+    `)
+
+    res.json({ success: true, data: techRevenue.rows })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+// ── TECHNICIAN HISTORICAL REVENUE (Last 6 months) ──────────────────────────────
+router.get('/technician-revenue-history', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    // Get last 6 months of data per technician
+    const historyQuery = await db.query(`
+      SELECT 
+        t.name AS technician_name,
+        t.id AS technician_id,
+        strftime('%Y-%m', jc.updated_at) AS month,
+        COUNT(DISTINCT jc.id) AS jobs_completed,
+        COALESCE(SUM(CASE 
+          WHEN jc.final_cost IS NOT NULL AND jc.final_cost > 0 THEN jc.final_cost
+          ELSE jc.estimated_cost
+        END), 0) AS total_revenue
+      FROM users t
+      LEFT JOIN job_cards jc ON jc.technician_id = t.id 
+        AND jc.status = 'completed'
+        AND jc.updated_at >= date('now', '-6 months')
+      WHERE t.role = 'technician'
+        AND jc.id IS NOT NULL
+      GROUP BY t.id, t.name, strftime('%Y-%m', jc.updated_at)
+      ORDER BY month DESC, t.name
+    `)
+
+    res.json({ success: true, data: historyQuery.rows })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+// ── TECHNICIAN REVENUE FOR SPECIFIC MONTH ──────────────────────────────────────
+router.get('/technician-revenue/:month', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { month } = req.params // Format: YYYY-MM
+    
+    // Get technician revenue for the specified month
+    // Include all technicians even if they have no completed jobs that month
+    const techRevenue = await db.query(`
+      SELECT 
+        t.name AS technician_name,
+        t.id AS technician_id,
+        COUNT(DISTINCT jc.id) AS jobs_completed,
+        COALESCE(SUM(CASE 
+          WHEN jc.final_cost IS NOT NULL AND jc.final_cost > 0 THEN jc.final_cost
+          ELSE jc.estimated_cost
+        END), 0) AS total_revenue
+      FROM users t
+      LEFT JOIN job_cards jc ON jc.technician_id = t.id 
+        AND jc.status = 'completed'
+        AND strftime('%Y-%m', jc.updated_at) = ?
+      WHERE t.role = 'technician'
+      GROUP BY t.id, t.name
+      ORDER BY total_revenue DESC, t.name
+    `, [month])
+
+    res.json({ success: true, data: techRevenue.rows })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
 module.exports = router
