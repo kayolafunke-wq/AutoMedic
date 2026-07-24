@@ -232,11 +232,10 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
         )
         if (!inspExists.rows.length) {
           const inspId  = crypto.randomBytes(16).toString('hex')
-          const inspRef = 'INS-' + Math.floor(1000 + Math.random() * 9000)
           await db.query(
-            `INSERT INTO inspections (id,reference_number,appointment_id,vehicle_id,customer_id,advisor_id,status)
-             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-            [inspId, inspRef, req.params.id, vehicle_id, customer_id, req.user.id, 'pending']
+            `INSERT INTO inspections (id,appointment_id,vehicle_id,customer_id,technician_id,status)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [inspId, req.params.id, vehicle_id, customer_id, technician_id, 'pending']
           )
         }
       }
