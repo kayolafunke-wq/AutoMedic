@@ -13,6 +13,7 @@
     "db:seed:users": "node database/seeders/seed-users-postgres.js",
     "db:check-users": "node check-users.js",
     "db:fix-users": "node scripts/fix-users-table.js",
+    "test:firebase": "node test-firebase-config.js",
     "db:reset": "node scripts/migrate.js && node scripts/seed.js",
     "db:backup": "node scripts/backup_database.js",
     "db:restore": "node scripts/restore_database.js",
