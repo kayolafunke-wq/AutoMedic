@@ -15,7 +15,7 @@ async function notify(userId, title, message, type = 'info') {
   try {
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO notifications (id,user_id,title,message,type) VALUES (?,?,?,?,?)',
+      'INSERT INTO notifications (id,user_id,title,message,type) VALUES ($1,$2,$3,$4,$5)',
       [id, userId, title, message, type]
     )
   } catch (_) { /* non-fatal */ }
@@ -112,7 +112,7 @@ router.get('/my', authenticate, authorize('customer'), async (req, res) => {
       LEFT JOIN users t ON a.technician_id = t.id
       LEFT JOIN job_cards jc ON jc.appointment_id = a.id
       LEFT JOIN inspections i ON i.appointment_id = a.id
-      WHERE a.customer_id = ?
+      WHERE a.customer_id = $1
       ORDER BY a.created_at DESC
     `, [req.user.id])
     res.json({ success:true, data:r.rows })
@@ -126,10 +126,10 @@ router.post('/', authenticate, authorize('customer'), createAppointmentRules, as
     const id = crypto.randomBytes(16).toString('hex')
     const tracking = genTracking()
     await db.query(
-      'INSERT INTO appointments (id,tracking_number,customer_id,vehicle_id,service_id,preferred_date,problem_description) VALUES (?,?,?,?,?,?,?)',
+      'INSERT INTO appointments (id,tracking_number,customer_id,vehicle_id,service_id,preferred_date,problem_description) VALUES ($1,$2,$3,$4,$5,$6,$7)',
       [id, tracking, req.user.id, vehicle_id||null, service_id||null, preferred_date, problem_description||null]
     )
-    const r = await db.query('SELECT * FROM appointments WHERE id = ?', [id])
+    const r = await db.query('SELECT * FROM appointments WHERE id = $1', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
@@ -143,7 +143,7 @@ router.post('/admin', authenticate, authorize('admin'), adminCreateAppointmentRu
     const id = crypto.randomBytes(16).toString('hex')
     const tracking = genTracking()
     await db.query(
-      'INSERT INTO appointments (id,tracking_number,customer_id,vehicle_id,service_id,preferred_date,problem_description) VALUES (?,?,?,?,?,?,?)',
+      'INSERT INTO appointments (id,tracking_number,customer_id,vehicle_id,service_id,preferred_date,problem_description) VALUES ($1,$2,$3,$4,$5,$6,$7)',
       [id, tracking, customer_id, vehicle_id||null, service_id||null, preferred_date, problem_description||null]
     )
     const r = await db.query(`
@@ -154,7 +154,7 @@ router.post('/admin', authenticate, authorize('admin'), adminCreateAppointmentRu
       LEFT JOIN users u ON a.customer_id = u.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE a.id = ?
+      WHERE a.id = $1
     `, [id])
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
@@ -165,16 +165,16 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
   try {
     const { technician_id, status } = req.body
     await db.query(
-      'UPDATE appointments SET technician_id=?, status=?, updated_at=? WHERE id=?',
+      'UPDATE appointments SET technician_id=$1, status=$2, updated_at=$3 WHERE id=$4',
       [technician_id, status||'confirmed', new Date().toISOString(), req.params.id]
     )
     // Create job card + pending inspection when confirming
     if (status === 'confirmed' && technician_id) {
-      const jcExists = await db.query('SELECT id FROM job_cards WHERE appointment_id = ?', [req.params.id])
+      const jcExists = await db.query('SELECT id FROM job_cards WHERE appointment_id = $1', [req.params.id])
       if (!jcExists.rows.length) {
         const jcId = crypto.randomBytes(16).toString('hex')
         await db.query(
-          'INSERT INTO job_cards (id,appointment_id,technician_id,progress,status) VALUES (?,?,?,0,?)',
+          'INSERT INTO job_cards (id,appointment_id,technician_id,progress,status) VALUES ($1,$2,$3,0,$4)',
           [jcId, req.params.id, technician_id, 'pending']
         )
         
@@ -185,7 +185,7 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
             FROM appointments a
             LEFT JOIN vehicles v ON a.vehicle_id = v.id
             LEFT JOIN services s ON a.service_id = s.id
-            WHERE a.id = ?
+            WHERE a.id = $1
           `, [req.params.id])
           
           if (apptInfo.rows.length) {
@@ -203,7 +203,7 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
             )
             
             // Email notification
-            const techRow = await db.query('SELECT name, email FROM users WHERE id = ?', [technician_id])
+            const techRow = await db.query('SELECT name, email FROM users WHERE id = $1', [technician_id])
             if (techRow.rows.length && techRow.rows[0].email) {
               emailService.sendJobAssigned({
                 name:     techRow.rows[0].name,
@@ -221,13 +221,13 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
 
       // Auto-create inspection record so technician can start immediately
       const apptDetail = await db.query(
-        'SELECT customer_id, vehicle_id FROM appointments WHERE id = ?',
+        'SELECT customer_id, vehicle_id FROM appointments WHERE id = $1',
         [req.params.id]
       )
       if (apptDetail.rows.length) {
         const { customer_id, vehicle_id } = apptDetail.rows[0]
         const inspExists = await db.query(
-          'SELECT id FROM inspections WHERE appointment_id = ?',
+          'SELECT id FROM inspections WHERE appointment_id = $1',
           [req.params.id]
         )
         if (!inspExists.rows.length) {
@@ -235,13 +235,13 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
           const inspRef = 'INS-' + Math.floor(1000 + Math.random() * 9000)
           await db.query(
             `INSERT INTO inspections (id,reference_number,appointment_id,vehicle_id,customer_id,advisor_id,status)
-             VALUES (?,?,?,?,?,?,?)`,
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [inspId, inspRef, req.params.id, vehicle_id, customer_id, req.user.id, 'pending']
           )
         }
       }
     }
-    const r = await db.query('SELECT * FROM appointments WHERE id = ?', [req.params.id])
+    const r = await db.query('SELECT * FROM appointments WHERE id = $1', [req.params.id])
     const appt = r.rows[0]
 
     // Notify customer
@@ -265,10 +265,10 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
       // Send confirmation email when appointment is confirmed with technician assigned
       if ((status === 'confirmed' || !status) && technician_id) {
         try {
-          const custRow  = await db.query('SELECT name, email FROM users WHERE id = ?', [appt.customer_id])
-          const techRow  = await db.query('SELECT name FROM users WHERE id = ?', [technician_id])
-          const vehRow   = await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = ?', [appt.vehicle_id])
-          const svcRow   = await db.query('SELECT name FROM services WHERE id = ?', [appt.service_id])
+          const custRow  = await db.query('SELECT name, email FROM users WHERE id = $1', [appt.customer_id])
+          const techRow  = await db.query('SELECT name FROM users WHERE id = $1', [technician_id])
+          const vehRow   = await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = $1', [appt.vehicle_id])
+          const svcRow   = await db.query('SELECT name FROM services WHERE id = $1', [appt.service_id])
           if (custRow.rows.length && custRow.rows[0].email) {
             emailService.sendAppointmentConfirmed({
               name:           custRow.rows[0].name,
@@ -290,11 +290,11 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
 router.patch('/:id/status', authenticate, authorize('admin','technician'), async (req, res) => {
   try {
     const { status } = req.body
-    await db.query('UPDATE appointments SET status=?,updated_at=? WHERE id=?',
+    await db.query('UPDATE appointments SET status=$1,updated_at=$2 WHERE id=$3',
       [status, new Date().toISOString(), req.params.id])
 
     // Notify customer of status change
-    const r = await db.query('SELECT customer_id, tracking_number FROM appointments WHERE id=?', [req.params.id])
+    const r = await db.query('SELECT customer_id, tracking_number FROM appointments WHERE id=$1', [req.params.id])
     if (r.rows.length && r.rows[0].customer_id) {
       const { customer_id, tracking_number } = r.rows[0]
       const statusLabels = {
@@ -327,7 +327,7 @@ router.get('/track/:ref', async (req, res) => {
       LEFT JOIN services s ON a.service_id = s.id
       LEFT JOIN users t ON a.technician_id = t.id
       LEFT JOIN job_cards jc ON jc.appointment_id = a.id
-      WHERE a.tracking_number = ?
+      WHERE a.tracking_number = $1
     `, [req.params.ref.toUpperCase()])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Vehicle not found' })
     res.json({ success:true, data:r.rows[0] })
