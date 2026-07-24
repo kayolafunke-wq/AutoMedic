@@ -28,10 +28,10 @@ router.post('/', authenticate, authorize('admin'), createServiceRules, async (re
     if (!name) return res.status(400).json({ success:false, message:'Service name is required' })
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO services (id,name,description,category,base_price,duration_hours,image_url) VALUES (?,?,?,?,?,?,?)',
+      'INSERT INTO services (id,name,description,category,base_price,duration_hours,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
       [id, name, description||null, category||'general', base_price||null, duration_hours||null, image_url||null]
     )
-    const r = await db.query('SELECT * FROM services WHERE id = ?', [id])
+    const r = await db.query('SELECT * FROM services WHERE id = $1', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
@@ -40,11 +40,11 @@ router.post('/', authenticate, authorize('admin'), createServiceRules, async (re
 router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     const { name, description, category, base_price, duration_hours, image_url, is_active } = req.body
-    const r = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id])
+    const r = await db.query('SELECT * FROM services WHERE id = $1', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const s = r.rows[0]
     await db.query(
-      'UPDATE services SET name=?,description=?,category=?,base_price=?,duration_hours=?,image_url=?,is_active=? WHERE id=?',
+      'UPDATE services SET name=$1,description=$2,category=$3,base_price=$4,duration_hours=$5,image_url=$6,is_active=$7 WHERE id=$8',
       [
         name            || s.name,
         description     !== undefined ? description     : s.description,
@@ -56,7 +56,7 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
         req.params.id,
       ]
     )
-    const updated = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id])
+    const updated = await db.query('SELECT * FROM services WHERE id = $1', [req.params.id])
     res.json({ success:true, data:updated.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
@@ -65,13 +65,13 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
 router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     // Check if any appointments use this service
-    const used = await db.query('SELECT COUNT(*) as cnt FROM appointments WHERE service_id = ?', [req.params.id])
+    const used = await db.query('SELECT COUNT(*) as cnt FROM appointments WHERE service_id = $1', [req.params.id])
     if (used.rows[0].cnt > 0) {
       // Soft-delete instead — preserve referential integrity
-      await db.query('UPDATE services SET is_active = 0 WHERE id = ?', [req.params.id])
+      await db.query('UPDATE services SET is_active = 0 WHERE id = $1', [req.params.id])
       return res.json({ success:true, soft: true, message: `Service deactivated (used in ${used.rows[0].cnt} appointment(s) — cannot hard delete)` })
     }
-    await db.query('DELETE FROM services WHERE id = ?', [req.params.id])
+    await db.query('DELETE FROM services WHERE id = $1', [req.params.id])
     res.json({ success:true, soft: false, message: 'Service permanently deleted' })
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
