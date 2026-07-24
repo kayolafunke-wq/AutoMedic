@@ -8,8 +8,8 @@ router.get('/garage', async (req, res) => {
   try {
     const result = await db.query(`
       SELECT * FROM garage_settings 
-      WHERE id = 1
-    `)
+      WHERE id = $1
+    `, ['default'])
 
     if (!result.rows.length) {
       // Return default settings if none exist
@@ -59,23 +59,23 @@ router.put('/garage', authenticate, authorize('admin'), async (req, res) => {
 
     // Check if settings exist
     const existing = await db.query(`
-      SELECT id FROM garage_settings WHERE id = 1
-    `)
+      SELECT id FROM garage_settings WHERE id = $1
+    `, ['default'])
 
     if (existing.rows.length) {
       // Update existing settings
       await db.query(`
         UPDATE garage_settings SET
-          garage_name = ?,
-          phone = ?,
-          address = ?,
-          whatsapp = ?,
-          working_hours = ?,
-          email = ?,
-          vat_rate = ?,
-          currency = ?,
-          updated_at = datetime('now')
-        WHERE id = 1
+          garage_name = $1,
+          phone = $2,
+          address = $3,
+          whatsapp = $4,
+          working_hours = $5,
+          email = $6,
+          vat_rate = $7,
+          currency = $8,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $9
       `, [
         garage_name,
         phone,
@@ -84,7 +84,8 @@ router.put('/garage', authenticate, authorize('admin'), async (req, res) => {
         working_hours,
         email,
         parseFloat(vat_rate) || 16.5,
-        currency
+        currency,
+        'default'
       ])
     } else {
       // Insert new settings
@@ -92,9 +93,9 @@ router.put('/garage', authenticate, authorize('admin'), async (req, res) => {
         INSERT INTO garage_settings (
           id, garage_name, phone, address, whatsapp, 
           working_hours, email, vat_rate, currency
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `, [
-        1,
+        'default',
         garage_name,
         phone,
         address,
@@ -108,8 +109,8 @@ router.put('/garage', authenticate, authorize('admin'), async (req, res) => {
 
     // Fetch updated settings
     const updated = await db.query(`
-      SELECT * FROM garage_settings WHERE id = 1
-    `)
+      SELECT * FROM garage_settings WHERE id = $1
+    `, ['default'])
 
     res.json({ 
       success: true, 
