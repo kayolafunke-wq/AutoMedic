@@ -185,7 +185,7 @@ router.post('/login', loginRules, async (req, res) => {
 router.get('/me', authenticate, async (req, res) => {
   try {
     const r = await db.query(
-      'SELECT id,name,email,phone,role,avatar_url,created_at FROM users WHERE id = ?',
+      'SELECT id,name,email,phone,role,avatar_url,created_at FROM users WHERE id = $1',
       [req.user.id]
     )
     if (!r.rows.length) return res.status(404).json({ success:false, message:'User not found' })
@@ -197,12 +197,12 @@ router.get('/me', authenticate, async (req, res) => {
 router.post('/change-password', authenticate, changePasswordRules, async (req, res) => {
   try {
     const { current_password, new_password } = req.body
-    const r = await db.query('SELECT password_hash FROM users WHERE id = ?', [req.user.id])
+    const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])
     const user = r.rows[0]
     if (user.password_hash && !bcrypt.compareSync(current_password, user.password_hash))
       return res.status(401).json({ success:false, message:'Current password incorrect' })
     const hash = bcrypt.hashSync(new_password, 12)
-    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.user.id])
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.user.id])
     res.json({ success:true, message:'Password updated' })
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
@@ -235,9 +235,9 @@ router.post('/firebase-sync', async (req, res) => {
     const avatar = decoded.picture || null
 
     // Find or create user
-    let result = await db.query('SELECT * FROM users WHERE google_id = ?', [uid])
+    let result = await db.query('SELECT * FROM users WHERE google_id = $1', [uid])
     if (!result.rows.length && email) {
-      result = await db.query('SELECT * FROM users WHERE email = ?', [email])
+      result = await db.query('SELECT * FROM users WHERE email = $1', [email])
     }
 
     let user
@@ -245,16 +245,16 @@ router.post('/firebase-sync', async (req, res) => {
       user = result.rows[0]
       // Update google_id, avatar — also set password_hash if provided and not already set
       const updateFields = [uid, avatar, new Date().toISOString(), user.id]
-      let updateSql = 'UPDATE users SET google_id=?,avatar_url=?,last_login=? WHERE id=?'
+      let updateSql = 'UPDATE users SET google_id=$1,avatar_url=$2,last_login=$3 WHERE id=$4'
       if (req.body.password && !user.password_hash) {
         const bcrypt = require('bcryptjs')
         const hash = bcrypt.hashSync(req.body.password, 12)
-        updateSql = 'UPDATE users SET google_id=?,avatar_url=?,last_login=?,password_hash=? WHERE id=?'
+        updateSql = 'UPDATE users SET google_id=$1,avatar_url=$2,last_login=$3,password_hash=$4 WHERE id=$5'
         updateFields.splice(3, 0, hash) // insert hash before user.id
       }
       await db.query(updateSql, updateFields)
       // Re-fetch user to get updated data
-      result = await db.query('SELECT * FROM users WHERE id = ?', [user.id])
+      result = await db.query('SELECT * FROM users WHERE id = $1', [user.id])
       user = result.rows[0]
     } else {
       // New user
@@ -265,17 +265,17 @@ router.post('/firebase-sync', async (req, res) => {
         pwHash = bcrypt.hashSync(req.body.password, 12)
       }
       await db.query(
-        'INSERT INTO users (id,name,email,phone,google_id,avatar_url,password_hash,role) VALUES (?,?,?,?,?,?,?,?)',
+        'INSERT INTO users (id,name,email,phone,google_id,avatar_url,password_hash,role) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
         [id, uname, email, phone||null, uid, avatar, pwHash, 'customer']
       )
-      result = await db.query('SELECT * FROM users WHERE id = ?', [id])
+      result = await db.query('SELECT * FROM users WHERE id = $1', [id])
       user = result.rows[0]
     }
 
     // Update phone if provided
     if (phone && !user.phone) {
-      await db.query('UPDATE users SET phone=? WHERE id=?', [phone, user.id])
-      result = await db.query('SELECT * FROM users WHERE id = ?', [user.id])
+      await db.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, user.id])
+      result = await db.query('SELECT * FROM users WHERE id = $1', [user.id])
       user = result.rows[0]
     }
 
@@ -300,7 +300,7 @@ router.post('/forgot-password',
 
     try {
       const { email } = req.body
-      const result = await db.query('SELECT id, name, email, role FROM users WHERE email = ? AND is_active = 1', [email])
+      const result = await db.query('SELECT id, name, email, role FROM users WHERE email = $1 AND is_active = 1', [email])
       if (!result.rows.length) return res.json(generic) // don't reveal non-existence
 
       const user  = result.rows[0]
@@ -345,7 +345,7 @@ router.post('/reset-password',
 
     try {
       const hash = bcrypt.hashSync(new_password, 12)
-      await db.query('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [hash, new Date().toISOString(), entry.userId])
+      await db.query('UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3', [hash, new Date().toISOString(), entry.userId])
       resetTokens.delete(token) // token is single-use
       res.json({ success: true, message: 'Password reset successfully. You can now log in.' })
     } catch (err) {
