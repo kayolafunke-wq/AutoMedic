@@ -9,6 +9,8 @@
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:postgres": "node scripts/migrate-postgresql.js",
     "db:seed": "node scripts/seed.js",
+    "db:seed:postgres": "node database/seeders/seed-all-postgres.js",
+    "db:seed:users": "node database/seeders/seed-users-postgres.js",
     "db:reset": "node scripts/migrate.js && node scripts/seed.js",
     "db:backup": "node scripts/backup_database.js",
     "db:restore": "node scripts/restore_database.js",
