@@ -28,12 +28,21 @@ try {
     console.log('🔐 Firebase Admin: initialized via service account file')
   } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     // Mode 2: individual env vars (CI/CD friendly)
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY
+    
+    // Remove outer quotes if present (Railway might add them)
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+      privateKey = privateKey.slice(1, -1)
+    }
+    
+    // Env vars escape newlines as \n — convert back
+    privateKey = privateKey.replace(/\\n/g, '\n')
+    
     app = admin.initializeApp({
       credential: admin.credential.cert({
         projectId:   process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Env vars escape newlines as \n — convert back
-        privateKey:  process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        privateKey:  privateKey,
       }),
     })
     console.log('🔐 Firebase Admin: initialized via environment variables')

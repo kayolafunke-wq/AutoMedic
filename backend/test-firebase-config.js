@@ -57,7 +57,28 @@ if (hasProjectId && hasClientEmail && hasPrivateKey) {
   console.log('\nTrying to initialize Firebase Admin SDK...\n')
   
   try {
-    const admin = require('firebase-admin')
+    // Check if firebase-admin is installed
+    let admin
+    try {
+      admin = require('firebase-admin')
+      console.log('✓ firebase-admin module loaded')
+      console.log(`  Version: ${require('firebase-admin/package.json').version}`)
+    } catch (reqError) {
+      console.error('❌ Failed to load firebase-admin module')
+      console.error(`   Error: ${reqError.message}`)
+      console.log('\n💡 Run: npm install firebase-admin@13.0.0')
+      process.exit(1)
+    }
+    
+    // Check if admin.credential exists
+    if (!admin.credential) {
+      console.error('❌ admin.credential is undefined!')
+      console.error('   This usually means firebase-admin is not installed correctly.')
+      console.log('\n💡 Try:')
+      console.log('   1. npm uninstall firebase-admin')
+      console.log('   2. npm install firebase-admin@13.0.0')
+      process.exit(1)
+    }
     
     if (admin.apps && admin.apps.length) {
       console.log('✅ Firebase Admin already initialized')
@@ -92,6 +113,7 @@ if (hasProjectId && hasClientEmail && hasPrivateKey) {
   } catch (error) {
     console.error('❌ Firebase Admin initialization failed:')
     console.error(`   Error: ${error.message}`)
+    console.error(`   Stack: ${error.stack}`)
     
     if (error.message.includes('private_key') || error.message.includes('DECODER')) {
       console.log('\n💡 HINT: The FIREBASE_PRIVATE_KEY format is wrong.')
