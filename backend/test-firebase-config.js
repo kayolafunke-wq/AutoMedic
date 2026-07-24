@@ -27,6 +27,27 @@ if (hasPrivateKey) {
   console.log(`    Has quotes: ${key.startsWith('"') ? '✅ YES' : '❌ NO (needs quotes!)'}`)
   console.log(`    Has \\n characters: ${key.includes('\\n') ? '✅ YES' : '❌ NO (needs \\n!)'}`)
   console.log(`    Ends with: ...${key.substring(key.length - 30)}`)
+  
+  // Try to parse and show the actual key after processing
+  console.log('\n    Attempting to process the key...')
+  try {
+    // Remove outer quotes if present
+    let processedKey = key
+    if (processedKey.startsWith('"') && processedKey.endsWith('"')) {
+      processedKey = processedKey.slice(1, -1)
+      console.log(`    ✓ Removed outer quotes`)
+    }
+    
+    // Replace \\n with actual newlines
+    processedKey = processedKey.replace(/\\n/g, '\n')
+    console.log(`    ✓ Converted \\n to newlines`)
+    console.log(`    ✓ Processed key length: ${processedKey.length}`)
+    console.log(`    ✓ Processed key starts with: ${processedKey.substring(0, 30)}`)
+    console.log(`    ✓ First line: ${processedKey.split('\n')[0]}`)
+    console.log(`    ✓ Last line: ${processedKey.split('\n').pop()}`)
+  } catch (err) {
+    console.log(`    ✗ Error processing: ${err.message}`)
+  }
 }
 
 console.log('\n' + '='.repeat(60) + '\n')
@@ -41,8 +62,21 @@ if (hasProjectId && hasClientEmail && hasPrivateKey) {
     if (admin.apps && admin.apps.length) {
       console.log('✅ Firebase Admin already initialized')
     } else {
-      // Parse the private key (handle \n)
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      // Parse the private key - remove outer quotes and handle \n
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY
+      
+      // Remove outer quotes if present
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.slice(1, -1)
+      }
+      
+      // Replace \\n with actual newlines
+      privateKey = privateKey.replace(/\\n/g, '\n')
+      
+      console.log('Initializing with:')
+      console.log(`  Project ID: ${process.env.FIREBASE_PROJECT_ID}`)
+      console.log(`  Client Email: ${process.env.FIREBASE_CLIENT_EMAIL}`)
+      console.log(`  Private Key (first 50 chars): ${privateKey.substring(0, 50)}...`)
       
       admin.initializeApp({
         credential: admin.credential.cert({
@@ -59,12 +93,11 @@ if (hasProjectId && hasClientEmail && hasPrivateKey) {
     console.error('❌ Firebase Admin initialization failed:')
     console.error(`   Error: ${error.message}`)
     
-    if (error.message.includes('private_key')) {
+    if (error.message.includes('private_key') || error.message.includes('DECODER')) {
       console.log('\n💡 HINT: The FIREBASE_PRIVATE_KEY format is wrong.')
-      console.log('   Make sure it:')
-      console.log('   1. Starts with a QUOTE: "-----BEGIN PRIVATE KEY-----')
-      console.log('   2. Has \\n (backslash-n) NOT actual line breaks')
-      console.log('   3. Ends with a QUOTE: -----END PRIVATE KEY-----\\n"')
+      console.log('   The key should be a valid RSA private key.')
+      console.log('   Make sure you copied the ENTIRE private_key value from the JSON file.')
+      console.log('   Including: "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"')
     }
   }
 } else {
