@@ -8,7 +8,7 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
   try {
     const [customers, todayAppts, activeRepairs, invoiceRevRow, walkinRevRow] = await Promise.all([
       db.query("SELECT COUNT(*) as cnt FROM users WHERE role='customer'"),
-      db.query("SELECT COUNT(*) as cnt FROM appointments WHERE date(created_at)=date('now')"),
+      db.query("SELECT COUNT(*) as cnt FROM appointments WHERE DATE(created_at) = CURRENT_DATE"),
       db.query("SELECT COUNT(*) as cnt FROM job_cards WHERE status NOT IN ('completed','ready')"),
 
       // Revenue from PAID invoices this month
@@ -18,7 +18,7 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
           COUNT(*)                AS paid_invoices
         FROM invoices
         WHERE status = 'paid'
-          AND strftime('%Y-%m', COALESCE(paid_at, updated_at, created_at)) = strftime('%Y-%m', 'now')
+          AND TO_CHAR(COALESCE(paid_at, updated_at, created_at), 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
       `),
 
       // Revenue from walk-in stock checkouts this month (not linked to an invoice)
@@ -27,7 +27,7 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
         FROM stock_checkouts sc
         WHERE sc.type = 'walkin'
           AND sc.invoice_id IS NOT NULL
-          AND strftime('%Y-%m', sc.created_at) = strftime('%Y-%m', 'now')
+          AND TO_CHAR(sc.created_at, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
           AND NOT EXISTS (
             SELECT 1 FROM invoices inv
             WHERE inv.id = sc.invoice_id AND inv.status = 'paid'
@@ -36,7 +36,7 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
     ])
 
     const completedJobs = await db.query(
-      "SELECT COUNT(*) as cnt FROM job_cards WHERE status = 'completed' AND strftime('%Y-%m', updated_at) = strftime('%Y-%m', 'now')"
+      "SELECT COUNT(*) as cnt FROM job_cards WHERE status = 'completed' AND TO_CHAR(updated_at, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')"
     )
 
     const monthly_revenue =
@@ -62,24 +62,24 @@ router.get('/revenue', authenticate, authorize('admin'), async (req, res) => {
     // Paid invoices grouped by month
     const invoiceRows = await db.query(`
       SELECT
-        strftime('%Y-%m', COALESCE(paid_at, updated_at, created_at)) AS month,
+        TO_CHAR(COALESCE(paid_at, updated_at, created_at), 'YYYY-MM') AS month,
         COUNT(DISTINCT appointment_id)                                AS appointments,
         COALESCE(SUM(total), 0)                                       AS invoice_revenue,
         COUNT(id)                                                     AS paid_invoices
       FROM invoices
       WHERE status = 'paid'
-      GROUP BY strftime('%Y-%m', COALESCE(paid_at, updated_at, created_at))
+      GROUP BY TO_CHAR(COALESCE(paid_at, updated_at, created_at), 'YYYY-MM')
     `)
 
     // Walk-in checkout totals grouped by month
     const walkinRows = await db.query(`
       SELECT
-        strftime('%Y-%m', created_at) AS month,
-        COALESCE(SUM(total), 0)       AS walkin_revenue,
-        COUNT(id)                     AS walkin_sales
+        TO_CHAR(created_at, 'YYYY-MM') AS month,
+        COALESCE(SUM(total), 0)        AS walkin_revenue,
+        COUNT(id)                      AS walkin_sales
       FROM stock_checkouts
       WHERE type = 'walkin'
-      GROUP BY strftime('%Y-%m', created_at)
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
     `)
 
     // Merge by month
@@ -154,7 +154,7 @@ router.get('/revenue/:month', authenticate, authorize('admin'), async (req, res)
       LEFT JOIN services s      ON a.service_id        = s.id
       LEFT JOIN users t         ON jc.technician_id    = t.id
       WHERE inv.status = 'paid'
-        AND strftime('%Y-%m', COALESCE(inv.paid_at, inv.updated_at, inv.created_at)) = ?
+        AND TO_CHAR(COALESCE(inv.paid_at, inv.updated_at, inv.created_at), 'YYYY-MM') = $1
       ORDER BY COALESCE(inv.paid_at, inv.created_at) DESC
     `, [month])
 
@@ -181,7 +181,7 @@ router.get('/revenue/:month', authenticate, authorize('admin'), async (req, res)
       FROM stock_checkouts sc
       LEFT JOIN users u ON sc.created_by = u.id
       WHERE sc.type = 'walkin'
-        AND strftime('%Y-%m', sc.created_at) = ?
+        AND TO_CHAR(sc.created_at, 'YYYY-MM') = $1
       ORDER BY sc.created_at DESC
     `, [month])
 
@@ -212,7 +212,7 @@ router.get('/product-movement', authenticate, authorize('admin'), async (req, re
     // We join to products for current stock + price info
     const checkouts = await db.query(`
       SELECT items, created_at FROM stock_checkouts
-      WHERE created_at >= date('now', '-90 days')
+      WHERE created_at >= CURRENT_DATE - INTERVAL '90 days'
     `)
 
     // Parse JSON items and aggregate per product_id
@@ -283,7 +283,7 @@ router.get('/technician-revenue', authenticate, authorize('admin'), async (req, 
       FROM users t
       LEFT JOIN job_cards jc ON jc.technician_id = t.id 
         AND jc.status = 'completed'
-        AND strftime('%Y-%m', jc.updated_at) = strftime('%Y-%m', 'now')
+        AND TO_CHAR(jc.updated_at, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
       WHERE t.role = 'technician'
       GROUP BY t.id, t.name
       ORDER BY total_revenue DESC, t.name
@@ -303,7 +303,7 @@ router.get('/technician-revenue-history', authenticate, authorize('admin'), asyn
       SELECT 
         t.name AS technician_name,
         t.id AS technician_id,
-        strftime('%Y-%m', jc.updated_at) AS month,
+        TO_CHAR(jc.updated_at, 'YYYY-MM') AS month,
         COUNT(DISTINCT jc.id) AS jobs_completed,
         COALESCE(SUM(CASE 
           WHEN jc.final_cost IS NOT NULL AND jc.final_cost > 0 THEN jc.final_cost
@@ -312,10 +312,10 @@ router.get('/technician-revenue-history', authenticate, authorize('admin'), asyn
       FROM users t
       LEFT JOIN job_cards jc ON jc.technician_id = t.id 
         AND jc.status = 'completed'
-        AND jc.updated_at >= date('now', '-6 months')
+        AND jc.updated_at >= CURRENT_DATE - INTERVAL '6 months'
       WHERE t.role = 'technician'
         AND jc.id IS NOT NULL
-      GROUP BY t.id, t.name, strftime('%Y-%m', jc.updated_at)
+      GROUP BY t.id, t.name, TO_CHAR(jc.updated_at, 'YYYY-MM')
       ORDER BY month DESC, t.name
     `)
 
@@ -344,7 +344,7 @@ router.get('/technician-revenue/:month', authenticate, authorize('admin'), async
       FROM users t
       LEFT JOIN job_cards jc ON jc.technician_id = t.id 
         AND jc.status = 'completed'
-        AND strftime('%Y-%m', jc.updated_at) = ?
+        AND TO_CHAR(jc.updated_at, 'YYYY-MM') = $1
       WHERE t.role = 'technician'
       GROUP BY t.id, t.name
       ORDER BY total_revenue DESC, t.name
