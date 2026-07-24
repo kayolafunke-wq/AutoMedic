@@ -221,21 +221,20 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
 
       // Auto-create inspection record so technician can start immediately
       const apptDetail = await db.query(
-        'SELECT customer_id, vehicle_id FROM appointments WHERE id = $1',
+        'SELECT id FROM appointments WHERE id = $1',
         [req.params.id]
       )
       if (apptDetail.rows.length) {
-        const { customer_id, vehicle_id } = apptDetail.rows[0]
         const inspExists = await db.query(
           'SELECT id FROM inspections WHERE appointment_id = $1',
           [req.params.id]
         )
         if (!inspExists.rows.length) {
-          const inspId  = crypto.randomBytes(16).toString('hex')
+          const inspId = crypto.randomBytes(16).toString('hex')
           await db.query(
-            `INSERT INTO inspections (id,appointment_id,vehicle_id,customer_id,technician_id,status)
-             VALUES ($1,$2,$3,$4,$5,$6)`,
-            [inspId, req.params.id, vehicle_id, customer_id, technician_id, 'pending']
+            `INSERT INTO inspections (id, appointment_id, technician_id, status)
+             VALUES ($1, $2, $3, $4)`,
+            [inspId, req.params.id, technician_id, 'pending']
           )
         }
       }
