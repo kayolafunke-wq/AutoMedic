@@ -7,15 +7,15 @@ const { authenticate, authorize } = require('../middleware/auth')
 router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
   try {
     const [customers, todayAppts, activeRepairs, invoiceRevRow, walkinRevRow] = await Promise.all([
-      db.query("SELECT COUNT(*) as cnt FROM users WHERE role='customer'"),
-      db.query("SELECT COUNT(*) as cnt FROM appointments WHERE DATE(created_at) = CURRENT_DATE"),
-      db.query("SELECT COUNT(*) as cnt FROM job_cards WHERE status NOT IN ('completed','ready')"),
+      db.query("SELECT COUNT(*)::int as cnt FROM users WHERE role='customer'"),
+      db.query("SELECT COUNT(*)::int as cnt FROM appointments WHERE DATE(created_at) = CURRENT_DATE"),
+      db.query("SELECT COUNT(*)::int as cnt FROM job_cards WHERE status NOT IN ('completed','ready')"),
 
       // Revenue from PAID invoices this month
       db.query(`
         SELECT
-          COALESCE(SUM(total), 0) AS monthly_revenue,
-          COUNT(*)                AS paid_invoices
+          COALESCE(SUM(total), 0)::numeric AS monthly_revenue,
+          COUNT(*)::int                    AS paid_invoices
         FROM invoices
         WHERE status = 'paid'
           AND TO_CHAR(COALESCE(paid_at, updated_at, created_at), 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
@@ -23,7 +23,7 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
 
       // Revenue from walk-in stock checkouts this month (not linked to an invoice)
       db.query(`
-        SELECT COALESCE(SUM(sc.total), 0) AS walkin_revenue
+        SELECT COALESCE(SUM(sc.total), 0)::numeric AS walkin_revenue
         FROM stock_checkouts sc
         WHERE sc.type = 'walkin'
           AND sc.invoice_id IS NOT NULL
@@ -36,7 +36,7 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
     ])
 
     const completedJobs = await db.query(
-      "SELECT COUNT(*) as cnt FROM job_cards WHERE status = 'completed' AND TO_CHAR(updated_at, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')"
+      "SELECT COUNT(*)::int as cnt FROM job_cards WHERE status = 'completed' AND TO_CHAR(updated_at, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')"
     )
 
     const monthly_revenue =
@@ -46,14 +46,17 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res) => {
     res.json({
       success: true,
       data: {
-        total_customers:     customers.rows[0].cnt,
-        todays_appointments: todayAppts.rows[0].cnt,
-        active_repairs:      activeRepairs.rows[0].cnt,
-        monthly_revenue,
-        completed_jobs:      completedJobs.rows[0].cnt || 0,
+        total_customers:     parseInt(customers.rows[0].cnt) || 0,
+        todays_appointments: parseInt(todayAppts.rows[0].cnt) || 0,
+        active_repairs:      parseInt(activeRepairs.rows[0].cnt) || 0,
+        monthly_revenue:     monthly_revenue,
+        completed_jobs:      parseInt(completedJobs.rows[0].cnt) || 0,
       }
     })
-  } catch (err) { res.status(500).json({ success:false, message:err.message }) }
+  } catch (err) { 
+    console.error('Dashboard stats error:', err)
+    res.status(500).json({ success:false, message:err.message }) 
+  }
 })
 
 // ── MONTHLY REVENUE (last 12 months) — invoices + walk-in checkouts ───────────
