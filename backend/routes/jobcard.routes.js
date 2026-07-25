@@ -12,7 +12,7 @@ async function notify(userId, title, message, type = 'info') {
   try {
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO notifications (id,user_id,title,message,type) VALUES (?,?,?,?,?)',
+      'INSERT INTO notifications (id,user_id,title,message,type) VALUES ($1,$2,$3,$4,$5)',
       [id, userId, title, message, type]
     )
   } catch (_) { /* non-fatal */ }
@@ -33,7 +33,7 @@ router.get('/my', authenticate, authorize('technician'), async (req, res) => {
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
       LEFT JOIN inspections i ON i.appointment_id = a.id
-      WHERE jc.technician_id = ?
+      WHERE jc.technician_id = $1
       ORDER BY jc.updated_at DESC
     `, [req.user.id])
     res.json({ success:true, data:r.rows })
@@ -60,7 +60,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
   try {
     const { progress, status, technician_notes, estimated_cost, final_cost, parts_used } = req.body
     const now = new Date().toISOString()
-    const r   = await db.query('SELECT * FROM job_cards WHERE id = ?', [req.params.id])
+    const r   = await db.query('SELECT * FROM job_cards WHERE id = $1', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const jc = r.rows[0]
 
@@ -68,7 +68,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
     const newStatus = status || jc.status
     if (newStatus !== 'pending' && jc.status === 'pending') {
       const insp = await db.query(
-        `SELECT id, status, advisor_signature FROM inspections WHERE appointment_id = ? LIMIT 1`,
+        `SELECT id, status, advisor_signature FROM inspections WHERE appointment_id = $1 LIMIT 1`,
         [jc.appointment_id]
       )
       if (!insp.rows.length || !insp.rows[0].advisor_signature) {
