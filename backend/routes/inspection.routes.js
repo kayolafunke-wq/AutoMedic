@@ -101,13 +101,32 @@ router.get('/:id', authenticate, async (req, res) => {
 
 router.post('/', authenticate, authorize('admin','technician'), createInspectionRules, async (req, res) => {
   try {
-    const { appointment_id, under_hood, under_vehicle, exterior, photos, recommendations, advisor_notes } = req.body
+    const { 
+      appointment_id, 
+      // Frontend sends these:
+      fuel_level, odometer_reading, damage_notes, checklist, accessories, valuables_notes,
+      // Backend schema fields:
+      under_hood, under_vehicle, photos, recommendations, advisor_notes 
+    } = req.body
+
+    // Map frontend to backend schema
+    const underHoodData = checklist || under_hood || null
+    const underVehicleData = accessories ? JSON.stringify({ accessories, valuables_notes }) : (under_vehicle || null)
+    const recommendationsData = damage_notes || recommendations || null
+    const advisorNotesData = advisor_notes || (fuel_level || odometer_reading ? 
+      `Fuel: ${fuel_level || 'N/A'}, Odometer: ${odometer_reading || 'N/A'}` : null)
+
     const id  = crypto.randomBytes(16).toString('hex')
     await db.query(
       `INSERT INTO inspections (id, appointment_id, technician_id, vehicle_health, under_hood, under_vehicle, photos, recommendations, advisor_notes, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [id, appointment_id||null, req.user.id, null, under_hood||null, under_vehicle||null,
-       JSON.stringify(photos||[]), recommendations||null, advisor_notes||null, 'pending']
+      [id, appointment_id||null, req.user.id, null, 
+       typeof underHoodData === 'object' ? JSON.stringify(underHoodData) : underHoodData,
+       underVehicleData,
+       JSON.stringify(photos||[]), 
+       typeof recommendationsData === 'object' ? JSON.stringify(recommendationsData) : recommendationsData,
+       advisorNotesData, 
+       'pending']
     )
     const r = await db.query('SELECT * FROM inspections WHERE id = $1', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
@@ -157,8 +176,11 @@ router.patch('/:id/sign', authenticate, authorize('customer'), signInspectionRul
 router.patch('/:id/complete', authenticate, authorize('technician','admin'), async (req, res) => {
   try {
     const {
-      vehicle_health, under_hood, under_vehicle, photos,
-      recommendations, advisor_notes, advisor_signature, status,
+      // Frontend fields:
+      fuel_level, odometer_reading, damage_notes, checklist, accessories, valuables_notes,
+      advisor_signature, status,
+      // Backend fields:
+      vehicle_health, under_hood, under_vehicle, photos, recommendations, advisor_notes
     } = req.body
 
     const existing = await db.query('SELECT * FROM inspections WHERE id = $1', [req.params.id])
@@ -167,6 +189,13 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
     const insp = existing.rows[0]
     const newStatus = status || (advisor_signature ? 'pending' : insp.status)
 
+    // Map frontend to backend
+    const underHoodData = checklist || under_hood || insp.under_hood
+    const underVehicleData = accessories ? JSON.stringify({ accessories, valuables_notes }) : (under_vehicle || insp.under_vehicle)
+    const recommendationsData = damage_notes || recommendations || insp.recommendations
+    const advisorNotesData = advisor_notes || (fuel_level || odometer_reading ? 
+      `Fuel: ${fuel_level || 'N/A'}, Odometer: ${odometer_reading || 'N/A'}` : insp.advisor_notes)
+
     await db.query(
       `UPDATE inspections SET
         vehicle_health=$1, under_hood=$2, under_vehicle=$3, photos=$4,
@@ -174,11 +203,11 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
        WHERE id=$10`,
       [
         vehicle_health ?? insp.vehicle_health,
-        under_hood ?? insp.under_hood,
-        under_vehicle ?? insp.under_vehicle,
+        typeof underHoodData === 'object' ? JSON.stringify(underHoodData) : underHoodData,
+        underVehicleData,
         photos ? JSON.stringify(photos) : insp.photos,
-        recommendations ?? insp.recommendations,
-        advisor_notes ?? insp.advisor_notes,
+        typeof recommendationsData === 'object' ? JSON.stringify(recommendationsData) : recommendationsData,
+        advisorNotesData,
         advisor_signature ?? insp.advisor_signature,
         newStatus,
         new Date().toISOString(),
