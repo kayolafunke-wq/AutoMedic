@@ -62,7 +62,11 @@ export default function InventoryTracking() {
       setLogs(logsRes.data.data || [])
       setSummary(sumRes.data.data || [])
       setProducts(prodRes.data.data || [])
-    } catch { }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Unknown error'
+      console.error('[InventoryTracking] load error:', msg)
+      showToast('⚠️ Load error: ' + msg)
+    }
     setLoading(false)
   }, [typeFilter, productFilter, fromDate, toDate])
 

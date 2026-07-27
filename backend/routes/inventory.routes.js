@@ -1,129 +1,135 @@
-const express = require('express')
-const router  = express.Router()
-const db      = require('../config/db')
+const express  = require('express')
+const router   = express.Router()
+const crypto   = require('crypto')
+const db       = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 const inventorySvc = require('../services/inventory.service')
 
+// ── Shared helper: guarantee inventory_logs table exists ─────────────────────
+async function ensureInventoryLogs () {
+  // No FK constraint — avoids any reference resolution issues
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS inventory_logs (
+      id         VARCHAR(255) PRIMARY KEY,
+      product_id VARCHAR(255),
+      type       VARCHAR(50) NOT NULL DEFAULT 'stock_out',
+      qty_change INTEGER NOT NULL DEFAULT 0,
+      qty_before INTEGER NOT NULL DEFAULT 0,
+      qty_after  INTEGER NOT NULL DEFAULT 0,
+      reason     TEXT,
+      reference  TEXT,
+      created_by VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+}
+
+// ── Shared helper: backfill inventory_logs from stock_checkouts ──────────────
+async function backfillFromCheckouts () {
+  try {
+    const scRows = await db.query('SELECT id, items, created_by, created_at FROM stock_checkouts')
+    for (const sc of (scRows.rows || [])) {
+      let items = []
+      try { items = typeof sc.items === 'string' ? JSON.parse(sc.items) : (sc.items || []) } catch {}
+      for (const item of items) {
+        if (!item.product_id) continue
+        const exists = await db.query(
+          'SELECT id FROM inventory_logs WHERE reference = $1 AND product_id = $2',
+          [sc.id, item.product_id]
+        )
+        if (!exists.rows.length) {
+          const qty = Math.abs(Number(item.qty || 1))
+          await db.query(
+            `INSERT INTO inventory_logs
+               (id, product_id, type, qty_change, qty_before, qty_after, reason, reference, created_by, created_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [
+              crypto.randomBytes(16).toString('hex'),
+              item.product_id,
+              'stock_out',
+              -qty,
+              qty,
+              0,
+              'Stock out — checkout (backfilled)',
+              sc.id,
+              sc.created_by || null,
+              sc.created_at || new Date()
+            ]
+          )
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[inventory] backfill skip:', e.message)
+  }
+}
+
 // ── GET all inventory logs (filterable) ──────────────────────────────────────
-// Query params: product_id, type (stock_in|stock_out|adjustment), from, to, limit
 router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req, res) => {
   try {
-    // Ensure table exists — self-heals on first request
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS inventory_logs (
-        id          VARCHAR(255) PRIMARY KEY,
-        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
-        type        VARCHAR(50) NOT NULL,
-        qty_change  INTEGER NOT NULL,
-        qty_before  INTEGER NOT NULL,
-        qty_after   INTEGER NOT NULL,
-        reason      TEXT,
-        reference   TEXT,
-        created_by  VARCHAR(255),
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `).catch(() => {})
+    await ensureInventoryLogs()
+    await backfillFromCheckouts()
 
     const { product_id, type, from, to, limit = 500 } = req.query
     let sql = `
       SELECT il.*,
-        p.name  AS product_name,
+        p.name     AS product_name,
         p.category AS product_category,
-        u.name  AS created_by_name
+        u.name     AS created_by_name
       FROM inventory_logs il
       LEFT JOIN products p ON il.product_id = p.id
       LEFT JOIN users u    ON il.created_by  = u.id
       WHERE 1=1
     `
     const params = []
-    let paramIndex = 1
-    if (product_id) { sql += ` AND il.product_id = $${paramIndex++}`;  params.push(product_id) }
-    if (type)       { sql += ` AND il.type = $${paramIndex++}`;         params.push(type) }
-    if (from)       { sql += ` AND il.created_at >= $${paramIndex++}`;  params.push(from) }
-    if (to)         { sql += ` AND il.created_at <= $${paramIndex++}`;  params.push(to + 'T23:59:59') }
-    sql += ` ORDER BY il.created_at DESC LIMIT $${paramIndex++}`
+    let i = 1
+    if (product_id) { sql += ` AND il.product_id = $${i++}`; params.push(product_id) }
+    if (type && type !== 'all') { sql += ` AND il.type = $${i++}`; params.push(type) }
+    if (from) { sql += ` AND il.created_at >= $${i++}`; params.push(from) }
+    if (to)   { sql += ` AND il.created_at <= $${i++}`; params.push(to + 'T23:59:59') }
+    sql += ` ORDER BY il.created_at DESC LIMIT $${i++}`
     params.push(Number(limit))
-
-    // Backfill inventory_logs for existing stock_checkouts (runs quickly, skips already logged items)
-    try {
-      const crypto2 = require('crypto')
-      const scRows = await db.query('SELECT * FROM stock_checkouts ORDER BY created_at ASC')
-      for (const sc of (scRows.rows || [])) {
-        let items = []
-        try { items = typeof sc.items === 'string' ? JSON.parse(sc.items) : (sc.items || []) } catch {}
-        for (const item of items) {
-          if (!item.product_id) continue
-          const exists = await db.query(
-            'SELECT id FROM inventory_logs WHERE reference = $1 AND product_id = $2',
-            [sc.id, item.product_id]
-          )
-          if (!exists.rows.length) {
-            await db.query(
-              `INSERT INTO inventory_logs (id, product_id, type, qty_change, qty_before, qty_after, reason, reference, created_by, created_at)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-              [
-                crypto2.randomBytes(16).toString('hex'),
-                item.product_id,
-                'stock_out',
-                -Math.abs(Number(item.qty || 1)),
-                Number(item.qty || 1),
-                0,
-                'Stock out — checkout (backfilled)',
-                sc.id,
-                sc.created_by || null,
-                sc.created_at || new Date()
-              ]
-            )
-          }
-        }
-      }
-    } catch (bfErr) { console.warn('backfill skip:', bfErr.message) }
 
     const r = await db.query(sql, params)
     res.json({ success: true, data: r.rows })
-  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
+  } catch (err) {
+    console.error('[GET /inventory/logs]', err.message)
+    res.status(500).json({ success: false, message: err.message })
+  }
 })
 
 // ── GET summary per product ───────────────────────────────────────────────────
 router.get('/summary', authenticate, authorize('admin', 'stockkeeper'), async (req, res) => {
   try {
-    // Ensure table exists — self-heals on first request
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS inventory_logs (
-        id          VARCHAR(255) PRIMARY KEY,
-        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
-        type        VARCHAR(50) NOT NULL,
-        qty_change  INTEGER NOT NULL,
-        qty_before  INTEGER NOT NULL,
-        qty_after   INTEGER NOT NULL,
-        reason      TEXT,
-        reference   TEXT,
-        created_by  VARCHAR(255),
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `).catch(() => {})
+    await ensureInventoryLogs()
 
     const r = await db.query(`
       SELECT
-        p.id, p.name, p.category, p.stock_quantity, p.cost_price, p.price,
-        COALESCE(SUM(CASE WHEN il.type='stock_in'   THEN il.qty_change ELSE 0 END), 0) AS total_in,
-        COALESCE(SUM(CASE WHEN il.type='stock_out'  THEN ABS(il.qty_change) ELSE 0 END), 0) AS total_out,
-        COALESCE(SUM(CASE WHEN il.type='adjustment' THEN il.qty_change ELSE 0 END), 0) AS total_adjusted,
-        COUNT(il.id) AS total_movements,
-        MAX(il.created_at) AS last_movement
+        p.id, p.name, p.category, p.stock_quantity,
+        COALESCE(p.cost_price, 0) AS cost_price,
+        COALESCE(p.price, 0) AS price,
+        COALESCE(SUM(CASE WHEN il.type='stock_in'   THEN  il.qty_change ELSE 0 END), 0) AS total_in,
+        COALESCE(SUM(CASE WHEN il.type='stock_out'  THEN -il.qty_change ELSE 0 END), 0) AS total_out,
+        COALESCE(SUM(CASE WHEN il.type='adjustment' THEN  il.qty_change ELSE 0 END), 0) AS total_adjusted,
+        COUNT(il.id)           AS total_movements,
+        MAX(il.created_at)     AS last_movement
       FROM products p
       LEFT JOIN inventory_logs il ON il.product_id = p.id
       WHERE p.is_active = 1
-      GROUP BY p.id
+      GROUP BY p.id, p.name, p.category, p.stock_quantity, p.cost_price, p.price
       ORDER BY last_movement DESC NULLS LAST
     `)
     res.json({ success: true, data: r.rows })
-  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
+  } catch (err) {
+    console.error('[GET /inventory/summary]', err.message)
+    res.status(500).json({ success: false, message: err.message })
+  }
 })
 
 // ── GET logs for a single product ────────────────────────────────────────────
 router.get('/logs/:product_id', authenticate, authorize('admin', 'stockkeeper'), async (req, res) => {
   try {
+    await ensureInventoryLogs()
     const r = await db.query(`
       SELECT il.*, u.name AS created_by_name
       FROM inventory_logs il
@@ -139,6 +145,7 @@ router.get('/logs/:product_id', authenticate, authorize('admin', 'stockkeeper'),
 // ── POST manual adjustment ────────────────────────────────────────────────────
 router.post('/adjust', authenticate, authorize('admin'), async (req, res) => {
   try {
+    await ensureInventoryLogs()
     const { product_id, new_quantity, reason } = req.body
     if (!product_id || new_quantity === undefined)
       return res.status(400).json({ success: false, message: 'product_id and new_quantity are required' })
