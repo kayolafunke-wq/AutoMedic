@@ -241,24 +241,26 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
       }
     }
 
-    // Ensure repair_updates table exists
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS repair_updates (
-        id          VARCHAR(255) PRIMARY KEY,
-        job_card_id VARCHAR(255) REFERENCES job_cards(id) ON DELETE CASCADE,
-        updated_by  VARCHAR(255),
-        status      TEXT NOT NULL,
-        note        TEXT,
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    // Log repair update (non-blocking — audit log only, never blocks main update)
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS repair_updates (
+          id          VARCHAR(255) PRIMARY KEY,
+          job_card_id VARCHAR(255) REFERENCES job_cards(id) ON DELETE CASCADE,
+          updated_by  VARCHAR(255),
+          status      TEXT NOT NULL,
+          note        TEXT,
+          created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+      const updId = crypto.randomBytes(16).toString('hex')
+      await db.query(
+        'INSERT INTO repair_updates (id,job_card_id,updated_by,status,note) VALUES ($1,$2,$3,$4,$5)',
+        [updId, req.params.id, req.user.id, status||jc.status, technician_notes||null]
       )
-    `).catch(() => {})
-
-    // Log repair update
-    const updId = crypto.randomBytes(16).toString('hex')
-    await db.query(
-      'INSERT INTO repair_updates (id,job_card_id,updated_by,status,note) VALUES ($1,$2,$3,$4,$5)',
-      [updId, req.params.id, req.user.id, status||jc.status, technician_notes||null]
-    )
+    } catch (logErr) {
+      console.warn('repair_updates log skipped:', logErr.message)
+    }
 
     // Notify customer via socket + notification
     try {
