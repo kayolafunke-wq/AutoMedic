@@ -26,18 +26,30 @@ router.get('/my', authenticate, authorize('technician'), async (req, res) => {
         u.name as customer_name, u.phone as customer_phone,
         v.make, v.model, v.registration_number, v.color, v.chassis_number,
         s.name as service_name,
-        i.status as inspection_status, i.advisor_signature as inspection_advisor_sig
+        (SELECT status FROM inspections WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as inspection_status,
+        (SELECT advisor_signature FROM inspections WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as inspection_advisor_sig
       FROM job_cards jc
       LEFT JOIN appointments a ON jc.appointment_id = a.id
       LEFT JOIN users u ON a.customer_id = u.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
-      LEFT JOIN inspections i ON i.appointment_id = a.id
       WHERE jc.technician_id = $1
       ORDER BY jc.updated_at DESC
     `, [req.user.id])
-    res.json({ success:true, data:r.rows })
-  } catch (err) { res.status(500).json({ success:false, message:err.message }) }
+
+    // Guarantee no duplicate job cards reach the UI
+    const seen = new Set()
+    const uniqueJobs = []
+    for (const job of r.rows) {
+      const key = job.appointment_id || job.id
+      if (!seen.has(key)) {
+        seen.add(key)
+        uniqueJobs.push(job)
+      }
+    }
+
+    res.json({ success: true, data: uniqueJobs })
+  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
 })
 
 router.get('/', authenticate, authorize('admin'), async (req, res) => {
@@ -52,8 +64,19 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       ORDER BY jc.created_at DESC
     `)
-    res.json({ success:true, data:r.rows })
-  } catch (err) { res.status(500).json({ success:false, message:err.message }) }
+
+    const seen = new Set()
+    const uniqueJobs = []
+    for (const job of r.rows) {
+      const key = job.appointment_id || job.id
+      if (!seen.has(key)) {
+        seen.add(key)
+        uniqueJobs.push(job)
+      }
+    }
+
+    res.json({ success: true, data: uniqueJobs })
+  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
 })
 
 router.patch('/:id/progress', authenticate, authorize('technician','admin'), updateProgressRules, async (req, res) => {

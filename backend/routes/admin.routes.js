@@ -4,7 +4,7 @@ const db = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 
 // GET cleanup duplicate job cards
-router.get('/cleanup-duplicate-jobs', authenticate, authorize('admin'), async (req, res) => {
+router.get('/cleanup-duplicate-jobs', authenticate, authorize('admin', 'technician'), async (req, res) => {
   try {
     const regFilter = req.query.registration || req.query.reg || 'JK 2345'
     
