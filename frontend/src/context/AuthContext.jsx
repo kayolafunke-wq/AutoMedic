@@ -115,6 +115,16 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
   }
 
+  // Update local user state & localStorage
+  const updateUser = (updatedFields) => {
+    setUser(prev => {
+      if (!prev) return updatedFields
+      const nextUser = { ...prev, ...updatedFields }
+      localStorage.setItem('am_user', JSON.stringify(nextUser))
+      return nextUser
+    })
+  }
+
   // Get fresh token for API calls
   const getToken = async () => {
     const firebaseUser = auth.currentUser
@@ -125,7 +135,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, loginWithBackend, register, resetPassword, logout, getToken }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, loginWithBackend, register, resetPassword, logout, getToken, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

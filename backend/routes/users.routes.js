@@ -7,6 +7,70 @@ const { authenticate, authorize } = require('../middleware/auth')
 const { createUserRules, updateUserRules, resetPasswordRules } = require('../middleware/validate')
 const emailService = require('../services/email.service')
 
+// GET current logged-in user profile
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT`).catch(() => {})
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number TEXT`).catch(() => {})
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact TEXT`).catch(() => {})
+
+    const r = await db.query(
+      'SELECT id, name, email, phone, role, is_active, avatar_url, address, id_number, emergency_contact, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    )
+    if (!r.rows.length) return res.status(404).json({ success: false, message: 'User not found' })
+    res.json({ success: true, data: r.rows[0] })
+  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
+})
+
+// PUT update current logged-in user profile (for completing profile details)
+router.put('/profile', authenticate, async (req, res) => {
+  try {
+    const { name, phone, address, id_number, emergency_contact, avatar_url } = req.body
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Full name is required' })
+    }
+
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT`).catch(() => {})
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number TEXT`).catch(() => {})
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact TEXT`).catch(() => {})
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`).catch(() => {})
+
+    await db.query(
+      `UPDATE users SET
+        name = $1,
+        phone = $2,
+        address = $3,
+        id_number = $4,
+        emergency_contact = $5,
+        avatar_url = COALESCE($6, avatar_url)
+       WHERE id = $7`,
+      [
+        name.trim(),
+        phone ? phone.trim() : null,
+        address ? address.trim() : null,
+        id_number ? id_number.trim() : null,
+        emergency_contact ? emergency_contact.trim() : null,
+        avatar_url || null,
+        req.user.id
+      ]
+    )
+
+    const updated = await db.query(
+      'SELECT id, name, email, phone, role, is_active, avatar_url, address, id_number, emergency_contact, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    )
+    res.json({
+      success: true,
+      message: 'Profile updated successfully!',
+      data: updated.rows[0]
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
 router.get('/', authenticate, authorize('admin'), async (req, res) => {
   try {
     const { role } = req.query

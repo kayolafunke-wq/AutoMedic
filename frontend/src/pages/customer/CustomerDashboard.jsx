@@ -9,7 +9,8 @@ import {
   Home, Settings, History, FileText, Bell, Calendar, LogOut,
   Car, CheckCircle, Clock, CreditCard, Satellite,
   ChevronRight, ClipboardCheck, Printer, PenLine, Shield,
-  AlertTriangle, Camera, Package, X, Download, Plus, Globe, Menu, MessageCircle
+  AlertTriangle, Camera, Package, X, Download, Plus, Globe, Menu, MessageCircle,
+  User, Phone, MapPin, CreditCard as IdCard, Save, Edit3
 } from 'lucide-react'
 import InspectionReportDetails from '../../components/InspectionReportDetails'
 
@@ -153,7 +154,7 @@ function StepPill({ done, active, label }) {
 }
 
 /* ─── SIDEBAR ────────────────────────────────────────── */
-function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, logout, sidebarOpen, setSidebarOpen }) {
+function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, logout, sidebarOpen, setSidebarOpen, profileIncomplete }) {
   const items = [
     { id:'overview',     icon:Home,          label:'Overview' },
     { id:'repairs',      icon:Settings,      label:'My Repairs' },
@@ -161,6 +162,7 @@ function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, 
     { id:'history',      icon:History,       label:'Service History' },
     { id:'invoices',     icon:FileText,      label:'Invoices', badge:unpaidInvoices||null, badgeColor:'bg-red-500' },
     { id:'notifications',icon:Bell,          label:'Notifications', badge:unread||null },
+    { id:'profile',      icon:User,          label:'My Profile', badge:profileIncomplete?'!':null, badgeColor:'bg-amber-500' },
   ]
 
   const closeSidebar = () => setSidebarOpen(false)
@@ -434,12 +436,15 @@ export default function CustomerDashboard() {
           <Link to="/track" className="flex items-center gap-1.5 px-3 md:px-4 py-2 bg-[#B8860B] text-white text-xs font-semibold rounded-full hover:bg-[#8B6508] transition-all">
             <Satellite size={13}/><span className="hidden sm:inline">Track Vehicle</span>
           </Link>
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden"
+          <button
+            onClick={() => navTo('profile')}
+            title="Edit profile"
+            className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden hover:ring-2 hover:ring-[#B8860B] transition-all cursor-pointer"
             style={{background:'#B8860B'}}>
             {user?.photoURL
               ? <img src={user.photoURL} alt="" className="w-full h-full object-cover"/>
               : <>{user?.name?.charAt(0)}{user?.name?.split(' ')[1]?.charAt(0)||''}</>}
-          </div>
+          </button>
         </div>
       </header>
 
@@ -453,6 +458,7 @@ export default function CustomerDashboard() {
           logout={logout}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
+          profileIncomplete={!user?.phone}
         />
         <main className="w-full lg:ml-[220px] flex-1 p-4 lg:p-7">
 
@@ -1025,7 +1031,293 @@ export default function CustomerDashboard() {
             </div>
           )}
 
+          {/* ── PROFILE ── */}
+          {section==='profile' && <ProfileSection user={user} />}
+
         </main>
+      </div>
+    </div>
+  )
+}
+
+/* ─── PROFILE SECTION ────────────────────────────────── */
+function ProfileSection({ user }) {
+  const { updateUser } = useAuth()
+  const [form, setForm] = useState({
+    name: '', phone: '', address: '', id_number: '', emergency_contact: ''
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+  const [editMode, setEditMode] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await api.get('/users/me')
+        const d = res.data.data || {}
+        setForm({
+          name:              d.name              || user?.name              || '',
+          phone:             d.phone             || user?.phone             || '',
+          address:           d.address           || '',
+          id_number:         d.id_number         || '',
+          emergency_contact: d.emergency_contact || '',
+        })
+        // Auto-open edit mode if profile is incomplete (no phone)
+        if (!d.phone) setEditMode(true)
+      } catch {
+        setForm(f => ({
+          ...f,
+          name:  user?.name  || '',
+          phone: user?.phone || '',
+        }))
+        setEditMode(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [user])
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    if (!form.name.trim()) { setError('Full name is required'); return }
+    setSaving(true)
+    setError('')
+    try {
+      const res = await api.put('/users/profile', form)
+      if (res.data.success) {
+        updateUser(res.data.data)
+        setSaved(true)
+        setEditMode(false)
+        setTimeout(() => setSaved(false), 3000)
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save profile. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const isIncomplete = !form.phone || !form.name
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 border-4 border-[#B8860B] border-t-transparent rounded-full animate-spin"/>
+    </div>
+  )
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">My Profile</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Manage your personal details and contact information</p>
+        </div>
+        {!editMode && (
+          <button onClick={() => setEditMode(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-[#B8860B] text-[#B8860B] text-sm font-semibold rounded-full hover:bg-[#B8860B]/10 transition-all">
+            <Edit3 size={14}/> Edit Profile
+          </button>
+        )}
+      </div>
+
+      {/* Incomplete profile banner */}
+      {isIncomplete && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
+          <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <AlertTriangle size={16} className="text-amber-600"/>
+          </div>
+          <div>
+            <p className="font-bold text-amber-800 text-sm">Complete your profile</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              You signed up with Google — please add your phone number and other details so we can contact you about your bookings.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Success banner */}
+      {saved && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-5 flex items-center gap-3">
+          <CheckCircle size={18} className="text-green-500 flex-shrink-0"/>
+          <p className="font-semibold text-green-700 text-sm">Profile updated successfully!</p>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-5 flex items-center gap-3">
+          <AlertTriangle size={18} className="text-red-500 flex-shrink-0"/>
+          <p className="font-semibold text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Avatar card */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-5 flex items-center gap-5">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-black text-xl flex-shrink-0 overflow-hidden"
+          style={{background:'linear-gradient(135deg,#B8860B,#8B6508)'}}>
+          {user?.photoURL
+            ? <img src={user.photoURL} alt="" className="w-full h-full object-cover"/>
+            : <>{form.name?.charAt(0) || '?'}{form.name?.split(' ')[1]?.charAt(0) || ''}</>}
+        </div>
+        <div className="min-w-0">
+          <p className="font-bold text-[#1A1A2E] text-base truncate">{form.name || 'Customer'}</p>
+          <p className="text-sm text-gray-400 mt-0.5 truncate">{user?.email}</p>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span className="text-[11px] font-bold px-2.5 py-1 bg-[#B8860B]/10 text-[#B8860B] rounded-full capitalize">
+              {user?.role || 'Customer'}
+            </span>
+            {form.phone
+              ? <span className="text-[11px] font-bold px-2.5 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1"><CheckCircle size={10}/>Verified Contact</span>
+              : <span className="text-[11px] font-bold px-2.5 py-1 bg-amber-50 text-amber-600 rounded-full flex items-center gap-1"><AlertTriangle size={10}/>No Phone Added</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSave}>
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-5">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-8 h-8 bg-[#B8860B]/10 rounded-lg flex items-center justify-center">
+              <User size={15} className="text-[#B8860B]"/>
+            </div>
+            <h3 className="font-bold text-[#1A1A2E] text-sm">Personal Details</h3>
+          </div>
+
+          {/* Full Name */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Full Name *</label>
+            {editMode ? (
+              <input
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
+                required placeholder="e.g. John Banda"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] focus:ring-2 focus:ring-[#B8860B]/10 transition-all"/>
+            ) : (
+              <p className="text-sm text-[#1A1A2E] font-semibold px-1">{form.name || <span className="text-gray-400">Not set</span>}</p>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+              <Phone size={11}/> Phone Number (WhatsApp) *
+            </label>
+            {editMode ? (
+              <>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={e => set('phone', e.target.value)}
+                  placeholder="e.g. +265 999 123 456"
+                  className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:border-[#B8860B] focus:ring-2 focus:ring-[#B8860B]/10 transition-all ${!form.phone ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'}`}/>
+                {!form.phone && <p className="text-[11px] text-amber-600 mt-1">⚠ Phone number is needed so we can confirm your bookings via WhatsApp.</p>}
+              </>
+            ) : (
+              <p className="text-sm text-[#1A1A2E] font-semibold px-1">{form.phone || <span className="text-amber-500 font-semibold">Not added — click Edit Profile</span>}</p>
+            )}
+          </div>
+
+          {/* Email (read-only) */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Email Address</label>
+            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl">
+              <p className="text-sm text-gray-500 flex-1 truncate">{user?.email}</p>
+              <span className="text-[10px] font-bold text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">Read-only</span>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+              <MapPin size={11}/> Home Address
+            </label>
+            {editMode ? (
+              <input
+                value={form.address}
+                onChange={e => set('address', e.target.value)}
+                placeholder="e.g. Area 47, Lilongwe"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] focus:ring-2 focus:ring-[#B8860B]/10 transition-all"/>
+            ) : (
+              <p className="text-sm text-[#1A1A2E] font-semibold px-1">{form.address || <span className="text-gray-400">Not set</span>}</p>
+            )}
+          </div>
+
+          {/* ID Number */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">National ID / Passport Number</label>
+            {editMode ? (
+              <input
+                value={form.id_number}
+                onChange={e => set('id_number', e.target.value)}
+                placeholder="e.g. 12345678900001"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] focus:ring-2 focus:ring-[#B8860B]/10 transition-all"/>
+            ) : (
+              <p className="text-sm text-[#1A1A2E] font-semibold px-1">{form.id_number || <span className="text-gray-400">Not set</span>}</p>
+            )}
+          </div>
+
+          {/* Emergency Contact */}
+          <div>
+            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Emergency Contact</label>
+            {editMode ? (
+              <>
+                <input
+                  value={form.emergency_contact}
+                  onChange={e => set('emergency_contact', e.target.value)}
+                  placeholder="Name & phone e.g. Jane Banda +265 999 000 111"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#B8860B] focus:ring-2 focus:ring-[#B8860B]/10 transition-all"/>
+                <p className="text-[11px] text-gray-400 mt-1">Someone we can contact if we cannot reach you.</p>
+              </>
+            ) : (
+              <p className="text-sm text-[#1A1A2E] font-semibold px-1">{form.emergency_contact || <span className="text-gray-400">Not set</span>}</p>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          {editMode && (
+            <div className="flex gap-3 pt-2">
+              <button type="submit" disabled={saving}
+                className="flex items-center gap-2 px-6 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm disabled:opacity-60">
+                <Save size={14}/> {saving ? 'Saving...' : 'Save Profile'}
+              </button>
+              {!isIncomplete && (
+                <button type="button" onClick={() => { setEditMode(false); setError('') }}
+                  className="px-5 py-3 border border-gray-200 text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-all text-sm">
+                  Cancel
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </form>
+
+      {/* Account info card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mt-5">
+        <h3 className="font-bold text-[#1A1A2E] text-sm mb-3 flex items-center gap-2">
+          <Shield size={14} className="text-gray-400"/> Account Security
+        </h3>
+        <div className="space-y-2.5 text-sm text-gray-500">
+          <div className="flex justify-between">
+            <span>Sign-in method</span>
+            <span className="font-semibold text-[#1A1A2E]">{user?.photoURL ? '🔵 Google Account' : '📧 Email & Password'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Member since</span>
+            <span className="font-semibold text-[#1A1A2E]">
+              {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }) : 'N/A'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Account role</span>
+            <span className="font-semibold text-[#1A1A2E] capitalize">{user?.role || 'Customer'}</span>
+          </div>
+        </div>
       </div>
     </div>
   )
