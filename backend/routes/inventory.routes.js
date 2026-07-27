@@ -8,6 +8,22 @@ const inventorySvc = require('../services/inventory.service')
 // Query params: product_id, type (stock_in|stock_out|adjustment), from, to, limit
 router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req, res) => {
   try {
+    // Ensure table exists — self-heals on first request
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inventory_logs (
+        id          VARCHAR(255) PRIMARY KEY,
+        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
+        type        VARCHAR(50) NOT NULL,
+        qty_change  INTEGER NOT NULL,
+        qty_before  INTEGER NOT NULL,
+        qty_after   INTEGER NOT NULL,
+        reason      TEXT,
+        reference   TEXT,
+        created_by  VARCHAR(255),
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+
     const { product_id, type, from, to, limit = 500 } = req.query
     let sql = `
       SELECT il.*,
@@ -21,12 +37,47 @@ router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req,
     `
     const params = []
     let paramIndex = 1
-    if (product_id) { sql += ` AND il.product_id = $${paramIndex++}`;           params.push(product_id) }
-    if (type)       { sql += ` AND il.type = $${paramIndex++}`;                  params.push(type) }
-    if (from)       { sql += ` AND il.created_at >= $${paramIndex++}`;           params.push(from) }
-    if (to)         { sql += ` AND il.created_at <= $${paramIndex++} || 'T23:59:59'`; params.push(to) }
+    if (product_id) { sql += ` AND il.product_id = $${paramIndex++}`;  params.push(product_id) }
+    if (type)       { sql += ` AND il.type = $${paramIndex++}`;         params.push(type) }
+    if (from)       { sql += ` AND il.created_at >= $${paramIndex++}`;  params.push(from) }
+    if (to)         { sql += ` AND il.created_at <= $${paramIndex++}`;  params.push(to + 'T23:59:59') }
     sql += ` ORDER BY il.created_at DESC LIMIT $${paramIndex++}`
     params.push(Number(limit))
+
+    // Backfill inventory_logs for existing stock_checkouts (runs quickly, skips already logged items)
+    try {
+      const crypto2 = require('crypto')
+      const scRows = await db.query('SELECT * FROM stock_checkouts ORDER BY created_at ASC')
+      for (const sc of (scRows.rows || [])) {
+        let items = []
+        try { items = typeof sc.items === 'string' ? JSON.parse(sc.items) : (sc.items || []) } catch {}
+        for (const item of items) {
+          if (!item.product_id) continue
+          const exists = await db.query(
+            'SELECT id FROM inventory_logs WHERE reference = $1 AND product_id = $2',
+            [sc.id, item.product_id]
+          )
+          if (!exists.rows.length) {
+            await db.query(
+              `INSERT INTO inventory_logs (id, product_id, type, qty_change, qty_before, qty_after, reason, reference, created_by, created_at)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+              [
+                crypto2.randomBytes(16).toString('hex'),
+                item.product_id,
+                'stock_out',
+                -Math.abs(Number(item.qty || 1)),
+                Number(item.qty || 1),
+                0,
+                'Stock out — checkout (backfilled)',
+                sc.id,
+                sc.created_by || null,
+                sc.created_at || new Date()
+              ]
+            )
+          }
+        }
+      }
+    } catch (bfErr) { console.warn('backfill skip:', bfErr.message) }
 
     const r = await db.query(sql, params)
     res.json({ success: true, data: r.rows })
@@ -36,6 +87,22 @@ router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req,
 // ── GET summary per product ───────────────────────────────────────────────────
 router.get('/summary', authenticate, authorize('admin', 'stockkeeper'), async (req, res) => {
   try {
+    // Ensure table exists — self-heals on first request
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inventory_logs (
+        id          VARCHAR(255) PRIMARY KEY,
+        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
+        type        VARCHAR(50) NOT NULL,
+        qty_change  INTEGER NOT NULL,
+        qty_before  INTEGER NOT NULL,
+        qty_after   INTEGER NOT NULL,
+        reason      TEXT,
+        reference   TEXT,
+        created_by  VARCHAR(255),
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+
     const r = await db.query(`
       SELECT
         p.id, p.name, p.category, p.stock_quantity, p.cost_price, p.price,
