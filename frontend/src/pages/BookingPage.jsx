@@ -1,22 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import { useAuth } from '../context/AuthContext'
 import WhatsAppIcon from '../components/icons/WhatsAppIcon'
 import api from '../services/api'
-import { CalendarCheck, CheckCircle, Satellite, Tag } from 'lucide-react'
+import { CalendarCheck, CheckCircle, Satellite, Tag, Car } from 'lucide-react'
 
 export default function BookingPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const preselectedServiceId = searchParams.get('service') || searchParams.get('service_id')
+
   const [services, setServices] = useState([])
   const [vehicles, setVehicles] = useState([])
   const [submitted, setSubmitted] = useState(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     make: '', model: '', year: '', color: '', registration_number: '', chassis_number: '',
-    service_id: '', preferred_date: '', problem_description: ''
+    service_id: preselectedServiceId || '', preferred_date: '', problem_description: ''
   })
 
   useEffect(() => {
@@ -34,11 +37,34 @@ export default function BookingPage() {
     }
     syncUser()
 
-    api.get('/services').then(r => setServices(r.data.data)).catch(() => {})
-    api.get('/vehicles/my').then(r => setVehicles(r.data.data)).catch(() => {})
+    api.get('/services').then(r => {
+      const list = r.data.data || []
+      setServices(list)
+      if (preselectedServiceId && list.some(s => s.id === preselectedServiceId)) {
+        setForm(f => ({ ...f, service_id: preselectedServiceId }))
+      }
+    }).catch(() => {})
+
+    api.get('/vehicles/my').then(r => {
+      const myVehicles = r.data.data || []
+      setVehicles(myVehicles)
+      if (myVehicles.length > 0) {
+        const first = myVehicles[0]
+        setForm(f => ({
+          ...f,
+          make: f.make || first.make || '',
+          model: f.model || first.model || '',
+          year: f.year || first.year || '',
+          color: f.color || first.color || '',
+          registration_number: f.registration_number || first.registration_number || '',
+          chassis_number: f.chassis_number || first.chassis_number || ''
+        }))
+      }
+    }).catch(() => {})
+
     const today = new Date().toISOString().split('T')[0]
     setForm(f => ({ ...f, preferred_date: today }))
-  }, [])
+  }, [preselectedServiceId])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -173,6 +199,37 @@ export default function BookingPage() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
+                  {vehicles.length > 0 && (
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-4 mb-2">
+                      <label className="block text-xs font-bold text-[#B8860B] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <Car size={14} /> Select From Your Saved Vehicles
+                      </label>
+                      <select
+                        onChange={(e) => {
+                          const v = vehicles.find(item => item.id === e.target.value)
+                          if (v) {
+                            setForm(f => ({
+                              ...f,
+                              make: v.make || '',
+                              model: v.model || '',
+                              year: v.year || '',
+                              color: v.color || '',
+                              registration_number: v.registration_number || '',
+                              chassis_number: v.chassis_number || ''
+                            }))
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-white border border-amber-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-primary">
+                        {vehicles.map(v => (
+                          <option key={v.id} value={v.id}>
+                            🚗 {v.make} {v.model} ({v.registration_number})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[11px] text-gray-500 mt-1">Vehicle details auto-filled below! Edit if needed.</p>
+                    </div>
+                  )}
+
                   {/* Row 1: Make + Model */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

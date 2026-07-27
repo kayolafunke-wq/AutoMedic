@@ -138,7 +138,7 @@ router.post('/', authenticate, authorize('admin','technician'), createInspection
        JSON.stringify(photos||[]), 
        typeof recommendationsData === 'object' ? JSON.stringify(recommendationsData) : recommendationsData,
        advisorNotesData, 
-       'pending']
+       req.body.status || 'pending']
     )
     const r = await db.query('SELECT * FROM inspections WHERE id = $1', [id])
     res.status(201).json({ success:true, data:r.rows[0] })

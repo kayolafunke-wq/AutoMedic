@@ -13,7 +13,7 @@ function StepBar({ current, onGoto }) {
     <div className="flex items-center justify-center bg-white border-b border-gray-100 px-6 py-4 mb-6 rounded-2xl shadow-sm">
       {steps.map((label, i) => (
         <div key={i} className="flex items-center">
-          <button onClick={() => onGoto(i)}
+          <button onClick={() => onGoto(i)} type="button"
             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all
               ${current === i ? 'bg-[#B8860B] text-white shadow' : i < current ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600'}`}>
             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0
@@ -399,6 +399,97 @@ function InspectionForm({ job, existingInsp, onBack }) {
   const [inspId, setInspId] = useState(existingInsp?.id || null)
   const [additionalDamageNotes, setAdditionalDamageNotes] = useState('')
   const [valuablesNotes, setValuablesNotes] = useState(existingInsp?.valuables_notes || '')
+  const [stepSaving, setStepSaving] = useState(false)
+  const [saveNotice, setSaveNotice] = useState('')
+
+  const draftKey = `am_insp_draft_${job.appointment_id || job.id}`
+
+  // Restore draft state from localStorage on mount (prevents losing work if interrupted)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(draftKey)
+      if (saved) {
+        const d = JSON.parse(saved)
+        if (d.step !== undefined && d.step < 4) setStep(d.step)
+        if (d.fuelLevel) setFuelLevel(d.fuelLevel)
+        if (d.odometer) setOdometer(d.odometer)
+        if (d.damages && Array.isArray(d.damages) && d.damages.length > 0) setDamages(d.damages)
+        if (d.checklist && Object.keys(d.checklist).length > 0) setChecklist(d.checklist)
+        if (d.accessories && Object.keys(d.accessories).length > 0) setAccessories(d.accessories)
+        if (d.valuablesNotes) setValuablesNotes(d.valuablesNotes)
+        if (d.additionalDamageNotes) setAdditionalDamageNotes(d.additionalDamageNotes)
+        if (d.inspId) setInspId(d.inspId)
+        if (d.inspRef) setInspRef(d.inspRef)
+      }
+    } catch (e) {
+      console.warn('Draft restore notice:', e)
+    }
+  }, [draftKey])
+
+  // Save current step progress to local storage + backend draft
+  const saveStepProgress = async (targetStep = null) => {
+    setStepSaving(true)
+    setSaveNotice('')
+
+    const draftData = {
+      step: targetStep !== null ? targetStep : step,
+      fuelLevel,
+      odometer,
+      damages,
+      checklist,
+      accessories,
+      valuablesNotes,
+      additionalDamageNotes,
+      inspId,
+      inspRef,
+      updatedAt: new Date().toISOString()
+    }
+    localStorage.setItem(draftKey, JSON.stringify(draftData))
+
+    try {
+      const apiMod = (await import('../../services/api')).default
+      let currentId = inspId
+
+      if (!currentId) {
+        const res = await apiMod.post('/inspections', {
+          appointment_id: job.appointment_id,
+          vehicle_id: job.vehicle_id,
+          customer_id: job.customer_id,
+          fuel_level: fuelLevel,
+          odometer_reading: odometer ? Number(odometer) : null,
+          damage_notes: damages,
+          checklist: checklist,
+          accessories: accessories,
+          valuables_notes: valuablesNotes || null,
+          status: 'draft',
+        })
+        currentId = res.data.data.id
+        setInspId(currentId)
+        if (res.data.data.reference_number) setInspRef(res.data.data.reference_number)
+      } else {
+        await apiMod.patch(`/inspections/${currentId}/complete`, {
+          fuel_level: fuelLevel,
+          odometer_reading: odometer ? Number(odometer) : null,
+          damage_notes: damages,
+          checklist: checklist,
+          accessories: accessories,
+          valuables_notes: valuablesNotes || null,
+          status: 'draft',
+        })
+      }
+      setSaveNotice('✓ Progress saved successfully!')
+      setTimeout(() => setSaveNotice(''), 3000)
+    } catch (err) {
+      setSaveNotice('✓ Saved locally to browser!')
+      setTimeout(() => setSaveNotice(''), 3000)
+    } finally {
+      setStepSaving(false)
+      if (targetStep !== null) {
+        setStep(targetStep)
+        window.scrollTo(0, 0)
+      }
+    }
+  }
 
   // Odometer — controlled
   const [odometer, setOdometer] = useState(existingInsp?.odometer_reading || '')
@@ -453,8 +544,8 @@ function InspectionForm({ job, existingInsp, onBack }) {
 
   const fuels = ['E', '1/4', '1/2', '3/4', 'F']
 
-  const next = () => { if (step < 4) setStep(s => s + 1); window.scrollTo(0, 0) }
-  const back = () => { if (step > 0) setStep(s => s - 1); window.scrollTo(0, 0) }
+  const next = () => { if (step < 4) saveStepProgress(step + 1); else window.scrollTo(0, 0) }
+  const back = () => { if (step > 0) saveStepProgress(step - 1); else window.scrollTo(0, 0) }
 
   const updateChecklist = (label, data) => {
     setChecklist(prev => ({ ...prev, [label]: data }))
@@ -526,6 +617,8 @@ function InspectionForm({ job, existingInsp, onBack }) {
         }
       }
 
+      // Clear local draft after successful final submission
+      localStorage.removeItem(draftKey)
       setSubmitted(true)
       window.scrollTo(0, 0)
     } catch (err) {
@@ -568,7 +661,14 @@ function InspectionForm({ job, existingInsp, onBack }) {
   }
 
   return (
-    <div>
+    <div className="relative">
+      {/* Toast Notice */}
+      {saveNotice && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 animate-bounce">
+          <CheckCircle size={16} /> {saveNotice}
+        </div>
+      )}
+
       {/* Back + header */}
       <div className="flex items-center gap-3 mb-5">
         <button onClick={onBack}
@@ -584,7 +684,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
         </div>
       </div>
 
-      <StepBar current={step} onGoto={setStep} />
+      <StepBar current={step} onGoto={i => saveStepProgress(i)} />
 
       {/* ─ STEP 1: VEHICLE INFO ─ */}
       {step === 0 && (
@@ -918,17 +1018,27 @@ function InspectionForm({ job, existingInsp, onBack }) {
         </button>
         <div className="flex flex-col sm:flex-row gap-3">
           {step < 4 ? (
-            <button onClick={next}
-              className="flex items-center justify-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm">
-              Next <ChevronRight size={15} />
-            </button>
+            <>
+              <button onClick={() => saveStepProgress()} disabled={stepSaving}
+                className="flex items-center justify-center gap-2 px-5 py-3 border border-[#B8860B] text-[#B8860B] font-semibold rounded-full hover:bg-[#B8860B]/10 transition-all text-sm disabled:opacity-50">
+                {stepSaving ? 'Saving...' : '💾 Save Step Progress'}
+              </button>
+              <button onClick={next} disabled={stepSaving}
+                className="flex items-center justify-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm">
+                Save &amp; Next <ChevronRight size={15} />
+              </button>
+            </>
           ) : (
             <>
               <button onClick={() => window.print()}
                 className="flex items-center justify-center gap-2 px-5 py-3 border border-gray-200 text-gray-600 font-semibold rounded-full hover:bg-gray-50 transition-all text-sm">
                 <Printer size={14} /> Print
               </button>
-              <button onClick={submit} disabled={saving}
+              <button onClick={() => saveStepProgress()} disabled={stepSaving}
+                className="flex items-center justify-center gap-2 px-5 py-3 border border-[#B8860B] text-[#B8860B] font-semibold rounded-full hover:bg-[#B8860B]/10 transition-all text-sm disabled:opacity-50">
+                {stepSaving ? 'Saving...' : '💾 Save Draft'}
+              </button>
+              <button onClick={submit} disabled={saving || stepSaving}
                 className="flex items-center justify-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm disabled:opacity-60 whitespace-nowrap">
                 <ClipboardCheck size={15} /> {saving ? 'Submitting...' : 'Submit to Customer Portal'}
               </button>

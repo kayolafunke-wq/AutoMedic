@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
@@ -307,7 +307,7 @@ export default function ServicesPage() {
 
                         {/* Book button */}
                         <Link
-                          to="/booking"
+                          to={`/booking?service=${svc.id}`}
                           className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-[#1A1A2E] text-white text-sm font-semibold rounded-xl hover:bg-primary transition-colors group-hover:bg-primary">
                           Book This Service <ArrowRight size={14} />
                         </Link>
