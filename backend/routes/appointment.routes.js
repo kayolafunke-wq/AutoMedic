@@ -104,19 +104,30 @@ router.get('/my', authenticate, authorize('customer'), async (req, res) => {
   try {
     const r = await db.query(`
       SELECT a.*, v.make, v.model, v.registration_number, s.name as service_name,
-        t.name as technician_name, jc.progress, jc.status as job_status, jc.estimated_cost,
-        i.status as inspection_status, i.advisor_signature as inspection_advisor_sig
+        t.name as technician_name,
+        (SELECT progress FROM job_cards WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as progress,
+        (SELECT status FROM job_cards WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as job_status,
+        (SELECT estimated_cost FROM job_cards WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as estimated_cost,
+        (SELECT status FROM inspections WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as inspection_status,
+        (SELECT advisor_signature FROM inspections WHERE appointment_id = a.id ORDER BY created_at DESC LIMIT 1) as inspection_advisor_sig
       FROM appointments a
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
       LEFT JOIN users t ON a.technician_id = t.id
-      LEFT JOIN job_cards jc ON jc.appointment_id = a.id
-      LEFT JOIN inspections i ON i.appointment_id = a.id
       WHERE a.customer_id = $1
       ORDER BY a.created_at DESC
     `, [req.user.id])
-    res.json({ success:true, data:r.rows })
-  } catch (err) { res.status(500).json({ success:false, message:err.message }) }
+
+    // Deduplicate by appointment ID
+    const seen = new Set()
+    const unique = r.rows.filter(item => {
+      if (seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+
+    res.json({ success: true, data: unique })
+  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
 })
 
 // POST create (customer)

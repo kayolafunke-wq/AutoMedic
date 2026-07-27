@@ -268,7 +268,9 @@ export default function CustomerDashboard() {
       api.get('/notifications'),
       api.get('/inspections/my').catch(() => ({ data: { data: [] } })),
     ]).then(async ([a, inv, n, insp]) => {
-      setAppts(a.data.data || [])
+      const rawAppts = a.data.data || []
+      const uniqueAppts = Array.from(new Map(rawAppts.map(item => [item.id, item])).values())
+      setAppts(uniqueAppts)
       setInvoices(inv.data.data || [])
       setNotifs(n.data.data || [])
 
