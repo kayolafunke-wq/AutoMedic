@@ -115,7 +115,10 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
     window.print()
   }
 
-  const backendBase = ''
+  // Derive backend root from the VITE_API_URL env var (strip trailing /api)
+  const backendBase = (import.meta.env.VITE_API_URL || '')
+    .replace(/\/api$/, '')
+    .replace(/\/api\//, '/')
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
@@ -331,14 +334,26 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
                         </h4>
                         <div className="grid grid-cols-2 gap-2">
                           {mine.map((photo, pi) => {
-                            const fullUrl = photo.file_url.startsWith('http') ? photo.file_url : `${backendBase}${photo.file_url}`
+                            const rawUrl = photo.file_url || ''
+                            const fullUrl = rawUrl.startsWith('data:') || rawUrl.startsWith('http')
+                              ? rawUrl
+                              : `${backendBase}${rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl}`
                             return (
                               <div
                                 key={pi}
                                 onClick={() => setSelectedPhoto(fullUrl)}
                                 className="relative aspect-video rounded-lg overflow-hidden border border-gray-200 cursor-pointer group hover:border-[#B8860B] transition-all"
                               >
-                                <img src={fullUrl} alt={type} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300" />
+                                <img
+                                  src={fullUrl}
+                                  alt={type}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                                  onError={(e) => {
+                                    e.target.onerror = null
+                                    e.target.style.display = 'none'
+                                    e.target.parentNode.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:11px;gap:4px"><span style="font-size:24px">📷</span><span>Photo unavailable</span></div>'
+                                  }}
+                                />
                                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
                                   <Eye size={16} className="text-white" />
                                 </div>
