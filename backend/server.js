@@ -177,7 +177,34 @@ server.listen(PORT, async () => {
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `).catch(() => {})
-    console.log('✅ Guaranteed DB tables & job_cards columns checked/created')
+    // invoices: ensure items + paid_at + updated_at columns exist
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS items TEXT NOT NULL DEFAULT '[]'`).catch(() => {})
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal NUMERIC DEFAULT 0`).catch(() => {})
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax NUMERIC DEFAULT 0`).catch(() => {})
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS total NUMERIC DEFAULT 0`).catch(() => {})
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'unpaid'`).catch(() => {})
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP`).catch(() => {})
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`).catch(() => {})
+    // stock_checkouts: ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS stock_checkouts (
+        id             VARCHAR(255) PRIMARY KEY,
+        type           TEXT NOT NULL DEFAULT 'job_card',
+        job_card_id    VARCHAR(255),
+        appointment_id VARCHAR(255),
+        customer_id    VARCHAR(255),
+        customer_name  TEXT,
+        items          TEXT NOT NULL DEFAULT '[]',
+        subtotal       NUMERIC DEFAULT 0,
+        tax            NUMERIC DEFAULT 0,
+        total          NUMERIC DEFAULT 0,
+        invoice_id     VARCHAR(255),
+        notes          TEXT,
+        created_by     VARCHAR(255),
+        created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+    console.log('✅ Guaranteed DB tables & columns checked/created')
   } catch (err) {
     console.warn('⚠️ DB table check warning:', err.message)
   }

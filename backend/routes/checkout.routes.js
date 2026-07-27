@@ -13,6 +13,10 @@ const checkoutAuth = authorize('stockkeeper', 'admin')
 async function attachToInvoice(appointmentId, customerId, checkoutItems, checkoutId, labourCost) {
   if (!appointmentId || !customerId) return null
 
+  // Ensure invoices.items column exists (production DB may be missing it)
+  await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS items TEXT NOT NULL DEFAULT '[]'`).catch(() => {})
+  await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`).catch(() => {})
+
   // Find existing invoice for this appointment
   let inv = await db.query('SELECT * FROM invoices WHERE appointment_id = $1', [appointmentId])
 
