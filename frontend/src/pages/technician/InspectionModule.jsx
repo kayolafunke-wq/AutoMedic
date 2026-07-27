@@ -510,15 +510,16 @@ function InspectionForm({ job, existingInsp, onBack }) {
         status: 'pending',
       })
 
-      // Upload photos if any
-      const toUpload = photos.filter(p => p.file)
+      // Upload photos if any — send as base64 JSON (survives Railway redeploys)
+      const toUpload = photos.filter(p => p.file && p.url)
       if (toUpload.length > 0) {
         for (const p of toUpload) {
           try {
-            const formData = new FormData()
-            formData.append('photos', p.file)
-            formData.append('photo_type', p.type)
-            await apiMod.post(`/inspections/${id}/photos`, formData)
+            await apiMod.post(`/inspections/${id}/photos`, {
+              photo_type: p.type,
+              file_url: p.url,   // base64 data URL stored directly in DB
+              file_name: p.name,
+            })
           } catch (photoErr) {
             console.warn('Photo upload warning:', photoErr)
           }

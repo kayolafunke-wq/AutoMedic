@@ -268,34 +268,35 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
   } catch (err) { res.status(400).json({ success: false, message: err.message }) }
 })
 
-router.post('/:id/photos', authenticate, upload.array('photos', 10), async (req, res) => {
+router.post('/:id/photos', authenticate, async (req, res) => {
   try {
-    const { photo_type } = req.body
+    const { photo_type, file_url, file_name } = req.body
 
-    // Ensure inspection_photos table exists in DB
+    if (!file_url) {
+      return res.status(400).json({ success: false, message: 'No photo data provided' })
+    }
+
+    // Ensure inspection_photos table exists
     await db.query(`
       CREATE TABLE IF NOT EXISTS inspection_photos (
         id VARCHAR(255) PRIMARY KEY,
         inspection_id VARCHAR(255) REFERENCES inspections(id) ON DELETE CASCADE,
         photo_type VARCHAR(50) DEFAULT 'before',
         file_url TEXT NOT NULL,
+        file_name TEXT,
         uploaded_by VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `).catch(() => {})
 
-    const inserted = []
-    for (const f of req.files) {
-      const id = crypto.randomBytes(16).toString('hex')
-      const url = `/uploads/inspection-photos/${f.filename}`
-      await db.query(
-        'INSERT INTO inspection_photos (id,inspection_id,photo_type,file_url,uploaded_by) VALUES ($1,$2,$3,$4,$5)',
-        [id, req.params.id, photo_type||'before', url, req.user.id]
-      )
-      inserted.push({ id, file_url:url, photo_type })
-    }
-    res.status(201).json({ success:true, data:inserted })
-  } catch (err) { res.status(400).json({ success:false, message:err.message }) }
+    const id = crypto.randomBytes(16).toString('hex')
+    await db.query(
+      'INSERT INTO inspection_photos (id, inspection_id, photo_type, file_url, file_name, uploaded_by) VALUES ($1,$2,$3,$4,$5,$6)',
+      [id, req.params.id, photo_type || 'before', file_url, file_name || null, req.user.id]
+    )
+
+    res.status(201).json({ success: true, data: { id, file_url, photo_type } })
+  } catch (err) { res.status(400).json({ success: false, message: err.message }) }
 })
 
 module.exports = router
