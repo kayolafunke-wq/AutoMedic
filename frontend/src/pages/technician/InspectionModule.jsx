@@ -514,12 +514,14 @@ function InspectionForm({ job, existingInsp, onBack }) {
       const toUpload = photos.filter(p => p.file)
       if (toUpload.length > 0) {
         for (const p of toUpload) {
-          const formData = new FormData()
-          formData.append('photos', p.file)
-          formData.append('photo_type', p.type)
-          await apiMod.post(`/inspections/${id}/photos`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          })
+          try {
+            const formData = new FormData()
+            formData.append('photos', p.file)
+            formData.append('photo_type', p.type)
+            await apiMod.post(`/inspections/${id}/photos`, formData)
+          } catch (photoErr) {
+            console.warn('Photo upload warning:', photoErr)
+          }
         }
       }
 
