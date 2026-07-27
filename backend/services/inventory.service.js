@@ -19,28 +19,33 @@ const db     = require('../config/db')
  */
 async function logMovement({ productId, type, qtyChange, qtyBefore, qtyAfter, reason, reference, createdBy }) {
   try {
-    // Ensure inventory_logs table exists
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS inventory_logs (
-        id          VARCHAR(255) PRIMARY KEY,
-        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
-        type        VARCHAR(50) NOT NULL,
-        qty_change  INTEGER NOT NULL,
-        qty_before  INTEGER NOT NULL,
-        qty_after   INTEGER NOT NULL,
-        reason      TEXT,
-        reference   TEXT,
-        created_by  VARCHAR(255),
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `).catch(() => {})
+    // Ensure both old (quantity_*) and new (qty_*) columns exist
+    const alters = [
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_change      INTEGER DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_before      INTEGER DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_after       INTEGER DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS quantity_change INTEGER DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS quantity_before INTEGER DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS quantity_after  INTEGER DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reference       TEXT`,
+    ]
+    for (const a of alters) { await db.query(a).catch(() => {}) }
 
     const id = crypto.randomBytes(16).toString('hex')
+    // Write to both old and new column names for compatibility
     await db.query(
       `INSERT INTO inventory_logs
-         (id, product_id, type, qty_change, qty_before, qty_after, reason, reference, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [id, productId, type, qtyChange, qtyBefore, qtyAfter, reason || null, reference || null, createdBy || null]
+         (id, product_id, type,
+          qty_change, qty_before, qty_after,
+          quantity_change, quantity_before, quantity_after,
+          reason, reference, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [
+        id, productId, type,
+        qtyChange, qtyBefore, qtyAfter,
+        qtyChange, qtyBefore, qtyAfter,
+        reason || null, reference || null, createdBy || null
+      ]
     )
   } catch (err) {
     // Non-fatal — log but never crash the parent operation

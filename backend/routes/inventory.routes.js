@@ -7,35 +7,43 @@ const inventorySvc = require('../services/inventory.service')
 
 // ── Shared helper: guarantee inventory_logs table + all columns exist ────────
 async function ensureInventoryLogs () {
-  // Create base table if missing (no FK constraints for resilience)
+  // Create table if missing — no FK constraints for resilience
   await db.query(`
     CREATE TABLE IF NOT EXISTS inventory_logs (
-      id         VARCHAR(255) PRIMARY KEY,
-      product_id VARCHAR(255),
-      type       VARCHAR(50)  NOT NULL DEFAULT 'stock_out',
-      qty_change INTEGER      NOT NULL DEFAULT 0,
-      qty_before INTEGER      NOT NULL DEFAULT 0,
-      qty_after  INTEGER      NOT NULL DEFAULT 0,
-      reason     TEXT,
-      reference  TEXT,
-      created_by VARCHAR(255),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      id                VARCHAR(255) PRIMARY KEY,
+      product_id        VARCHAR(255),
+      type              VARCHAR(50)  DEFAULT 'stock_out',
+      quantity_change   INTEGER      DEFAULT 0,
+      quantity_before   INTEGER      DEFAULT 0,
+      quantity_after    INTEGER      DEFAULT 0,
+      qty_change        INTEGER      DEFAULT 0,
+      qty_before        INTEGER      DEFAULT 0,
+      qty_after         INTEGER      DEFAULT 0,
+      reason            TEXT,
+      reference         TEXT,
+      job_card_id       VARCHAR(255),
+      created_by        VARCHAR(255),
+      created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `)
-  // Add any columns that might be missing from an older version of the table
+  `).catch(() => {})
+
+  // Add missing columns — old migration uses quantity_*, new code uses qty_*
+  // We add BOTH so both old and new rows work. No NOT NULL to avoid ALTER TABLE failures.
   const cols = [
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS product_id  VARCHAR(255)`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS type        VARCHAR(50)  NOT NULL DEFAULT 'stock_out'`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_change  INTEGER      NOT NULL DEFAULT 0`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_before  INTEGER      NOT NULL DEFAULT 0`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_after   INTEGER      NOT NULL DEFAULT 0`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reason      TEXT`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reference   TEXT`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_by  VARCHAR(255)`,
-    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS quantity_change INTEGER DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS quantity_before INTEGER DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS quantity_after  INTEGER DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_change      INTEGER DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_before      INTEGER DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_after       INTEGER DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reference       TEXT`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reason          TEXT`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS job_card_id     VARCHAR(255)`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_by      VARCHAR(255)`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
   ]
   for (const col of cols) {
-    await db.query(col).catch(() => {}) // silently skip if column already exists
+    await db.query(col).catch(() => {})
   }
 }
 
@@ -86,8 +94,13 @@ router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req,
     await backfillFromCheckouts()
 
     const { product_id, type, from, to, limit = 500 } = req.query
+    // COALESCE both old (quantity_*) and new (qty_*) column names for compatibility
     let sql = `
-      SELECT il.*,
+      SELECT
+        il.id, il.product_id, il.type, il.reason, il.reference, il.created_by, il.created_at,
+        COALESCE(il.qty_change,  il.quantity_change, 0) AS qty_change,
+        COALESCE(il.qty_before,  il.quantity_before, 0) AS qty_before,
+        COALESCE(il.qty_after,   il.quantity_after,  0) AS qty_after,
         p.name     AS product_name,
         p.category AS product_category,
         u.name     AS created_by_name
@@ -123,11 +136,11 @@ router.get('/summary', authenticate, authorize('admin', 'stockkeeper'), async (r
         p.id, p.name, p.category, p.stock_quantity,
         COALESCE(p.cost_price, 0) AS cost_price,
         COALESCE(p.price, 0) AS price,
-        COALESCE(SUM(CASE WHEN il.type='stock_in'   THEN  il.qty_change ELSE 0 END), 0) AS total_in,
-        COALESCE(SUM(CASE WHEN il.type='stock_out'  THEN -il.qty_change ELSE 0 END), 0) AS total_out,
-        COALESCE(SUM(CASE WHEN il.type='adjustment' THEN  il.qty_change ELSE 0 END), 0) AS total_adjusted,
-        COUNT(il.id)           AS total_movements,
-        MAX(il.created_at)     AS last_movement
+        COALESCE(SUM(CASE WHEN il.type='stock_in'   THEN  COALESCE(il.qty_change, il.quantity_change, 0) ELSE 0 END), 0) AS total_in,
+        COALESCE(SUM(CASE WHEN il.type='stock_out'  THEN -COALESCE(il.qty_change, il.quantity_change, 0) ELSE 0 END), 0) AS total_out,
+        COALESCE(SUM(CASE WHEN il.type='adjustment' THEN  COALESCE(il.qty_change, il.quantity_change, 0) ELSE 0 END), 0) AS total_adjusted,
+        COUNT(il.id)       AS total_movements,
+        MAX(il.created_at) AS last_movement
       FROM products p
       LEFT JOIN inventory_logs il ON il.product_id = p.id
       WHERE p.is_active = 1
