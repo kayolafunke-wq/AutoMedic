@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
   try {
     const { category } = req.query
     const sql = category
-      ? 'SELECT * FROM products WHERE is_active=1 AND category=? ORDER BY name'
+      ? 'SELECT * FROM products WHERE is_active=1 AND category=$1 ORDER BY name'
       : 'SELECT * FROM products WHERE is_active=1 ORDER BY name'
     const r = await db.query(sql, category ? [category] : [])
     res.json({ success:true, data:r.rows })
@@ -112,7 +112,7 @@ router.post('/', authenticate, authorize('admin'), createProductRules, async (re
     const id  = crypto.randomBytes(16).toString('hex')
     const qty = stock_quantity ? Number(stock_quantity) : 0
     await db.query(
-      'INSERT INTO products (id,name,description,category,cost_price,price,stock_quantity,image_url) VALUES (?,?,?,?,?,?,?,?)',
+      'INSERT INTO products (id,name,description,category,cost_price,price,stock_quantity,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
       [id, name, description||null, category||null, cost_price!=null?Number(cost_price):null, price||null, qty, image_url||null]
     )
     // Log initial stock-in if starting with stock
@@ -123,7 +123,7 @@ router.post('/', authenticate, authorize('admin'), createProductRules, async (re
         reason: 'Initial stock on product creation', createdBy: req.user.id,
       })
     }
-    const r = await db.query('SELECT * FROM products WHERE id = ?', [id])
+    const r = await db.query('SELECT * FROM products WHERE id = $1', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
@@ -131,7 +131,7 @@ router.post('/', authenticate, authorize('admin'), createProductRules, async (re
 router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     const { name, description, category, cost_price, price, stock_quantity, image_url, is_active } = req.body
-    const r = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
+    const r = await db.query('SELECT * FROM products WHERE id = $1', [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success:false, message:'Not found' })
     const p = r.rows[0]
 
@@ -148,7 +148,7 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
     const finalImageUrl = image_url !== undefined ? image_url : p.image_url
 
     await db.query(
-      'UPDATE products SET name=?,description=?,category=?,cost_price=?,price=?,stock_quantity=?,image_url=?,is_active=? WHERE id=?',
+      'UPDATE products SET name=$1,description=$2,category=$3,cost_price=$4,price=$5,stock_quantity=$6,image_url=$7,is_active=$8 WHERE id=$9',
       [
         name||p.name,
         description!==undefined?description:p.description,
@@ -162,7 +162,7 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
       ]
     )
     
-    const updated = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
+    const updated = await db.query('SELECT * FROM products WHERE id = $1', [req.params.id])
     res.json({ success:true, data:updated.rows[0] })
   } catch (err) {
     res.status(400).json({ success:false, message:err.message })
