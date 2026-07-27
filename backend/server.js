@@ -167,6 +167,16 @@ server.listen(PORT, async () => {
     await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS final_cost NUMERIC;`).catch(() => {})
     await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;`).catch(() => {})
     await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`).catch(() => {})
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS repair_updates (
+        id          VARCHAR(255) PRIMARY KEY,
+        job_card_id VARCHAR(255) REFERENCES job_cards(id) ON DELETE CASCADE,
+        updated_by  VARCHAR(255),
+        status      TEXT NOT NULL,
+        note        TEXT,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
     console.log('✅ Guaranteed DB tables & job_cards columns checked/created')
   } catch (err) {
     console.warn('⚠️ DB table check warning:', err.message)

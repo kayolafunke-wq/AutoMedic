@@ -241,6 +241,18 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
       }
     }
 
+    // Ensure repair_updates table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS repair_updates (
+        id          VARCHAR(255) PRIMARY KEY,
+        job_card_id VARCHAR(255) REFERENCES job_cards(id) ON DELETE CASCADE,
+        updated_by  VARCHAR(255),
+        status      TEXT NOT NULL,
+        note        TEXT,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+
     // Log repair update
     const updId = crypto.randomBytes(16).toString('hex')
     await db.query(
