@@ -9,7 +9,7 @@ import {
   Home, Settings, History, FileText, Bell, Calendar, LogOut,
   Car, CheckCircle, Clock, CreditCard, Satellite,
   ChevronRight, ClipboardCheck, Printer, PenLine, Shield,
-  AlertTriangle, Camera, Package, X, Download, Plus, Globe, Menu
+  AlertTriangle, Camera, Package, X, Download, Plus, Globe, Menu, MessageCircle
 } from 'lucide-react'
 import InspectionReportDetails from '../../components/InspectionReportDetails'
 
