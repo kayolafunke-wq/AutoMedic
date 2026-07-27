@@ -20,7 +20,7 @@ async function notify(userId, title, message, type = 'info') {
   try {
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO notifications (id,user_id,title,message,type) VALUES (?,?,?,?,?)',
+      'INSERT INTO notifications (id,user_id,title,message,type) VALUES ($1,$2,$3,$4,$5)',
       [id, userId, title, message, type]
     )
   } catch (_) { /* non-fatal */ }
@@ -30,11 +30,11 @@ async function notify(userId, title, message, type = 'info') {
 router.get('/assigned', authenticate, authorize('technician'), async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT i.*, v.make, v.model, v.registration_number, a.tracking_number
+      SELECT i.*, a.tracking_number, a.vehicle_id, v.make, v.model, v.registration_number
       FROM inspections i
       JOIN appointments a ON i.appointment_id = a.id
-      LEFT JOIN vehicles v ON i.vehicle_id = v.id
-      WHERE a.technician_id = ?
+      LEFT JOIN vehicles v ON a.vehicle_id = v.id
+      WHERE i.technician_id = $1
       ORDER BY i.created_at DESC
     `, [req.user.id])
     res.json({ success: true, data: r.rows })
@@ -44,10 +44,11 @@ router.get('/assigned', authenticate, authorize('technician'), async (req, res) 
 router.get('/my', authenticate, authorize('customer'), async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT i.*, v.make, v.model, v.registration_number
+      SELECT i.*, a.tracking_number, a.vehicle_id, a.customer_id, v.make, v.model, v.registration_number
       FROM inspections i
-      LEFT JOIN vehicles v ON i.vehicle_id = v.id
-      WHERE i.customer_id = ? ORDER BY i.created_at DESC
+      LEFT JOIN appointments a ON i.appointment_id = a.id
+      LEFT JOIN vehicles v ON a.vehicle_id = v.id
+      WHERE a.customer_id = $1 ORDER BY i.created_at DESC
     `, [req.user.id])
     res.json({ success:true, data:r.rows })
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
@@ -56,10 +57,12 @@ router.get('/my', authenticate, authorize('customer'), async (req, res) => {
 router.get('/', authenticate, authorize('admin'), async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT i.*, u.name as customer_name, v.make, v.model, v.registration_number
+      SELECT i.*, a.tracking_number, a.vehicle_id, a.customer_id, 
+             u.name as customer_name, v.make, v.model, v.registration_number
       FROM inspections i
-      LEFT JOIN users u ON i.customer_id = u.id
-      LEFT JOIN vehicles v ON i.vehicle_id = v.id
+      LEFT JOIN appointments a ON i.appointment_id = a.id
+      LEFT JOIN users u ON a.customer_id = u.id
+      LEFT JOIN vehicles v ON a.vehicle_id = v.id
       ORDER BY i.created_at DESC
     `)
     res.json({ success:true, data:r.rows })
@@ -70,21 +73,22 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT i.*, v.make, v.model, v.registration_number, v.year, v.color, v.chassis_number,
+      SELECT i.*, a.tracking_number, a.service_id, a.vehicle_id, a.customer_id,
+             v.make, v.model, v.registration_number, v.year, v.color, v.chassis_number,
              u.name as customer_name, u.phone as customer_phone,
-             a.tracking_number, a.service_id, s.name as service_name
+             s.name as service_name
       FROM inspections i
-      LEFT JOIN vehicles v ON i.vehicle_id = v.id
-      LEFT JOIN users u ON i.customer_id = u.id
       LEFT JOIN appointments a ON i.appointment_id = a.id
+      LEFT JOIN vehicles v ON a.vehicle_id = v.id
+      LEFT JOIN users u ON a.customer_id = u.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE i.id = ?
+      WHERE i.id = $1
     `, [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success: false, message: 'Not found' })
     const insp = r.rows[0]
     
     // Fetch photos
-    const photosRes = await db.query('SELECT * FROM inspection_photos WHERE inspection_id = ?', [req.params.id])
+    const photosRes = await db.query('SELECT * FROM inspection_photos WHERE inspection_id = $1', [req.params.id])
     insp.photos = photosRes.rows
 
     // Customers can only view their own inspections
@@ -97,16 +101,15 @@ router.get('/:id', authenticate, async (req, res) => {
 
 router.post('/', authenticate, authorize('admin','technician'), createInspectionRules, async (req, res) => {
   try {
-    const { appointment_id, vehicle_id, customer_id, odometer_reading, fuel_level, damage_notes, checklist, accessories, valuables_notes } = req.body
+    const { appointment_id, under_hood, under_vehicle, exterior, photos, recommendations, advisor_notes } = req.body
     const id  = crypto.randomBytes(16).toString('hex')
-    const ref = genRef()
     await db.query(
-      `INSERT INTO inspections (id,reference_number,appointment_id,vehicle_id,customer_id,advisor_id,odometer_reading,fuel_level,damage_notes,checklist,accessories,valuables_notes)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, ref, appointment_id||null, vehicle_id||null, customer_id||null, req.user.id, odometer_reading||null, fuel_level||null,
-       JSON.stringify(damage_notes||[]), JSON.stringify(checklist||{}), JSON.stringify(accessories||{}), valuables_notes||null]
+      `INSERT INTO inspections (id, appointment_id, technician_id, vehicle_health, under_hood, under_vehicle, exterior, photos, recommendations, advisor_notes, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [id, appointment_id||null, req.user.id, null, under_hood||null, under_vehicle||null, exterior||null,
+       JSON.stringify(photos||[]), recommendations||null, advisor_notes||null, 'pending']
     )
-    const r = await db.query('SELECT * FROM inspections WHERE id = ?', [id])
+    const r = await db.query('SELECT * FROM inspections WHERE id = $1', [id])
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
@@ -116,29 +119,30 @@ router.patch('/:id/sign', authenticate, authorize('customer'), signInspectionRul
     const { customer_signature } = req.body
     const now = new Date().toISOString()
 
-    // Fetch inspection to get the advisor_id for notification
+    // Fetch inspection to get info for notification
     const existing = await db.query(`
-      SELECT i.*, v.make, v.model, u.name as customer_name
+      SELECT i.*, a.customer_id, a.vehicle_id, v.make, v.model, u.name as customer_name
       FROM inspections i
-      LEFT JOIN vehicles v ON i.vehicle_id = v.id
-      LEFT JOIN users u ON i.customer_id = u.id
-      WHERE i.id = ? AND i.customer_id = ?
+      LEFT JOIN appointments a ON i.appointment_id = a.id
+      LEFT JOIN vehicles v ON a.vehicle_id = v.id
+      LEFT JOIN users u ON a.customer_id = u.id
+      WHERE i.id = $1 AND a.customer_id = $2
     `, [req.params.id, req.user.id])
 
     if (!existing.rows.length) return res.status(404).json({ success: false, message: 'Inspection not found or not yours' })
     const insp = existing.rows[0]
 
     await db.query(
-      'UPDATE inspections SET customer_signature=?,customer_signed_at=?,status=? WHERE id=? AND customer_id=?',
-      [customer_signature, now, 'customer_signed', req.params.id, req.user.id]
+      'UPDATE inspections SET advisor_signature=$1, status=$2, updated_at=$3 WHERE id=$4',
+      [customer_signature, 'customer_signed', now, req.params.id]
     )
 
-    // Notify the advisor/technician that the customer has signed
-    if (insp.advisor_id) {
+    // Notify the technician that the customer has signed
+    if (insp.technician_id) {
       const vehicleLabel = (insp.make && insp.model) ? `${insp.make} ${insp.model}` : 'the vehicle'
       const customerLabel = insp.customer_name || 'The customer'
       await notify(
-        insp.advisor_id,
+        insp.technician_id,
         'Customer signed inspection report ✓',
         `${customerLabel} has reviewed and signed the inspection report for ${vehicleLabel}. You can now begin repair work.`,
         'success'
@@ -149,79 +153,77 @@ router.patch('/:id/sign', authenticate, authorize('customer'), signInspectionRul
   } catch (err) { res.status(400).json({ success: false, message: err.message }) }
 })
 
-// PATCH complete inspection (technician — marks ready for repair / customer sign-off)
+// PATCH complete inspection (technician — marks ready for customer review)
 router.patch('/:id/complete', authenticate, authorize('technician','admin'), async (req, res) => {
   try {
     const {
-      odometer_reading, fuel_level, damage_notes, checklist, accessories,
-      valuables_notes, advisor_signature, customer_signature, status,
+      vehicle_health, under_hood, under_vehicle, exterior, photos,
+      recommendations, advisor_notes, advisor_signature, status,
     } = req.body
 
-    const existing = await db.query('SELECT * FROM inspections WHERE id = ?', [req.params.id])
+    const existing = await db.query('SELECT * FROM inspections WHERE id = $1', [req.params.id])
     if (!existing.rows.length) return res.status(404).json({ success: false, message: 'Not found' })
 
     const insp = existing.rows[0]
-    const newStatus = status || (customer_signature ? 'customer_signed' : 'pending')
-    const signedAt  = customer_signature ? new Date().toISOString() : insp.customer_signed_at
+    const newStatus = status || (advisor_signature ? 'pending' : insp.status)
 
     await db.query(
       `UPDATE inspections SET
-        odometer_reading=?, fuel_level=?, damage_notes=?, checklist=?, accessories=?,
-        valuables_notes=?, advisor_signature=?, customer_signature=?,
-        customer_signed_at=?, status=?
-       WHERE id=?`,
+        vehicle_health=$1, under_hood=$2, under_vehicle=$3, exterior=$4, photos=$5,
+        recommendations=$6, advisor_notes=$7, advisor_signature=$8, status=$9, updated_at=$10
+       WHERE id=$11`,
       [
-        odometer_reading ?? insp.odometer_reading,
-        fuel_level ?? insp.fuel_level,
-        JSON.stringify(damage_notes ?? JSON.parse(insp.damage_notes || '[]')),
-        JSON.stringify(checklist ?? JSON.parse(insp.checklist || '{}')),
-        JSON.stringify(accessories ?? JSON.parse(insp.accessories || '{}')),
-        valuables_notes ?? insp.valuables_notes,
+        vehicle_health ?? insp.vehicle_health,
+        under_hood ?? insp.under_hood,
+        under_vehicle ?? insp.under_vehicle,
+        exterior ?? insp.exterior,
+        photos ? JSON.stringify(photos) : insp.photos,
+        recommendations ?? insp.recommendations,
+        advisor_notes ?? insp.advisor_notes,
         advisor_signature ?? insp.advisor_signature,
-        customer_signature ?? insp.customer_signature,
-        signedAt,
         newStatus,
+        new Date().toISOString(),
         req.params.id,
       ]
     )
 
-    if (insp.customer_id && newStatus === 'pending') {
-      // Fetch vehicle info for a better notification message
-      let vehicleLabel = 'your vehicle'
-      try {
-        if (insp.vehicle_id) {
-          const vr = await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = ?', [insp.vehicle_id])
-          if (vr.rows.length) {
-            const v = vr.rows[0]
-            vehicleLabel = `your ${v.make} ${v.model} (${v.registration_number})`
+    // Notify customer if inspection is ready
+    if (newStatus === 'pending') {
+      const apptInfo = await db.query(`
+        SELECT a.customer_id, a.tracking_number, v.make, v.model, v.registration_number
+        FROM appointments a
+        LEFT JOIN vehicles v ON a.vehicle_id = v.id
+        WHERE a.id = $1
+      `, [insp.appointment_id])
+
+      if (apptInfo.rows.length && apptInfo.rows[0].customer_id) {
+        const { customer_id, tracking_number, make, model, registration_number } = apptInfo.rows[0]
+        const vehicleLabel = (make && model) ? `your ${make} ${model} (${registration_number})` : 'your vehicle'
+
+        await notify(
+          customer_id,
+          '🔍 Vehicle Inspection Ready — Your Signature Needed',
+          `AutoMedic has completed the inspection of ${vehicleLabel}. Please review the inspection report on your dashboard and sign digitally to authorise repair work. Ref: ${tracking_number}`,
+          'warning'
+        )
+
+        // Send email
+        try {
+          const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [customer_id])
+          if (custRow.rows.length && custRow.rows[0].email) {
+            emailService.sendInspectionReady({
+              name:          custRow.rows[0].name,
+              email:         custRow.rows[0].email,
+              vehicle:       vehicleLabel,
+              tracking:      tracking_number,
+              inspectionRef: tracking_number,
+            }).catch(() => {})
           }
-        }
-      } catch (_) {}
-
-      await notify(
-        insp.customer_id,
-        '🔍 Vehicle Inspection Ready — Your Signature Needed',
-        `AutoMedic has completed the inspection of ${vehicleLabel}. Please review the inspection report on your dashboard and sign digitally to authorise repair work. Ref: ${insp.reference_number}`,
-        'warning'
-      )
-
-      // Send email notification
-      try {
-        const custRow = await db.query('SELECT name, email FROM users WHERE id = ?', [insp.customer_id])
-        const apptRow = await db.query('SELECT tracking_number FROM appointments WHERE id = ?', [insp.appointment_id])
-        if (custRow.rows.length && custRow.rows[0].email) {
-          emailService.sendInspectionReady({
-            name:          custRow.rows[0].name,
-            email:         custRow.rows[0].email,
-            vehicle:       vehicleLabel,
-            tracking:      apptRow.rows.length ? apptRow.rows[0].tracking_number : 'N/A',
-            inspectionRef: insp.reference_number,
-          }).catch(() => {})
-        }
-      } catch (_) { /* email errors are non-fatal */ }
+        } catch (_) {}
+      }
     }
 
-    const r = await db.query('SELECT * FROM inspections WHERE id = ?', [req.params.id])
+    const r = await db.query('SELECT * FROM inspections WHERE id = $1', [req.params.id])
     res.json({ success: true, data: r.rows[0] })
   } catch (err) { res.status(400).json({ success: false, message: err.message }) }
 })
@@ -234,7 +236,7 @@ router.post('/:id/photos', authenticate, upload.array('photos', 10), async (req,
       const id = crypto.randomBytes(16).toString('hex')
       const url = `/uploads/inspection-photos/${f.filename}`
       await db.query(
-        'INSERT INTO inspection_photos (id,inspection_id,photo_type,file_url,uploaded_by) VALUES (?,?,?,?,?)',
+        'INSERT INTO inspection_photos (id,inspection_id,photo_type,file_url,uploaded_by) VALUES ($1,$2,$3,$4,$5)',
         [id, req.params.id, photo_type||'before', url, req.user.id]
       )
       inserted.push({ id, file_url:url, photo_type })
