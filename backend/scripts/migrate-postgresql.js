@@ -129,6 +129,18 @@ const migrations = [
     FOREIGN KEY (technician_id) REFERENCES users(id) ON DELETE CASCADE
   )`,
 
+  // Inspection Photos table
+  `CREATE TABLE IF NOT EXISTS inspection_photos (
+    id VARCHAR(255) PRIMARY KEY,
+    inspection_id VARCHAR(255) REFERENCES inspections(id) ON DELETE CASCADE,
+    photo_type VARCHAR(50) DEFAULT 'before',
+    file_url TEXT NOT NULL,
+    uploaded_by VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_inspection_photos_insp ON inspection_photos(inspection_id)`,
+
   // Job Cards table
   `CREATE TABLE IF NOT EXISTS job_cards (
     id VARCHAR(255) PRIMARY KEY,

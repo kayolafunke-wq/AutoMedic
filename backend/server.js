@@ -141,9 +141,27 @@ app.use((err, req, res, next) => {
 
 // ─── START ──────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log('')
   console.log(`🚀 AutoMedic API running on http://localhost:${PORT}`)
   console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`)
   console.log('')
+
+  // Ensure critical DB tables exist automatically on boot
+  try {
+    const db = require('./config/db')
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inspection_photos (
+        id VARCHAR(255) PRIMARY KEY,
+        inspection_id VARCHAR(255) REFERENCES inspections(id) ON DELETE CASCADE,
+        photo_type VARCHAR(50) DEFAULT 'before',
+        file_url TEXT NOT NULL,
+        uploaded_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    console.log('✅ Guaranteed DB tables (inspection_photos) checked/created')
+  } catch (err) {
+    console.warn('⚠️ DB table check warning:', err.message)
+  }
 })

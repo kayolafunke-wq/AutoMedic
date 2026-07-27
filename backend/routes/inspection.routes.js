@@ -271,6 +271,19 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
 router.post('/:id/photos', authenticate, upload.array('photos', 10), async (req, res) => {
   try {
     const { photo_type } = req.body
+
+    // Ensure inspection_photos table exists in DB
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inspection_photos (
+        id VARCHAR(255) PRIMARY KEY,
+        inspection_id VARCHAR(255) REFERENCES inspections(id) ON DELETE CASCADE,
+        photo_type VARCHAR(50) DEFAULT 'before',
+        file_url TEXT NOT NULL,
+        uploaded_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+
     const inserted = []
     for (const f of req.files) {
       const id = crypto.randomBytes(16).toString('hex')
