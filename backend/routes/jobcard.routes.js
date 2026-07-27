@@ -91,7 +91,13 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
     const newStatus = status || jc.status
     if (newStatus !== 'pending' && jc.status === 'pending') {
       const insp = await db.query(
-        `SELECT id, status, advisor_signature FROM inspections WHERE appointment_id = $1 LIMIT 1`,
+        `SELECT id, status, advisor_signature FROM inspections 
+         WHERE appointment_id = $1 
+         ORDER BY 
+           (CASE WHEN advisor_signature IS NOT NULL THEN 1 ELSE 2 END),
+           (CASE WHEN status IN ('customer_signed', 'completed') THEN 1 ELSE 2 END),
+           created_at DESC 
+         LIMIT 1`,
         [jc.appointment_id]
       )
       if (!insp.rows.length || !insp.rows[0].advisor_signature) {
