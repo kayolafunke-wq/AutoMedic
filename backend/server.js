@@ -204,7 +204,62 @@ server.listen(PORT, async () => {
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `).catch(() => {})
-    console.log('✅ Guaranteed DB tables & columns checked/created')
+    // inventory_logs: ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inventory_logs (
+        id          VARCHAR(255) PRIMARY KEY,
+        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
+        type        VARCHAR(50) NOT NULL,
+        qty_change  INTEGER NOT NULL,
+        qty_before  INTEGER NOT NULL,
+        qty_after   INTEGER NOT NULL,
+        reason      TEXT,
+        reference   TEXT,
+        created_by  VARCHAR(255),
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+
+    // Auto-backfill inventory_logs for existing stock_checkouts if logs are missing
+    try {
+      const checkouts = await db.query('SELECT * FROM stock_checkouts')
+      const cryptoMod = require('crypto')
+      for (const sc of (checkouts.rows || [])) {
+        let items = []
+        try { items = typeof sc.items === 'string' ? JSON.parse(sc.items) : sc.items } catch {}
+        for (const item of (items || [])) {
+          if (item.product_id) {
+            const exists = await db.query(
+              'SELECT id FROM inventory_logs WHERE reference = $1 AND product_id = $2',
+              [sc.id, item.product_id]
+            )
+            if (!exists.rows.length) {
+              const logId = cryptoMod.randomBytes(16).toString('hex')
+              await db.query(
+                `INSERT INTO inventory_logs (id, product_id, type, qty_change, qty_before, qty_after, reason, reference, created_by, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [
+                  logId,
+                  item.product_id,
+                  'stock_out',
+                  -Math.abs(Number(item.qty || 1)),
+                  0,
+                  0,
+                  'Stock out — checkout',
+                  sc.id,
+                  sc.created_by || null,
+                  sc.created_at || new Date().toISOString()
+                ]
+              )
+            }
+          }
+        }
+      }
+    } catch (bfErr) {
+      console.warn('⚠️ inventory_logs backfill skipped:', bfErr.message)
+    }
+
+    console.log('✅ Guaranteed DB tables, inventory_logs & columns checked/created')
   } catch (err) {
     console.warn('⚠️ DB table check warning:', err.message)
   }

@@ -19,6 +19,22 @@ const db     = require('../config/db')
  */
 async function logMovement({ productId, type, qtyChange, qtyBefore, qtyAfter, reason, reference, createdBy }) {
   try {
+    // Ensure inventory_logs table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inventory_logs (
+        id          VARCHAR(255) PRIMARY KEY,
+        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
+        type        VARCHAR(50) NOT NULL,
+        qty_change  INTEGER NOT NULL,
+        qty_before  INTEGER NOT NULL,
+        qty_after   INTEGER NOT NULL,
+        reason      TEXT,
+        reference   TEXT,
+        created_by  VARCHAR(255),
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `).catch(() => {})
+
     const id = crypto.randomBytes(16).toString('hex')
     await db.query(
       `INSERT INTO inventory_logs
