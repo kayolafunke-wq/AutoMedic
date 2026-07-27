@@ -23,7 +23,7 @@ async function logMovement({ productId, type, qtyChange, qtyBefore, qtyAfter, re
     await db.query(
       `INSERT INTO inventory_logs
          (id, product_id, type, qty_change, qty_before, qty_after, reason, reference, created_by)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [id, productId, type, qtyChange, qtyBefore, qtyAfter, reason || null, reference || null, createdBy || null]
     )
   } catch (err) {
@@ -37,7 +37,7 @@ async function logMovement({ productId, type, qtyChange, qtyBefore, qtyAfter, re
  * Throws if insufficient stock.
  */
 async function deductStock(productId, qty, reference, createdBy) {
-  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = ? AND is_active = 1', [productId])
+  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = $1 AND is_active = 1', [productId])
   if (!p.rows.length) throw new Error(`Product not found: ${productId}`)
   const product = p.rows[0]
   if (product.stock_quantity < qty) {
@@ -45,7 +45,7 @@ async function deductStock(productId, qty, reference, createdBy) {
   }
   const qtyBefore = product.stock_quantity
   const qtyAfter  = Math.max(0, qtyBefore - qty)
-  await db.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [qtyAfter, productId])
+  await db.query('UPDATE products SET stock_quantity = $1 WHERE id = $2', [qtyAfter, productId])
   await logMovement({
     productId,
     type:      'stock_out',
@@ -63,11 +63,11 @@ async function deductStock(productId, qty, reference, createdBy) {
  * Add stock and log the movement.
  */
 async function addStock(productId, qty, reason, reference, createdBy) {
-  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = ?', [productId])
+  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = $1', [productId])
   if (!p.rows.length) throw new Error(`Product not found: ${productId}`)
   const qtyBefore = p.rows[0].stock_quantity
   const qtyAfter  = qtyBefore + qty
-  await db.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [qtyAfter, productId])
+  await db.query('UPDATE products SET stock_quantity = $1 WHERE id = $2', [qtyAfter, productId])
   await logMovement({
     productId,
     type:      'stock_in',
@@ -85,11 +85,11 @@ async function addStock(productId, qty, reason, reference, createdBy) {
  * Manual adjustment (admin correction).
  */
 async function adjustStock(productId, newQty, reason, createdBy) {
-  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = ?', [productId])
+  const p = await db.query('SELECT id, name, stock_quantity FROM products WHERE id = $1', [productId])
   if (!p.rows.length) throw new Error(`Product not found: ${productId}`)
   const qtyBefore = p.rows[0].stock_quantity
   const qtyChange = newQty - qtyBefore
-  await db.query('UPDATE products SET stock_quantity = ? WHERE id = ?', [newQty, productId])
+  await db.query('UPDATE products SET stock_quantity = $1 WHERE id = $2', [newQty, productId])
   await logMovement({
     productId,
     type:      'adjustment',

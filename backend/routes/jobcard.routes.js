@@ -103,11 +103,11 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
 
     await db.query(
       `UPDATE job_cards SET
-        progress=?, status=?, technician_notes=?, estimated_cost=?,
-        final_cost=?, parts_used=?, updated_at=?,
-        started_at=CASE WHEN started_at IS NULL AND ?!='pending' THEN ? ELSE started_at END,
-        completed_at=CASE WHEN ?='completed' AND completed_at IS NULL THEN ? ELSE completed_at END
-       WHERE id=?`,
+        progress=$1, status=$2, technician_notes=$3, estimated_cost=$4,
+        final_cost=$5, parts_used=$6, updated_at=$7,
+        started_at=CASE WHEN started_at IS NULL AND $8!='pending' THEN $9 ELSE started_at END,
+        completed_at=CASE WHEN $10='completed' AND completed_at IS NULL THEN $11 ELSE completed_at END
+       WHERE id=$12`,
       [
         progress ?? jc.progress,
         targetStatus,
@@ -125,10 +125,10 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
     // Automatically update/create invoice and update appointment status when job is completed
     if (isCompleting) {
       try {
-        await db.query('UPDATE appointments SET status=?, updated_at=? WHERE id=?', ['completed', now, jc.appointment_id])
+        await db.query('UPDATE appointments SET status=$1, updated_at=$2 WHERE id=$3', ['completed', now, jc.appointment_id])
 
         const labourAmt = Number(resolvedFinal || 0)
-        const invExists = await db.query('SELECT * FROM invoices WHERE appointment_id = ?', [jc.appointment_id])
+        const invExists = await db.query('SELECT * FROM invoices WHERE appointment_id = $1', [jc.appointment_id])
 
         if (invExists.rows.length) {
           // ── Invoice already exists (stock keeper ran checkout) ─────────────
@@ -141,7 +141,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
             const newTax      = Math.round(newSubtotal * 0.165)
             const newTotal    = newSubtotal + newTax
             await db.query(
-              'UPDATE invoices SET items=?, subtotal=?, tax=?, total=?, updated_at=? WHERE id=?',
+              'UPDATE invoices SET items=$1, subtotal=$2, tax=$3, total=$4, updated_at=$5 WHERE id=$6',
               [JSON.stringify(existingItems), newSubtotal, newTax, newTotal, now, invExists.rows[0].id]
             )
           }
@@ -153,7 +153,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
             FROM appointments a
             LEFT JOIN services s ON a.service_id = s.id
             LEFT JOIN vehicles v ON a.vehicle_id = v.id
-            WHERE a.id = ?
+            WHERE a.id = $1
           `, [jc.appointment_id])
 
           if (appt.rows.length) {
@@ -168,7 +168,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
             const invId  = crypto.randomBytes(16).toString('hex')
             const invNum = 'INV-' + Date.now().toString().slice(-6)
             await db.query(
-              'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES (?,?,?,?,?,?,?,?,?)',
+              'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
               [invId, invNum, jc.appointment_id, a.customer_id, JSON.stringify(items), subtotal, tax, total, 'unpaid']
             )
 
@@ -182,7 +182,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
 
             // Email notification
             try {
-              const custRow = await db.query('SELECT name, email FROM users WHERE id = ?', [a.customer_id])
+              const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [a.customer_id])
               if (custRow.rows.length && custRow.rows[0].email) {
                 const vehicleLabel = (a.make && a.model)
                   ? `${a.make} ${a.model} (${a.registration_number})`
@@ -207,7 +207,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
     // Log repair update
     const updId = crypto.randomBytes(16).toString('hex')
     await db.query(
-      'INSERT INTO repair_updates (id,job_card_id,updated_by,status,note) VALUES (?,?,?,?,?)',
+      'INSERT INTO repair_updates (id,job_card_id,updated_by,status,note) VALUES ($1,$2,$3,$4,$5)',
       [updId, req.params.id, req.user.id, status||jc.status, technician_notes||null]
     )
 
@@ -215,7 +215,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
     try {
       const io = getIO()
       const appt = await db.query(
-        'SELECT tracking_number, customer_id FROM appointments WHERE id = ?',
+        'SELECT tracking_number, customer_id FROM appointments WHERE id = $1',
         [jc.appointment_id]
       )
       if (appt.rows.length) {
@@ -253,11 +253,11 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
 
           // Email for key status transitions
           try {
-            const custRow = await db.query('SELECT name, email FROM users WHERE id = ?', [customer_id])
+            const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [customer_id])
             const vehRow  = await db.query(`
               SELECT v.make, v.model, v.registration_number
               FROM appointments a LEFT JOIN vehicles v ON a.vehicle_id = v.id
-              WHERE a.id = ?
+              WHERE a.id = $1
             `, [jc.appointment_id])
             if (custRow.rows.length && custRow.rows[0].email) {
               const vehicleLabel = vehRow.rows.length
@@ -277,7 +277,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
       }
     } catch (_) { /* socket errors are non-fatal */ }
 
-    const updated = await db.query('SELECT * FROM job_cards WHERE id = ?', [req.params.id])
+    const updated = await db.query('SELECT * FROM job_cards WHERE id = $1', [req.params.id])
     res.json({ success:true, data:updated.rows[0] })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
@@ -288,7 +288,7 @@ router.get('/:id/timeline', authenticate, async (req, res) => {
       SELECT ru.*, u.name as updated_by_name
       FROM repair_updates ru
       LEFT JOIN users u ON ru.updated_by = u.id
-      WHERE ru.job_card_id = ? ORDER BY ru.created_at ASC
+      WHERE ru.job_card_id = $1 ORDER BY ru.created_at ASC
     `, [req.params.id])
     res.json({ success:true, data:r.rows })
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }

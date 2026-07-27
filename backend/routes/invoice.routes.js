@@ -33,7 +33,7 @@ router.get('/my', authenticate, authorize('customer'), async (req, res) => {
       LEFT JOIN appointments a ON inv.appointment_id = a.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE inv.customer_id = ?
+      WHERE inv.customer_id = $1
       ORDER BY inv.created_at DESC
     `, [req.user.id])
     res.json({ success: true, data: r.rows })
@@ -52,7 +52,7 @@ router.get('/:id', authenticate, async (req, res) => {
       LEFT JOIN users u ON inv.customer_id = u.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE inv.id = ?
+      WHERE inv.id = $1
     `, [req.params.id])
     if (!r.rows.length) return res.status(404).json({ success: false, message: 'Invoice not found' })
     // Customers can only view their own
@@ -79,7 +79,7 @@ router.post('/', authenticate, authorize('admin'), createInvoiceRules, async (re
     const id  = crypto.randomBytes(16).toString('hex')
     const num = genInvoiceNum()
     await db.query(
-      'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES (?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
       [id, num, appointment_id, customer_id, JSON.stringify(lineItems), subtotal, tax, total, 'unpaid']
     )
     const r = await db.query(`
@@ -90,7 +90,7 @@ router.post('/', authenticate, authorize('admin'), createInvoiceRules, async (re
       LEFT JOIN users u ON inv.customer_id = u.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE inv.id = ?
+      WHERE inv.id = $1
     `, [id])
     res.status(201).json({ success: true, data: r.rows[0] })
   } catch (err) { res.status(400).json({ success: false, message: err.message }) }
@@ -107,7 +107,7 @@ router.patch('/:id/status', authenticate, authorize('admin'), updateInvoiceStatu
     // Stamp paid_at when marking as paid; clear it if reverting
     const paidAt = status === 'paid' ? now : null
     await db.query(
-      'UPDATE invoices SET status = ?, paid_at = ?, updated_at = ? WHERE id = ?',
+      'UPDATE invoices SET status = $1, paid_at = $2, updated_at = $3 WHERE id = $4',
       [status, paidAt, now, req.params.id]
     )
     res.json({ success: true, paid_at: paidAt })
@@ -120,7 +120,7 @@ router.post('/generate/:appointment_id', authenticate, authorize('admin'), async
     const apptId = req.params.appointment_id
 
     // Check not already invoiced
-    const existing = await db.query('SELECT id FROM invoices WHERE appointment_id = ?', [apptId])
+    const existing = await db.query('SELECT id FROM invoices WHERE appointment_id = $1', [apptId])
     if (existing.rows.length) {
       return res.json({ success: true, data: existing.rows[0], message: 'Invoice already exists' })
     }
@@ -130,7 +130,7 @@ router.post('/generate/:appointment_id', authenticate, authorize('admin'), async
       FROM appointments a
       LEFT JOIN job_cards jc ON jc.appointment_id = a.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE a.id = ?
+      WHERE a.id = $1
     `, [apptId])
     if (!appt.rows.length) return res.status(404).json({ success: false, message: 'Appointment not found' })
 
@@ -149,7 +149,7 @@ router.post('/generate/:appointment_id', authenticate, authorize('admin'), async
     const id  = crypto.randomBytes(16).toString('hex')
     const num = genInvoiceNum()
     await db.query(
-      'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES (?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
       [id, num, apptId, a.customer_id, JSON.stringify(items), subtotal, tax, total, 'unpaid']
     )
     const r = await db.query(`
@@ -160,7 +160,7 @@ router.post('/generate/:appointment_id', authenticate, authorize('admin'), async
       LEFT JOIN users u ON inv.customer_id = u.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
       LEFT JOIN services s ON a.service_id = s.id
-      WHERE inv.id = ?
+      WHERE inv.id = $1
     `, [id])
     res.status(201).json({ success: true, data: r.rows[0] })
   } catch (err) { res.status(400).json({ success: false, message: err.message }) }

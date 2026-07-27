@@ -20,11 +20,12 @@ router.get('/logs', authenticate, authorize('admin', 'stockkeeper'), async (req,
       WHERE 1=1
     `
     const params = []
-    if (product_id) { sql += ' AND il.product_id = ?';           params.push(product_id) }
-    if (type)       { sql += ' AND il.type = ?';                  params.push(type) }
-    if (from)       { sql += ' AND il.created_at >= ?';           params.push(from) }
-    if (to)         { sql += ' AND il.created_at <= ? || "T23:59:59"'; params.push(to) }
-    sql += ' ORDER BY il.created_at DESC LIMIT ?'
+    let paramIndex = 1
+    if (product_id) { sql += ` AND il.product_id = $${paramIndex++}`;           params.push(product_id) }
+    if (type)       { sql += ` AND il.type = $${paramIndex++}`;                  params.push(type) }
+    if (from)       { sql += ` AND il.created_at >= $${paramIndex++}`;           params.push(from) }
+    if (to)         { sql += ` AND il.created_at <= $${paramIndex++} || 'T23:59:59'`; params.push(to) }
+    sql += ` ORDER BY il.created_at DESC LIMIT $${paramIndex++}`
     params.push(Number(limit))
 
     const r = await db.query(sql, params)
@@ -60,7 +61,7 @@ router.get('/logs/:product_id', authenticate, authorize('admin', 'stockkeeper'),
       SELECT il.*, u.name AS created_by_name
       FROM inventory_logs il
       LEFT JOIN users u ON il.created_by = u.id
-      WHERE il.product_id = ?
+      WHERE il.product_id = $1
       ORDER BY il.created_at DESC
       LIMIT 100
     `, [req.params.product_id])

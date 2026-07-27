@@ -14,7 +14,7 @@ async function attachToInvoice(appointmentId, customerId, checkoutItems, checkou
   if (!appointmentId || !customerId) return null
 
   // Find existing invoice for this appointment
-  let inv = await db.query('SELECT * FROM invoices WHERE appointment_id = ?', [appointmentId])
+  let inv = await db.query('SELECT * FROM invoices WHERE appointment_id = $1', [appointmentId])
 
   const partsTotal  = checkoutItems.reduce((s, i) => s + (Number(i.unit_price || 0) * Number(i.qty || 1)), 0)
   // Build item list: parts rows + optional labour row
@@ -40,7 +40,7 @@ async function attachToInvoice(appointmentId, customerId, checkoutItems, checkou
     const newTax      = Math.round(newSubtotal * 0.165)
     const newTotal    = newSubtotal + newTax
     await db.query(
-      'UPDATE invoices SET items = ?, subtotal = ?, tax = ?, total = ?, updated_at = ? WHERE id = ?',
+      'UPDATE invoices SET items = $1, subtotal = $2, tax = $3, total = $4, updated_at = $5 WHERE id = $6',
       [JSON.stringify(mergedItems), newSubtotal, newTax, newTotal, new Date().toISOString(), inv.rows[0].id]
     )
     return inv.rows[0].id
@@ -52,7 +52,7 @@ async function attachToInvoice(appointmentId, customerId, checkoutItems, checkou
     const tax      = Math.round(subtotal * 0.165)
     const total    = subtotal + tax
     await db.query(
-      'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES (?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
       [invId, invNum, appointmentId, customerId, JSON.stringify(allNewItems), subtotal, tax, total, 'unpaid']
     )
     return invId
@@ -72,7 +72,7 @@ router.get('/', authenticate, authorize('admin', 'stockkeeper'), async (req, res
       LEFT JOIN users u  ON sc.created_by    = u.id
       LEFT JOIN users cu ON sc.customer_id   = cu.id
       LEFT JOIN appointments a ON sc.appointment_id = a.id
-      ${isAdmin ? '' : 'WHERE sc.created_by = ?'}
+      ${isAdmin ? '' : 'WHERE sc.created_by = $1'}
       ORDER BY sc.created_at DESC
       LIMIT 200
     `
@@ -140,7 +140,7 @@ router.post('/job-card', authenticate, checkoutAuth, jobCardCheckoutRules, async
       FROM job_cards jc
       LEFT JOIN appointments a ON jc.appointment_id = a.id
       LEFT JOIN users u ON a.customer_id = u.id
-      WHERE jc.id = ?
+      WHERE jc.id = $1
     `, [job_card_id])
     if (!jcRow.rows.length) return res.status(404).json({ success: false, message: 'Job card not found' })
     const jc = jcRow.rows[0]
@@ -171,12 +171,12 @@ router.post('/job-card', authenticate, checkoutAuth, jobCardCheckoutRules, async
     await db.query(
       `INSERT INTO stock_checkouts
         (id,type,job_card_id,appointment_id,customer_id,customer_name,items,subtotal,tax,total,invoice_id,notes,created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [id, 'job_card', job_card_id, jc.appt_id, jc.customer_id, jc.customer_name,
        JSON.stringify(resolvedItems), subtotal, tax, total, invoiceId, notes || null, req.user.id]
     )
 
-    const result = await db.query('SELECT * FROM stock_checkouts WHERE id = ?', [id])
+    const result = await db.query('SELECT * FROM stock_checkouts WHERE id = $1', [id])
     res.status(201).json({
       success: true,
       data: result.rows[0],
@@ -229,7 +229,7 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
         unit_price:  i.unit_price,
       }))
       await db.query(
-        'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES (?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
         [invId, invNum, null, custId, JSON.stringify(invItems), subtotal, tax, total, 'unpaid']
       )
       invoiceId = invId
@@ -239,12 +239,12 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
     await db.query(
       `INSERT INTO stock_checkouts
         (id,type,job_card_id,appointment_id,customer_id,customer_name,items,subtotal,tax,total,invoice_id,notes,created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [id, 'walkin', null, null, custId, custName,
        JSON.stringify(resolvedItems), subtotal, tax, total, invoiceId, notes || null, req.user.id]
     )
 
-    const result = await db.query('SELECT * FROM stock_checkouts WHERE id = ?', [id])
+    const result = await db.query('SELECT * FROM stock_checkouts WHERE id = $1', [id])
     res.status(201).json({
       success: true,
       data: result.rows[0],
