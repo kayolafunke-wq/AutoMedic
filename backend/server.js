@@ -147,7 +147,7 @@ server.listen(PORT, async () => {
   console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`)
   console.log('')
 
-  // Ensure critical DB tables exist automatically on boot
+  // Ensure critical DB tables and columns exist automatically on boot
   try {
     const db = require('./config/db')
     await db.query(`
@@ -156,11 +156,18 @@ server.listen(PORT, async () => {
         inspection_id VARCHAR(255) REFERENCES inspections(id) ON DELETE CASCADE,
         photo_type VARCHAR(50) DEFAULT 'before',
         file_url TEXT NOT NULL,
+        file_name TEXT,
         uploaded_by VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
-    console.log('✅ Guaranteed DB tables (inspection_photos) checked/created')
+    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS technician_notes TEXT;`).catch(() => {})
+    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS parts_used TEXT DEFAULT '[]';`).catch(() => {})
+    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS estimated_cost NUMERIC;`).catch(() => {})
+    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS final_cost NUMERIC;`).catch(() => {})
+    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;`).catch(() => {})
+    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;`).catch(() => {})
+    console.log('✅ Guaranteed DB tables & job_cards columns checked/created')
   } catch (err) {
     console.warn('⚠️ DB table check warning:', err.message)
   }
