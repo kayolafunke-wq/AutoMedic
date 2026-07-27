@@ -22,7 +22,18 @@ export function GarageSettingsProvider({ children }) {
       setLoading(true)
       const response = await api.get('/settings/garage')
       if (response.data.success) {
-        setSettings(response.data.data)
+        const raw = response.data.data
+        // Normalize: handle both old (garage_*) and new column names
+        setSettings({
+          garage_name:  raw.garage_name  || 'AutoMedic Garage',
+          phone:        raw.phone        || raw.garage_phone    || '+265994040900',
+          address:      raw.address      || raw.garage_address  || 'Area 47, Lilongwe, Malawi',
+          whatsapp:     raw.whatsapp     || raw.garage_whatsapp || '+265994040900',
+          working_hours:raw.working_hours|| raw.garage_hours    || 'Mon-Sat: 7am-6pm',
+          email:        raw.email        || raw.garage_email    || 'info@automedic.mw',
+          vat_rate:     Number(raw.vat_rate || raw.tax_rate || 16.5),
+          currency:     raw.currency || 'MWK',
+        })
       }
     } catch (err) {
       console.error('Failed to fetch garage settings:', err)

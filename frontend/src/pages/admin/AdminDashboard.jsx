@@ -1971,7 +1971,18 @@ function SettingsView() {
     const loadSettings = async () => {
       try {
         const response = await api.get('/settings/garage')
-        setForm(response.data.data)
+        const raw = response.data.data || {}
+        // Normalize: handle both old (garage_*) and new column names
+        setForm({
+          garage_name:  raw.garage_name   || 'AutoMedic Garage',
+          phone:        raw.phone         || raw.garage_phone    || '',
+          address:      raw.address       || raw.garage_address  || '',
+          whatsapp:     raw.whatsapp      || raw.garage_whatsapp || '',
+          working_hours:raw.working_hours || raw.garage_hours    || '',
+          email:        raw.email         || raw.garage_email    || '',
+          vat_rate:     raw.vat_rate      || raw.tax_rate        || 16.5,
+          currency:     raw.currency      || 'MWK',
+        })
       } catch (err) {
         console.error('Failed to load settings:', err)
         setError('Failed to load settings')
