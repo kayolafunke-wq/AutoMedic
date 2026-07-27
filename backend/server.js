@@ -204,21 +204,34 @@ server.listen(PORT, async () => {
         created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `).catch(() => {})
-    // inventory_logs: ensure table exists
+    // inventory_logs: ensure table + ALL columns exist (no FK, for resilience)
     await db.query(`
       CREATE TABLE IF NOT EXISTS inventory_logs (
-        id          VARCHAR(255) PRIMARY KEY,
-        product_id  VARCHAR(255) REFERENCES products(id) ON DELETE CASCADE,
-        type        VARCHAR(50) NOT NULL,
-        qty_change  INTEGER NOT NULL,
-        qty_before  INTEGER NOT NULL,
-        qty_after   INTEGER NOT NULL,
-        reason      TEXT,
-        reference   TEXT,
-        created_by  VARCHAR(255),
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id         VARCHAR(255) PRIMARY KEY,
+        product_id VARCHAR(255),
+        type       VARCHAR(50)  NOT NULL DEFAULT 'stock_out',
+        qty_change INTEGER      NOT NULL DEFAULT 0,
+        qty_before INTEGER      NOT NULL DEFAULT 0,
+        qty_after  INTEGER      NOT NULL DEFAULT 0,
+        reason     TEXT,
+        reference  TEXT,
+        created_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `).catch(() => {})
+    // Add any missing columns from an older version of inventory_logs
+    const invCols = [
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS product_id  VARCHAR(255)`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS type        VARCHAR(50)  NOT NULL DEFAULT 'stock_out'`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_change  INTEGER      NOT NULL DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_before  INTEGER      NOT NULL DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_after   INTEGER      NOT NULL DEFAULT 0`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reason      TEXT`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reference   TEXT`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_by  VARCHAR(255)`,
+      `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+    ]
+    for (const col of invCols) { await db.query(col).catch(() => {}) }
 
     // Auto-backfill inventory_logs for existing stock_checkouts if logs are missing
     try {

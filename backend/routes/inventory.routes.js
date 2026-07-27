@@ -5,23 +5,38 @@ const db       = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 const inventorySvc = require('../services/inventory.service')
 
-// ── Shared helper: guarantee inventory_logs table exists ─────────────────────
+// ── Shared helper: guarantee inventory_logs table + all columns exist ────────
 async function ensureInventoryLogs () {
-  // No FK constraint — avoids any reference resolution issues
+  // Create base table if missing (no FK constraints for resilience)
   await db.query(`
     CREATE TABLE IF NOT EXISTS inventory_logs (
       id         VARCHAR(255) PRIMARY KEY,
       product_id VARCHAR(255),
-      type       VARCHAR(50) NOT NULL DEFAULT 'stock_out',
-      qty_change INTEGER NOT NULL DEFAULT 0,
-      qty_before INTEGER NOT NULL DEFAULT 0,
-      qty_after  INTEGER NOT NULL DEFAULT 0,
+      type       VARCHAR(50)  NOT NULL DEFAULT 'stock_out',
+      qty_change INTEGER      NOT NULL DEFAULT 0,
+      qty_before INTEGER      NOT NULL DEFAULT 0,
+      qty_after  INTEGER      NOT NULL DEFAULT 0,
       reason     TEXT,
       reference  TEXT,
       created_by VARCHAR(255),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `)
+  // Add any columns that might be missing from an older version of the table
+  const cols = [
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS product_id  VARCHAR(255)`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS type        VARCHAR(50)  NOT NULL DEFAULT 'stock_out'`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_change  INTEGER      NOT NULL DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_before  INTEGER      NOT NULL DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS qty_after   INTEGER      NOT NULL DEFAULT 0`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reason      TEXT`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS reference   TEXT`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_by  VARCHAR(255)`,
+    `ALTER TABLE inventory_logs ADD COLUMN IF NOT EXISTS created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+  ]
+  for (const col of cols) {
+    await db.query(col).catch(() => {}) // silently skip if column already exists
+  }
 }
 
 // ── Shared helper: backfill inventory_logs from stock_checkouts ──────────────
