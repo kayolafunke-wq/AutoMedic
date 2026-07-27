@@ -104,9 +104,9 @@ router.post('/', authenticate, authorize('admin','technician'), createInspection
     const { appointment_id, under_hood, under_vehicle, exterior, photos, recommendations, advisor_notes } = req.body
     const id  = crypto.randomBytes(16).toString('hex')
     await db.query(
-      `INSERT INTO inspections (id, appointment_id, technician_id, vehicle_health, under_hood, under_vehicle, exterior, photos, recommendations, advisor_notes, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [id, appointment_id||null, req.user.id, null, under_hood||null, under_vehicle||null, exterior||null,
+      `INSERT INTO inspections (id, appointment_id, technician_id, vehicle_health, under_hood, under_vehicle, photos, recommendations, advisor_notes, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [id, appointment_id||null, req.user.id, null, under_hood||null, under_vehicle||null,
        JSON.stringify(photos||[]), recommendations||null, advisor_notes||null, 'pending']
     )
     const r = await db.query('SELECT * FROM inspections WHERE id = $1', [id])
@@ -157,7 +157,7 @@ router.patch('/:id/sign', authenticate, authorize('customer'), signInspectionRul
 router.patch('/:id/complete', authenticate, authorize('technician','admin'), async (req, res) => {
   try {
     const {
-      vehicle_health, under_hood, under_vehicle, exterior, photos,
+      vehicle_health, under_hood, under_vehicle, photos,
       recommendations, advisor_notes, advisor_signature, status,
     } = req.body
 
@@ -169,14 +169,13 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
 
     await db.query(
       `UPDATE inspections SET
-        vehicle_health=$1, under_hood=$2, under_vehicle=$3, exterior=$4, photos=$5,
-        recommendations=$6, advisor_notes=$7, advisor_signature=$8, status=$9, updated_at=$10
-       WHERE id=$11`,
+        vehicle_health=$1, under_hood=$2, under_vehicle=$3, photos=$4,
+        recommendations=$5, advisor_notes=$6, advisor_signature=$7, status=$8, updated_at=$9
+       WHERE id=$10`,
       [
         vehicle_health ?? insp.vehicle_health,
         under_hood ?? insp.under_hood,
         under_vehicle ?? insp.under_vehicle,
-        exterior ?? insp.exterior,
         photos ? JSON.stringify(photos) : insp.photos,
         recommendations ?? insp.recommendations,
         advisor_notes ?? insp.advisor_notes,
