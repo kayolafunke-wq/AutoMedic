@@ -58,11 +58,12 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
         <td style="text-align:right;font-weight:700">MK ${lt.toLocaleString()}</td></tr>`
     }).join('')
     const isPaid = invoice.status === 'paid'
+    const logoUrl = `${window.location.origin}/logo.jpg`
+    const vatPct  = Number(settings.vat_rate ?? 16.5)
     const w = window.open('', '_blank', 'width=820,height=960')
     w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invoice.invoice_number}</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:48px;color:#1A1A2E;font-size:13px}
     .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #1A1A2E;margin-bottom:28px}
-    .logo{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center}
     .g2{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:24px}
     table{width:100%;border-collapse:collapse;margin:20px 0}
     th{background:#f5f3ee;padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#888}
@@ -73,8 +74,9 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
     @media print{body{padding:20px}}</style></head><body>
     <div class="hdr">
       <div style="display:flex;align-items:center;gap:14px">
-        <img src="/logo.jpg" alt="AutoMedic" style="height:56px;width:auto;object-fit:contain"/>
-        <div><strong style="font-size:18px">${settings.garage_name}</strong><br/><span style="font-size:11px;color:#888">${settings.address} · ${settings.phone}</span></div>
+        <img src="${logoUrl}" alt="AutoMedic" style="height:56px;width:auto;object-fit:contain"/>
+        <span style="font-size:20px;font-weight:900;color:#1A1A2E">Auto<span style="color:#B8860B">Medic</span></span>
+        <div style="margin-left:4px"><strong style="font-size:14px;color:#555">${settings.garage_name}</strong><br/><span style="font-size:11px;color:#888">${settings.address} · ${settings.phone}</span></div>
       </div>
 
 
@@ -100,7 +102,7 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
     <tbody>${rows}</tbody></table>
     <div class="tot">
       <div class="tr"><span>Subtotal</span><span>MK ${subtotal.toLocaleString()}</span></div>
-      <div class="tr"><span>VAT (16.5%)</span><span>MK ${tax.toLocaleString()}</span></div>
+      <div class="tr"><span>VAT (${vatPct}%)</span><span>MK ${tax.toLocaleString()}</span></div>
       <div class="tr tf"><span>TOTAL DUE</span><span style="color:#B8860B">MK ${total.toLocaleString()}</span></div>
     </div>
     <div class="foot"><p>Thank you for choosing AutoMedic — Lilongwe's Premier Garage</p></div>
@@ -141,8 +143,9 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
           {/* From / To */}
           <div className="flex justify-between items-start mb-6 pb-5 border-b-2 border-[#1A1A2E]">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-[#B8860B] rounded-xl flex items-center justify-center text-white font-black text-sm">AM</div>
-              <div><p className="font-black text-[#1A1A2E]">{settings.garage_name}</p><p className="text-xs text-gray-400">{settings.address}</p></div>
+              <img src="/logo.jpg" alt="AutoMedic" className="h-12 w-auto object-contain mix-blend-multiply" />
+              <span className="font-black text-[#1A1A2E] text-lg">Auto<span className="text-[#B8860B]">Medic</span></span>
+              <div><p className="font-black text-[#1A1A2E] text-sm">{settings.garage_name}</p><p className="text-xs text-gray-400">{settings.address}</p></div>
             </div>
             <div className="text-right">
               <p className="text-2xl font-black text-[#1A1A2E]">INVOICE</p>
