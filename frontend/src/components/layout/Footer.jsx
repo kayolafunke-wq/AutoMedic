@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { MapPin, Phone, Clock, Facebook, Instagram } from 'lucide-react'
 import { useGarageSettings } from '../../hooks/useGarageSettings'
+import Logo from '../Logo'
 
 export default function Footer() {
   const { settings } = useGarageSettings()
@@ -9,11 +10,11 @@ export default function Footer() {
     <footer className="bg-dark text-white/80 pt-16">
       <div className="max-w-7xl mx-auto px-6 pb-10 grid grid-cols-1 md:grid-cols-4 gap-10">
         <div>
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white font-black text-sm">AM</div>
-            <span className="font-black text-xl text-white">AutoMedic</span>
+          <div className="mb-4">
+            <Logo size="md" theme="light" showTagline={true} />
           </div>
           <p className="text-sm text-white/60 leading-relaxed mb-5">Lilongwe's most trusted garage management platform. Professional service with full digital transparency.</p>
+
           <div className="flex gap-2">
             {[Facebook, Instagram].map((Icon, i) => (
               <a key={i} href="#" className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-primary transition-colors">

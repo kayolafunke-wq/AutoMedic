@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, Mail, Lock, User, Phone, AlertCircle, CheckCircle, ArrowLeft, Car, Wrench, Settings, Zap } from 'lucide-react'
 import api from '../services/api'
+import Logo from '../components/Logo'
+
 
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 18 18">
@@ -156,10 +158,10 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col h-full p-10">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.6))' }}>
-            <div className="w-11 h-11 bg-[#B8860B] rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xl shadow-[#B8860B]/40">AM</div>
-            <span className="font-black text-xl text-white tracking-tight">AutoMedic</span>
+          <Link to="/" className="flex items-center" style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.6))' }}>
+            <Logo size="md" theme="light" />
           </Link>
+
 
           {/* Centre — smaller icon ring with a wrench in the middle */}
           <div className="flex-1 flex items-center justify-center">

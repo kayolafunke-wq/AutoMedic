@@ -13,6 +13,8 @@ import InvoicesManagement from './InvoicesManagement'
 import ServicesManagement from './ServicesManagement'
 import InventoryTracking from './InventoryTracking'
 import Pagination from '../../components/ui/Pagination'
+import Logo from '../../components/Logo'
+
 
 const PAGE_SIZE = 15
 
@@ -2633,8 +2635,9 @@ export default function AdminDashboard() {
               : <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="17" y2="6"/><line x1="3" y1="12" x2="17" y2="12"/><line x1="3" y1="18" x2="17" y2="18"/></svg>
             }
           </button>
-          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-          <span className="font-black text-white text-sm md:text-base">AutoMedic <span className="text-primary">Admin</span></span>
+          <Logo size="xs" theme="light" />
+          <span className="font-bold text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">Admin</span>
+
         </div>
         <div className="flex items-center gap-2 md:gap-3">
           <span className="hidden sm:inline bg-white/10 text-white/70 text-xs font-semibold px-3 py-1.5 rounded-full">Administrator</span>

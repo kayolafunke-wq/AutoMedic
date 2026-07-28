@@ -62,7 +62,7 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
     w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invoice.invoice_number}</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:48px;color:#1A1A2E;font-size:13px}
     .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #1A1A2E;margin-bottom:28px}
-    .logo{width:44px;height:44px;background:#B8860B;color:#fff;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:14px}
+    .logo{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center}
     .g2{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:24px}
     table{width:100%;border-collapse:collapse;margin:20px 0}
     th{background:#f5f3ee;padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#888}
@@ -72,10 +72,22 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
     .foot{margin-top:32px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:16px}
     @media print{body{padding:20px}}</style></head><body>
     <div class="hdr">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="logo">AM</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="44" height="44" viewBox="0 0 200 200" fill="none">
+          <path d="M 55 75 A 55 55 0 0 1 145 75" stroke="#1A1A2E" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <path d="M 125 40 A 55 55 0 0 1 148 70" stroke="#B8860B" stroke-width="10" stroke-dasharray="6 6" stroke-linecap="round" fill="none"/>
+          <line x1="100" y1="75" x2="125" y2="45" stroke="#B8860B" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="100" cy="75" r="7" fill="#B8860B"/>
+          <path d="M 45 65 L 98 120 L 98 165 L 45 165 Z" fill="#B8860B"/>
+          <path d="M 102 120 L 155 65 L 155 165 L 102 165 Z" fill="#1A1A2E"/>
+          <path d="M 52 160 L 78 108 C 72 104 68 96 72 88 C 76 80 86 78 92 84 C 95 87 96 92 94 96 L 76 130 Z" fill="#FFFFFF"/>
+          <path d="M 35 155 C 55 145 75 140 100 140 C 135 140 160 152 170 162 C 150 160 120 158 100 158 C 70 158 45 160 35 155 Z" fill="#1A1A2E"/>
+          <path d="M 55 150 C 70 135 100 130 140 145 C 120 138 90 137 70 146 Z" fill="#B8860B"/>
+          <ellipse cx="160" cy="156" rx="4" ry="2" fill="#B8860B"/>
+        </svg>
         <div><strong style="font-size:18px">${settings.garage_name}</strong><br/><span style="font-size:11px;color:#888">${settings.address} · ${settings.phone}</span></div>
       </div>
+
       <div style="text-align:right">
         <div style="font-size:24px;font-weight:900">INVOICE</div>
         <div style="color:#B8860B;font-weight:700;font-size:15px;margin:4px 0">#${invoice.invoice_number}</div>

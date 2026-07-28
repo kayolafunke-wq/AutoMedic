@@ -13,6 +13,8 @@ import {
   User, Phone, MapPin, CreditCard as IdCard, Save, Edit3
 } from 'lucide-react'
 import InspectionReportDetails from '../../components/InspectionReportDetails'
+import Logo from '../../components/Logo'
+
 
 /* ─── INVOICE MODAL ─────────────────────────────────── */
 function InvoiceModal({ invoice, onClose, settings }) {
@@ -59,9 +61,23 @@ function InvoiceModal({ invoice, onClose, settings }) {
     .total-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:12px}
     .total-final{border-top:2px solid #1A1A2E;border-bottom:none;font-size:14px;font-weight:800;padding-top:9px}
     .footer{margin-top:28px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:14px}
-    @media print{body{padding:20px}}</style></head><body>
     <div class="header">
-      <div style="display:flex;align-items:center;gap:10px"><div class="logo-sq">AM</div><div><strong style="font-size:18px">${safeSettings.garage_name}</strong><div style="font-size:11px;color:#888">${safeSettings.address}</div></div></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="40" height="40" viewBox="0 0 200 200" fill="none">
+          <path d="M 55 75 A 55 55 0 0 1 145 75" stroke="#1A1A2E" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <path d="M 125 40 A 55 55 0 0 1 148 70" stroke="#B8860B" stroke-width="10" stroke-dasharray="6 6" stroke-linecap="round" fill="none"/>
+          <line x1="100" y1="75" x2="125" y2="45" stroke="#B8860B" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="100" cy="75" r="7" fill="#B8860B"/>
+          <path d="M 45 65 L 98 120 L 98 165 L 45 165 Z" fill="#B8860B"/>
+          <path d="M 102 120 L 155 65 L 155 165 L 102 165 Z" fill="#1A1A2E"/>
+          <path d="M 52 160 L 78 108 C 72 104 68 96 72 88 C 76 80 86 78 92 84 C 95 87 96 92 94 96 L 76 130 Z" fill="#FFFFFF"/>
+          <path d="M 35 155 C 55 145 75 140 100 140 C 135 140 160 152 170 162 C 150 160 120 158 100 158 C 70 158 45 160 35 155 Z" fill="#1A1A2E"/>
+          <path d="M 55 150 C 70 135 100 130 140 145 C 120 138 90 137 70 146 Z" fill="#B8860B"/>
+          <ellipse cx="160" cy="156" rx="4" ry="2" fill="#B8860B"/>
+        </svg>
+        <div><strong style="font-size:18px">${safeSettings.garage_name}</strong><div style="font-size:11px;color:#888">${safeSettings.address}</div></div>
+      </div>
+
       <div style="text-align:right"><div style="font-size:22px;font-weight:900">INVOICE</div>
       <div style="color:#B8860B;font-weight:700;margin:4px 0">#${refNum}</div>
       <div style="font-size:11px;color:#888">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
@@ -422,10 +438,10 @@ export default function CustomerDashboard() {
             <Menu size={18} />
           </button>
           
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-            <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
+          <Link to="/" className="flex items-center">
+            <Logo size="xs" />
           </Link>
+
         </div>
         
         <div className="flex items-center gap-1.5 md:gap-2.5">

@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import {
+  Wrench, ClipboardCheck, Clock, CheckCircle, AlertTriangle,
+  FileText, User, ChevronRight, Search, Plus, Filter, Calendar,
   List, CheckCheck, StickyNote, Camera, LogOut,
-  Edit2, X, Save, ClipboardCheck, CheckCircle, AlertCircle,
-  Menu, Bell, Wrench, Clock, Star, FileText, User, DollarSign, Calendar, Car,
-  AlertTriangle, Sparkles, Check
+  X, Menu, AlertCircle, RefreshCw, Eye, MessageSquare, Phone, Bell, Star
 } from 'lucide-react'
+import Logo from '../../components/Logo'
+
 import InspectionModule from './InspectionModule'
 
 const NAV = [
@@ -257,10 +259,10 @@ export default function TechnicianDashboard() {
             <Menu size={18} />
           </button>
           
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#B8860B] rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-            <span className="font-black text-[#1A1A2E] text-lg">AutoMedic</span>
+          <Link to="/" className="flex items-center">
+            <Logo size="xs" />
           </Link>
+
         </div>
 
         {/* Right side - Status, notifications, and user */}

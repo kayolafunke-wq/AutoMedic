@@ -7,6 +7,7 @@ import {
   Trash2, RefreshCw, Eye, Printer, User, Car, FileText,
   Menu, Bell
 } from 'lucide-react'
+import Logo from '../../components/Logo'
 
 const fmt = (n) => `MK ${Number(n || 0).toLocaleString()}`
 
@@ -991,11 +992,10 @@ export default function StockKeeperDashboard() {
           </button>
           
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-black text-xs">AM</div>
-            <span className="font-black text-white text-base tracking-tight">
-              AutoMedic <span className="text-primary font-normal">Stock</span>
-            </span>
+            <Logo size="xs" theme="light" />
+            <span className="text-xs font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">Stock</span>
           </div>
+
         </div>
 
         {/* Right side - User info and notifications */}
