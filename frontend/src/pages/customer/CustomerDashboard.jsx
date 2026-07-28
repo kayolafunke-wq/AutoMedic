@@ -29,7 +29,9 @@ function InvoiceModal({ invoice, onClose, settings }) {
 
   const refNum   = invoice.invoice_number || invoice.tracking_number
   const subtotal = Number(invoice.subtotal ?? invoice.estimated_cost ?? invoice.final_cost ?? 0)
-  const tax      = Number(invoice.tax ?? Math.round(subtotal * 0.165))
+  const vatRate  = Number(safeSettings.vat_rate ?? 16.5) / 100
+  const vatPct   = Number(safeSettings.vat_rate ?? 16.5)
+  const tax      = Number(invoice.tax ?? Math.round(subtotal * vatRate))
   const total    = Number(invoice.total ?? subtotal + tax)
   const isPaid   = invoice.status === 'paid' || invoice.status === 'completed'
   const lineItems = (() => {
@@ -50,24 +52,24 @@ function InvoiceModal({ invoice, onClose, settings }) {
       const lineTotal = Number(i.qty || 1) * Number(i.unit_price || 0)
       return `<tr><td>${i.description}</td><td>${i.qty || 1}</td><td style="text-align:right">MK ${Number(i.unit_price || 0).toLocaleString()}</td><td style="text-align:right;font-weight:700">MK ${lineTotal.toLocaleString()}</td></tr>`
     }).join('')
+    const logoUrl = `${window.location.origin}/logo.jpg`
     const w = window.open('', '_blank', 'width=800,height=900')
     w.document.write(`<!DOCTYPE html><html><head><title>Invoice ${refNum}</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:40px;color:#1A1A2E;font-size:13px}
     .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid #1A1A2E;margin-bottom:24px}
-    .logo-sq{width:44px;height:44px;background:#B8860B;color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px}
     table{width:100%;border-collapse:collapse;margin:20px 0}th{background:#f5f3ee;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#888}
     td{padding:11px 12px;border-bottom:1px solid #eee;font-size:12px}.totals{width:240px;margin-left:auto}
     .total-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:12px}
     .total-final{border-top:2px solid #1A1A2E;border-bottom:none;font-size:14px;font-weight:800;padding-top:9px}
     .footer{margin-top:28px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:14px}
+    </style></head><body>
     <div class="header">
       <div style="display:flex;align-items:center;gap:14px">
-        <img src="/logo.jpg" alt="AutoMedic" style="height:52px;width:auto;object-fit:contain"/>
-        <div><strong style="font-size:18px">${safeSettings.garage_name}</strong><div style="font-size:11px;color:#888">${safeSettings.address}</div></div>
+        <img src="${logoUrl}" alt="AutoMedic" style="height:56px;width:auto;object-fit:contain"/>
+        <span style="font-size:20px;font-weight:900;color:#1A1A2E">Auto<span style="color:#B8860B">Medic</span></span>
+        <div style="margin-left:6px"><strong style="font-size:14px;color:#555">${safeSettings.garage_name}</strong><div style="font-size:11px;color:#888">${safeSettings.address}</div></div>
       </div>
-
-
       <div style="text-align:right"><div style="font-size:22px;font-weight:900">INVOICE</div>
       <div style="color:#B8860B;font-weight:700;margin:4px 0">#${refNum}</div>
       <div style="font-size:11px;color:#888">${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
@@ -86,7 +88,7 @@ function InvoiceModal({ invoice, onClose, settings }) {
     <tbody>${rows}</tbody></table>
     <div class="totals">
       <div class="total-row"><span>Subtotal</span><span>MK ${subtotal.toLocaleString()}</span></div>
-      <div class="total-row"><span>VAT (16.5%)</span><span>MK ${tax.toLocaleString()}</span></div>
+      <div class="total-row"><span>VAT (${vatPct}%)</span><span>MK ${tax.toLocaleString()}</span></div>
       <div class="total-row total-final"><span>TOTAL DUE</span><span style="color:#B8860B">MK ${total.toLocaleString()}</span></div>
     </div>
     <div class="footer"><p>Thank you for choosing AutoMedic — Lilongwe's Premier Garage</p></div>
@@ -109,7 +111,7 @@ function InvoiceModal({ invoice, onClose, settings }) {
         </div>
         <div className="p-6">
           <div className="flex justify-between items-start mb-6 pb-5 border-b-2 border-[#1A1A2E]">
-            <div className="flex items-center gap-3"><div className="w-11 h-11 bg-[#B8860B] rounded-xl flex items-center justify-center text-white font-black">AM</div><div><p className="font-black text-[#1A1A2E] text-lg">AutoMedic</p><p className="text-xs text-gray-400">Garage Management Platform</p></div></div>
+            <div className="flex items-center gap-3"><img src="/logo.jpg" alt="AutoMedic" className="h-12 w-auto object-contain mix-blend-multiply"/><span className="font-black text-[#1A1A2E] text-lg">Auto<span className="text-[#B8860B]">Medic</span></span></div>
             <div className="text-right"><p className="text-2xl font-black text-[#1A1A2E]">INVOICE</p><p className="text-[#B8860B] font-bold text-sm mt-0.5">#{refNum}</p>
               <span className={`inline-block mt-2 text-[10px] font-bold px-2.5 py-1 rounded-full ${isPaid?'bg-green-50 text-green-600':'bg-orange-50 text-orange-500'}`}>{isPaid?'PAID':invoice.status==='partial'?'Partial':'Unpaid'}</span>
             </div>
@@ -139,7 +141,7 @@ function InvoiceModal({ invoice, onClose, settings }) {
           </table>
           <div className="ml-auto w-56 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="font-semibold">MK {subtotal.toLocaleString()}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500">VAT (16.5%)</span><span className="font-semibold">MK {tax.toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">VAT ({vatPct}%)</span><span className="font-semibold">MK {tax.toLocaleString()}</span></div>
             <div className="flex justify-between text-base font-black border-t-2 border-[#1A1A2E] pt-2.5"><span>TOTAL DUE</span><span className="text-[#B8860B]">MK {total.toLocaleString()}</span></div>
           </div>
         </div>

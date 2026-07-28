@@ -4,6 +4,7 @@ const crypto  = require('crypto')
 const db      = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 const { createInvoiceRules, updateInvoiceStatusRules } = require('../middleware/validate')
+const { getVatRate } = require('../utils/getVatRate')
 
 const genInvoiceNum = () => 'INV-' + Date.now().toString().slice(-6)
 
@@ -73,7 +74,8 @@ router.post('/', authenticate, authorize('admin'), createInvoiceRules, async (re
     }
     const lineItems = Array.isArray(items) ? items : []
     const subtotal  = lineItems.reduce((sum, i) => sum + (Number(i.qty || 1) * Number(i.unit_price || 0)), 0)
-    const tax       = Math.round(subtotal * tax_rate)
+    const vatRate   = await getVatRate()
+    const tax       = Math.round(subtotal * vatRate)
     const total     = subtotal + tax
 
     const id  = crypto.randomBytes(16).toString('hex')
@@ -143,7 +145,8 @@ router.post('/generate/:appointment_id', authenticate, authorize('admin'), async
       { description: 'Labour Charges',                   qty: 1, unit_price: labour },
     ]
     const subtotal  = baseAmt
-    const tax       = Math.round(subtotal * 0.165)
+    const vatRate   = await getVatRate()
+    const tax       = Math.round(subtotal * vatRate)
     const total     = subtotal + tax
 
     const id  = crypto.randomBytes(16).toString('hex')

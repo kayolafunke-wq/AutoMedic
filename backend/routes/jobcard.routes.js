@@ -6,6 +6,7 @@ const { authenticate, authorize } = require('../middleware/auth')
 const { getIO } = require('../websocket/tracking.socket')
 const emailService = require('../services/email.service')
 const { updateProgressRules } = require('../middleware/validate')
+const { getVatRate } = require('../utils/getVatRate')
 
 // Helper: insert a notification for a user
 async function notify(userId, title, message, type = 'info') {
@@ -175,7 +176,8 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
               .filter(i => !(i.description || '').startsWith('[Labour]'))  // remove old labour line
             existingItems.push({ description: '[Labour] Repair / Service Charges', qty: 1, unit_price: labourAmt })
             const newSubtotal = existingItems.reduce((s, i) => s + (Number(i.unit_price || 0) * Number(i.qty || 1)), 0)
-            const newTax      = Math.round(newSubtotal * 0.165)
+            const vatRate     = await getVatRate()
+            const newTax      = Math.round(newSubtotal * vatRate)
             const newTotal    = newSubtotal + newTax
             await db.query(
               'UPDATE invoices SET items=$1, subtotal=$2, tax=$3, total=$4, updated_at=$5 WHERE id=$6',
@@ -199,7 +201,8 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
               { description: a.service_name || 'Repair Service', qty: 1, unit_price: labourAmt },
             ]
             const subtotal  = labourAmt
-            const tax       = Math.round(subtotal * 0.165)
+            const vatRate   = await getVatRate()
+            const tax       = Math.round(subtotal * vatRate)
             const total     = subtotal + tax
 
             const invId  = crypto.randomBytes(16).toString('hex')

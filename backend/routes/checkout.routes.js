@@ -5,6 +5,7 @@ const db      = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
 const { jobCardCheckoutRules, walkinCheckoutRules, restockRules } = require('../middleware/validate')
 const inventorySvc = require('../services/inventory.service')
+const { getVatRate } = require('../utils/getVatRate')
 
 // Both stockkeeper and admin can do checkouts
 const checkoutAuth = authorize('stockkeeper', 'admin')
@@ -43,7 +44,8 @@ async function attachToInvoice(appointmentId, customerId, checkoutItems, checkou
       .filter(i => !(i.description || '').startsWith('[Labour]'))
     const mergedItems = [...existingItems, ...allNewItems]
     const newSubtotal = mergedItems.reduce((s, i) => s + (Number(i.unit_price || 0) * Number(i.qty || 1)), 0)
-    const newTax      = Math.round(newSubtotal * 0.165)
+    const vatRate     = await getVatRate()
+    const newTax      = Math.round(newSubtotal * vatRate)
     const newTotal    = newSubtotal + newTax
     await db.query(
       'UPDATE invoices SET items = $1, subtotal = $2, tax = $3, total = $4, updated_at = $5 WHERE id = $6',
@@ -55,7 +57,8 @@ async function attachToInvoice(appointmentId, customerId, checkoutItems, checkou
     const invId  = crypto.randomBytes(16).toString('hex')
     const invNum = 'INV-' + Date.now().toString().slice(-6)
     const subtotal = allNewItems.reduce((s, i) => s + (Number(i.unit_price || 0) * Number(i.qty || 1)), 0)
-    const tax      = Math.round(subtotal * 0.165)
+    const vatRate  = await getVatRate()
+    const tax      = Math.round(subtotal * vatRate)
     const total    = subtotal + tax
     await db.query(
       'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
@@ -167,7 +170,8 @@ router.post('/job-card', authenticate, checkoutAuth, jobCardCheckoutRules, async
     }
 
     const subtotal = resolvedItems.reduce((s, i) => s + i.unit_price * i.qty, 0)
-    const tax      = Math.round(subtotal * 0.165)
+    const vatRate  = await getVatRate()
+    const tax      = Math.round(subtotal * vatRate)
     const total    = subtotal + tax
 
     // Attach to invoice — include final_cost (labour) if tech has already set it
@@ -218,7 +222,8 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
     }
 
     const subtotal = resolvedItems.reduce((s, i) => s + i.unit_price * i.qty, 0)
-    const tax      = Math.round(subtotal * 0.165)
+    const vatRate  = await getVatRate()
+    const tax      = Math.round(subtotal * vatRate)
     const total    = subtotal + tax
 
     // Generate standalone invoice for walk-in
