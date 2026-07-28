@@ -13,9 +13,11 @@ const checkoutAuth = authorize('stockkeeper', 'admin')
 async function attachToInvoice(appointmentId, customerId, checkoutItems, checkoutId, labourCost) {
   if (!appointmentId || !customerId) return null
 
-  // Ensure invoices.items column exists (production DB may be missing it)
+  // Ensure invoices schema support for walk-in / items
   await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS items TEXT NOT NULL DEFAULT '[]'`).catch(() => {})
   await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`).catch(() => {})
+  await db.query(`ALTER TABLE invoices ALTER COLUMN appointment_id DROP NOT NULL`).catch(() => {})
+  await db.query(`ALTER TABLE invoices ALTER COLUMN customer_id DROP NOT NULL`).catch(() => {})
 
   // Find existing invoice for this appointment
   let inv = await db.query('SELECT * FROM invoices WHERE appointment_id = $1', [appointmentId])
@@ -225,6 +227,12 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
     const custName = customer_name || 'Walk-in Customer'
 
     if (custId || custName) {
+      // Relax NOT NULL constraints for walk-in invoices (no appointment associated)
+      await db.query(`ALTER TABLE invoices ALTER COLUMN appointment_id DROP NOT NULL`).catch(() => {})
+      await db.query(`ALTER TABLE invoices ALTER COLUMN customer_id DROP NOT NULL`).catch(() => {})
+      await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS items TEXT NOT NULL DEFAULT '[]'`).catch(() => {})
+      await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP`).catch(() => {})
+
       const invId  = crypto.randomBytes(16).toString('hex')
       const invNum = 'INV-' + Date.now().toString().slice(-6)
       const invItems = resolvedItems.map(i => ({
