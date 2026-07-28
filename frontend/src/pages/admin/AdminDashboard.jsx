@@ -552,7 +552,7 @@ function AppointmentsView() {
               {/* Row 2: Service + Date + Status */}
               <div className="flex justify-between items-center mb-3">
                 <span className="text-sm text-gray-600">{a.service_name}</span>
-                <span className="text-xs text-gray-400 mx-3">{a.preferred_date}</span>
+                <span className="text-xs text-gray-400 mx-3">{fmtApptDate(a.preferred_date, a.preferred_time, a.created_at)}</span>
                 <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${statusColor(a.status)}`}>
                   {a.status.replace('_',' ')}
                 </span>
@@ -631,7 +631,7 @@ function AppointmentsView() {
                 <td className="px-4 py-3.5 font-medium text-[#1A1A2E]">{a.customer_name}</td>
                 <td className="px-4 py-3.5 text-gray-500 text-xs">{a.make} {a.model} <span className="text-gray-400">{a.registration_number}</span></td>
                 <td className="px-4 py-3.5 text-gray-500 text-xs">{a.service_name}</td>
-                <td className="px-4 py-3.5 text-gray-400 text-xs">{a.preferred_date}</td>
+                <td className="px-4 py-3.5 text-gray-400 text-xs">{fmtApptDate(a.preferred_date, a.preferred_time, a.created_at)}</td>
                 <td className="px-4 py-3.5 text-xs">
                   {a.technician_name
                     ? <span className="flex items-center gap-1.5 font-medium text-gray-600">
@@ -720,7 +720,7 @@ function AppointmentsView() {
                 ['Customer',  assignModal.customer_name],
                 ['Vehicle',   `${assignModal.make} ${assignModal.model} — ${assignModal.registration_number}`],
                 ['Service',   assignModal.service_name],
-                ['Date',      assignModal.preferred_date],
+                ['Date',      fmtApptDate(assignModal.preferred_date, assignModal.preferred_time, assignModal.created_at)],
               ].map(([k,v]) => (
                 <div key={k} className="flex justify-between text-sm">
                   <span className="text-gray-400">{k}</span>
@@ -2618,6 +2618,42 @@ function AdminCheckoutsView() {
 }
 
 // ---- MAIN ADMIN DASHBOARD ----
+const fmtApptDate = (dateVal, timeVal, createdAtVal) => {
+  if (!dateVal && !createdAtVal) return '—'
+  let dStr = ''
+  if (dateVal) {
+    const raw = String(dateVal).split('T')[0]
+    const parts = raw.split('-')
+    if (parts.length === 3) {
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+      if (!isNaN(d.getTime())) {
+        dStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      }
+    }
+  }
+  if (!dStr && createdAtVal) {
+    const cObj = new Date(createdAtVal)
+    if (!isNaN(cObj.getTime())) {
+      dStr = cObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    }
+  }
+  if (!dStr) dStr = String(dateVal || '').split('T')[0]
+
+  let tStr = timeVal || ''
+  if (!tStr && createdAtVal) {
+    const cObj = new Date(createdAtVal)
+    if (!isNaN(cObj.getTime())) {
+      tStr = cObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    }
+  } else if (!tStr && dateVal && String(dateVal).includes('T')) {
+    const dObj = new Date(dateVal)
+    if (!isNaN(dObj.getTime()) && (dObj.getHours() !== 0 || dObj.getMinutes() !== 0)) {
+      tStr = dObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    }
+  }
+  return tStr ? `${dStr} at ${tStr}` : dStr
+}
+
 export default function AdminDashboard() {
   const { logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)

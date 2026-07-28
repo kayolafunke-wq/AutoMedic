@@ -223,6 +223,42 @@ function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, 
   )
 }
 
+const fmtApptDate = (dateVal, timeVal, createdAtVal) => {
+  if (!dateVal && !createdAtVal) return '—'
+  let dStr = ''
+  if (dateVal) {
+    const raw = String(dateVal).split('T')[0]
+    const parts = raw.split('-')
+    if (parts.length === 3) {
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+      if (!isNaN(d.getTime())) {
+        dStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      }
+    }
+  }
+  if (!dStr && createdAtVal) {
+    const cObj = new Date(createdAtVal)
+    if (!isNaN(cObj.getTime())) {
+      dStr = cObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    }
+  }
+  if (!dStr) dStr = String(dateVal || '').split('T')[0]
+
+  let tStr = timeVal || ''
+  if (!tStr && createdAtVal) {
+    const cObj = new Date(createdAtVal)
+    if (!isNaN(cObj.getTime())) {
+      tStr = cObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    }
+  } else if (!tStr && dateVal && String(dateVal).includes('T')) {
+    const dObj = new Date(dateVal)
+    if (!isNaN(dObj.getTime()) && (dObj.getHours() !== 0 || dObj.getMinutes() !== 0)) {
+      tStr = dObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    }
+  }
+  return tStr ? `${dStr} at ${tStr}` : dStr
+}
+
 /* ─── MAIN DASHBOARD ────────────────────────────────── */
 export default function CustomerDashboard() {
   const { user, logout } = useAuth()
@@ -825,7 +861,7 @@ export default function CustomerDashboard() {
                           {/* Row 2: Service + Date + Cost */}
                           <div className="flex justify-between items-center mb-3">
                             <span className="text-sm text-gray-600">{a.service_name||'—'}</span>
-                            <span className="text-xs text-gray-400 mx-3">{a.preferred_date}</span>
+                            <span className="text-xs text-gray-400 mx-3">{fmtApptDate(a.preferred_date, a.preferred_time, a.created_at)}</span>
                             <span className="font-semibold text-sm text-[#B8860B] flex-shrink-0">
                               {a.estimated_cost?`MK ${Number(a.estimated_cost).toLocaleString()}`:'TBD'}
                             </span>
@@ -867,7 +903,7 @@ export default function CustomerDashboard() {
                               <td className="px-4 py-3.5 font-bold text-[#B8860B] text-xs">{a.tracking_number}</td>
                               <td className="px-4 py-3.5 font-medium text-[#1A1A2E] text-xs">{a.make} {a.model} <span className="text-gray-400">{a.registration_number}</span></td>
                               <td className="px-4 py-3.5 text-gray-500 text-xs">{a.service_name||'—'}</td>
-                              <td className="px-4 py-3.5 text-gray-400 text-xs">{a.preferred_date}</td>
+                              <td className="px-4 py-3.5 text-gray-400 text-xs">{fmtApptDate(a.preferred_date, a.preferred_time, a.created_at)}</td>
                               <td className="px-4 py-3.5 font-semibold text-xs">{a.estimated_cost?`MK ${Number(a.estimated_cost).toLocaleString()}`:'TBD'}</td>
                               <td className="px-4 py-3.5">
                                 <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize ${a.status==='completed'?'bg-green-50 text-green-600 border border-green-100':'bg-orange-50 text-orange-500 border border-orange-100'}`}>
