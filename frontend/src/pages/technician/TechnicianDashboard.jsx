@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import {
   Wrench, ClipboardCheck, Clock, CheckCircle, AlertTriangle,
-  FileText, User, Car, ChevronRight, Search, Plus, Filter, Calendar,
+  FileText, User, Car, Edit2, Sparkles, ChevronRight, Search, Plus, Filter, Calendar,
   List, CheckCheck, StickyNote, Camera, LogOut,
   X, Menu, AlertCircle, RefreshCw, Eye, MessageSquare, Phone, Bell, Star
 } from 'lucide-react'
