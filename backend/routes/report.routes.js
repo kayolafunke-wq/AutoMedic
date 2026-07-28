@@ -132,31 +132,96 @@ router.get('/services', authenticate, authorize('admin'), async (req, res) => {
 })
 
 // ── PRODUCT MOVEMENT REPORT ────────────────────────────────────────────────────
-// Note: Requires stock_checkouts table - returning empty data for now
 router.get('/product-movement', authenticate, authorize('admin'), async (req, res) => {
   try {
-    // Fetch all active products
+    // 1. Fetch all active products
     const products = await db.query(
       'SELECT id, name, category, cost_price, price as selling_price, stock_quantity FROM products WHERE is_active = 1'
     )
 
-    const result = products.rows.map(p => ({
-      product_id:     p.id,
-      name:           p.name,
-      category:       p.category,
-      cost_price:     p.cost_price,
-      selling_price:  p.selling_price,
-      stock_quantity: p.stock_quantity,
-      total_qty_sold: 0,
-      total_revenue:  0,
-      transactions:   0,
-      margin:         p.cost_price != null && p.selling_price != null
-                        ? Number(p.selling_price) - Number(p.cost_price) : null,
-    }))
+    // 2. Query stock checkouts in the last 90 days
+    let salesMap = {}
+    try {
+      const salesQuery = await db.query(`
+        SELECT 
+          item->>'product_id' AS product_id,
+          SUM(COALESCE((item->>'qty')::numeric, 0)) AS total_qty_sold,
+          SUM(COALESCE((item->>'qty')::numeric, 0) * COALESCE((item->>'unit_price')::numeric, 0)) AS total_revenue,
+          COUNT(DISTINCT sc.id) AS transactions
+        FROM stock_checkouts sc,
+             json_array_elements(sc.items::json) AS item
+        WHERE sc.created_at >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY item->>'product_id'
+      `)
+      
+      for (const row of salesQuery.rows) {
+        if (row.product_id) {
+          salesMap[row.product_id] = {
+            total_qty_sold: Number(row.total_qty_sold || 0),
+            total_revenue:  Number(row.total_revenue || 0),
+            transactions:   Number(row.transactions || 0)
+          }
+        }
+      }
+    } catch (queryErr) {
+      console.error('SQL json_array_elements parsing note:', queryErr.message)
+      // JS fallback parsing if json_array_elements fails
+      try {
+        const checkouts = await db.query(
+          "SELECT id, items FROM stock_checkouts WHERE created_at >= CURRENT_DATE - INTERVAL '90 days'"
+        )
+        for (const row of checkouts.rows) {
+          let items = []
+          try { items = typeof row.items === 'string' ? JSON.parse(row.items) : (row.items || []) } catch {}
+          for (const item of items) {
+            if (item.product_id) {
+              if (!salesMap[item.product_id]) {
+                salesMap[item.product_id] = { total_qty_sold: 0, total_revenue: 0, transactions: 0 }
+              }
+              const qty = Number(item.qty || 1)
+              const price = Number(item.unit_price || 0)
+              salesMap[item.product_id].total_qty_sold += qty
+              salesMap[item.product_id].total_revenue += (qty * price)
+              salesMap[item.product_id].transactions += 1
+            }
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback checkout parsing error:', fallbackErr)
+      }
+    }
 
-    res.json({ success: true, data: { fast_moving: [], slow_moving: result.slice(0, 20), all: result } })
-  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
+    const all = products.rows.map(p => {
+      const s = salesMap[p.id] || { total_qty_sold: 0, total_revenue: 0, transactions: 0 }
+      const margin = p.cost_price != null && p.selling_price != null
+        ? Number(p.selling_price) - Number(p.cost_price) : null
+      return {
+        product_id:     p.id,
+        name:           p.name,
+        category:       p.category,
+        cost_price:     p.cost_price,
+        selling_price:  p.selling_price,
+        stock_quantity: p.stock_quantity,
+        total_qty_sold: s.total_qty_sold,
+        total_revenue:  s.total_revenue,
+        transactions:   s.transactions,
+        margin:         margin,
+      }
+    })
+
+    // Fast moving: products with > 0 sold in 90 days, sorted by total_qty_sold DESC
+    const fast_moving = all.filter(p => p.total_qty_sold > 0).sort((a, b) => b.total_qty_sold - a.total_qty_sold)
+    
+    // Slow moving: products with <= 2 sold, sorted by stock_quantity DESC
+    const slow_moving = all.filter(p => p.total_qty_sold <= 2).sort((a, b) => b.stock_quantity - a.stock_quantity)
+
+    res.json({ success: true, data: { fast_moving, slow_moving, all } })
+  } catch (err) {
+    console.error('Product movement report error:', err)
+    res.status(500).json({ success: false, message: err.message })
+  }
 })
+
 
 // ── TECHNICIAN MONTHLY REVENUE ────────────────────────────────────────────────
 router.get('/technician-revenue', authenticate, authorize('admin'), async (req, res) => {

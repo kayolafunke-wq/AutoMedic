@@ -241,11 +241,12 @@ router.post('/walkin', authenticate, checkoutAuth, walkinCheckoutRules, async (r
         unit_price:  i.unit_price,
       }))
       await db.query(
-        'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-        [invId, invNum, null, custId, JSON.stringify(invItems), subtotal, tax, total, 'unpaid']
+        'INSERT INTO invoices (id,invoice_number,appointment_id,customer_id,items,subtotal,tax,total,status,paid_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+        [invId, invNum, null, custId, JSON.stringify(invItems), subtotal, tax, total, 'paid', new Date().toISOString()]
       )
       invoiceId = invId
     }
+
 
     // Record checkout
     await db.query(
