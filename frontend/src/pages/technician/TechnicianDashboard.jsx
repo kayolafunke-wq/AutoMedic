@@ -291,14 +291,14 @@ export default function TechnicianDashboard() {
                 />
                 
                 {/* Dropdown Panel */}
-                <div className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-[500px] flex flex-col">
+                <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-[380px] flex flex-col overflow-hidden">
                   {/* Header */}
-                  <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-xl">
-                    <h3 className="font-bold text-gray-900">Notifications</h3>
+                  <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                    <h3 className="font-bold text-xs text-[#1A1A2E]">Notifications</h3>
                     {unreadCount > 0 && (
                       <button
                         onClick={markAllRead}
-                        className="text-xs text-primary hover:text-primary-dark font-medium"
+                        className="text-[10px] text-[#B8860B] hover:underline font-semibold"
                       >
                         Mark all read
                       </button>
@@ -306,11 +306,11 @@ export default function TechnicianDashboard() {
                   </div>
 
                   {/* Notifications List */}
-                  <div className="overflow-y-auto flex-1">
+                  <div className="overflow-y-auto flex-1 divide-y divide-gray-50">
                     {notifications.length === 0 ? (
-                      <div className="p-8 text-center text-gray-400">
-                        <Bell size={32} className="mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No notifications yet</p>
+                      <div className="py-6 text-center text-gray-400">
+                        <Bell size={24} className="mx-auto mb-1.5 opacity-30" />
+                        <p className="text-xs">No notifications yet</p>
                       </div>
                     ) : (
                       notifications.map(notif => (
@@ -319,25 +319,25 @@ export default function TechnicianDashboard() {
                           onClick={() => {
                             if (!notif.is_read) markNotificationRead(notif.id)
                           }}
-                          className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${
-                            !notif.is_read ? 'bg-blue-50/50' : ''
+                          className={`px-3 py-2.5 transition-colors cursor-pointer hover:bg-gray-50/80 ${
+                            !notif.is_read ? 'bg-[#B8860B]/5' : ''
                           }`}
                         >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                              !notif.is_read ? 'bg-blue-500' : 'bg-gray-300'
+                          <div className="flex items-start gap-2.5">
+                            <div className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${
+                              !notif.is_read ? 'bg-[#B8860B]' : 'bg-gray-300'
                             }`} />
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium text-gray-900 ${
-                                !notif.is_read ? 'font-semibold' : ''
+                              <p className={`text-xs text-[#1A1A2E] leading-snug ${
+                                !notif.is_read ? 'font-bold' : 'font-medium'
                               }`}>
                                 {notif.title}
                               </p>
-                              <p className="text-xs text-gray-500 mt-0.5">
+                              <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
                                 {notif.message}
                               </p>
-                              <p className="text-[10px] text-gray-400 mt-1">
-                                {new Date(notif.created_at).toLocaleString()}
+                              <p className="text-[9px] text-gray-400 mt-1 font-mono">
+                                {notif.created_at ? new Date(notif.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' at ' + new Date(notif.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
                               </p>
                             </div>
                           </div>
