@@ -23,6 +23,7 @@ const STATUS_STYLES = {
 // ── INVOICE DETAIL / PRINT MODAL ─────────────────────────────────────────────
 function InvoiceModal({ invoice, onClose, onStatusChange }) {
   const { settings } = useGarageSettings()
+  const vatPct       = Number(settings?.vat_rate ?? 16.5)
   const [updating, setUpdating] = useState(false)
   const [toast, setToast]       = useState('')
 
