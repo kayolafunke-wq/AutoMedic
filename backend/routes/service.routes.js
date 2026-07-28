@@ -76,4 +76,47 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }
 })
 
+// ── SERVICE IMAGE – UPLOAD (base64 stored in DB, works on Railway) ─────────────
+// POST /api/services/:id/image  { image_data: 'data:image/...;base64,...' }
+router.post('/:id/image', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { image_data } = req.body
+    if (!image_data) return res.status(400).json({ success:false, message:'No image data provided' })
+
+    if (!image_data.startsWith('data:image/')) {
+      return res.status(400).json({ success:false, message:'Invalid image format. Must be a base64 data URL.' })
+    }
+
+    if (image_data.length > 7 * 1024 * 1024) {
+      return res.status(400).json({ success:false, message:'Image too large. Max 5MB.' })
+    }
+
+    const r = await db.query('SELECT id FROM services WHERE id = $1', [req.params.id])
+    if (!r.rows.length) return res.status(404).json({ success:false, message:'Service not found' })
+
+    await db.query('UPDATE services SET image_url = $1 WHERE id = $2', [image_data, req.params.id])
+
+    const updated = await db.query('SELECT * FROM services WHERE id = $1', [req.params.id])
+    res.json({ success:true, data:updated.rows[0], image_url: image_data })
+  } catch (err) {
+    res.status(400).json({ success:false, message:err.message })
+  }
+})
+
+// ── SERVICE IMAGE – REMOVE ────────────────────────────────────────────────────
+// DELETE /api/services/:id/image
+router.delete('/:id/image', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const r = await db.query('SELECT id FROM services WHERE id = $1', [req.params.id])
+    if (!r.rows.length) return res.status(404).json({ success:false, message:'Service not found' })
+
+    await db.query('UPDATE services SET image_url = NULL WHERE id = $1', [req.params.id])
+    const updated = await db.query('SELECT * FROM services WHERE id = $1', [req.params.id])
+    res.json({ success:true, data:updated.rows[0] })
+  } catch (err) {
+    res.status(400).json({ success:false, message:err.message })
+  }
+})
+
 module.exports = router
+
