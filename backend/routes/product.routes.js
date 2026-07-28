@@ -128,6 +128,7 @@ router.post('/', authenticate, authorize('admin'), createProductRules, async (re
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
 
+
 router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   try {
     const { name, description, category, cost_price, price, stock_quantity, image_url, is_active } = req.body
@@ -169,4 +170,51 @@ router.patch('/:id', authenticate, authorize('admin'), async (req, res) => {
   }
 })
 
+// ── PRODUCT IMAGE – UPLOAD (base64 stored in DB, works on Railway) ─────────────
+// POST /api/products/:id/image  { image_data: 'data:image/...;base64,...' }
+router.post('/:id/image', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { image_data } = req.body
+    if (!image_data) return res.status(400).json({ success:false, message:'No image data provided' })
+
+    // Validate it's a base64 data URL
+    if (!image_data.startsWith('data:image/')) {
+      return res.status(400).json({ success:false, message:'Invalid image format. Must be a base64 data URL.' })
+    }
+
+    // Rough size check — base64 of 5MB = ~6.7MB string
+    if (image_data.length > 7 * 1024 * 1024) {
+      return res.status(400).json({ success:false, message:'Image too large. Max 5MB.' })
+    }
+
+    // Check product exists
+    const r = await db.query('SELECT id FROM products WHERE id = $1', [req.params.id])
+    if (!r.rows.length) return res.status(404).json({ success:false, message:'Product not found' })
+
+    // Save base64 string directly into image_url column
+    await db.query('UPDATE products SET image_url = $1 WHERE id = $2', [image_data, req.params.id])
+
+    const updated = await db.query('SELECT * FROM products WHERE id = $1', [req.params.id])
+    res.json({ success:true, data:updated.rows[0], image_url: image_data })
+  } catch (err) {
+    res.status(400).json({ success:false, message:err.message })
+  }
+})
+
+// ── PRODUCT IMAGE – REMOVE ────────────────────────────────────────────────────
+// DELETE /api/products/:id/image
+router.delete('/:id/image', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const r = await db.query('SELECT id FROM products WHERE id = $1', [req.params.id])
+    if (!r.rows.length) return res.status(404).json({ success:false, message:'Product not found' })
+
+    await db.query('UPDATE products SET image_url = NULL WHERE id = $1', [req.params.id])
+    const updated = await db.query('SELECT * FROM products WHERE id = $1', [req.params.id])
+    res.json({ success:true, data:updated.rows[0] })
+  } catch (err) {
+    res.status(400).json({ success:false, message:err.message })
+  }
+})
+
 module.exports = router
+

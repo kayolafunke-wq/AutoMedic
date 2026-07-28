@@ -55,43 +55,39 @@ export default function ProductsManagement() {
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        showToast('✕ Image must be smaller than 5MB')
-        return
-      }
-      if (!file.type.startsWith('image/')) {
-        showToast('✕ Please select a valid image file')
-        return
-      }
-      setImageFile(file)
-      const reader = new FileReader()
-      reader.onload = (e) => setImagePreview(e.target.result)
-      reader.readAsDataURL(file)
-    }
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { showToast('✕ Image must be smaller than 5MB'); return }
+    if (!file.type.startsWith('image/')) { showToast('✕ Please select a valid image file'); return }
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target.result)
+    reader.readAsDataURL(file)
   }
 
-  const uploadImage = async (productId) => {
-    if (!imageFile) {
-      return null
-    }
-    
+  // Convert file to base64 and upload directly to DB (works on Railway)
+  const uploadImageBase64 = async (productId, base64Data) => {
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('image', imageFile)
-      
-      const response = await api.post(`/upload/product/${productId}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      
-      return response.data.data.image_url
+      const res = await api.post(`/products/${productId}/image`, { image_data: base64Data })
+      return res.data.image_url
     } catch (err) {
-      console.error('Upload error:', err)
-      showToast('✕ Failed to upload image')
+      showToast('✕ Failed to upload image: ' + (err.response?.data?.message || err.message))
       return null
     } finally {
       setUploading(false)
+    }
+  }
+
+  const removeImage = async (productId) => {
+    try {
+      await api.delete(`/products/${productId}/image`)
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, image_url: null } : p))
+      setImagePreview(null)
+      setImageFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      showToast('✓ Image removed')
+    } catch (err) {
+      showToast('✕ Failed to remove image')
     }
   }
 
@@ -113,34 +109,25 @@ export default function ProductsManagement() {
         const r = await api.post('/products', payload)
         product = r.data.data
         
-        // Upload image if selected
-        if (imageFile) {
-          const imageUrl = await uploadImage(product.id)
-          if (imageUrl) {
-            const patchResponse = await api.patch(`/products/${product.id}`, { image_url: imageUrl })
-            product = patchResponse.data.data // Get the updated product with image_url
-          }
+        // Upload image if selected (base64 → DB)
+        if (imageFile && imagePreview) {
+          const newUrl = await uploadImageBase64(product.id, imagePreview)
+          if (newUrl) product = { ...product, image_url: newUrl }
         }
         
         setProducts(prev => [product, ...prev])
         showToast('✓ Product added')
       } else {
-        // Handle image upload for edit
-        let finalImageUrl = modal.image_url // Preserve existing image by default
-        
-        if (imageFile) {
-          // Upload new image if selected
-          const uploadedImageUrl = await uploadImage(modal.id)
-          if (uploadedImageUrl) {
-            finalImageUrl = uploadedImageUrl
-          }
+        // Save product details first
+        const patchRes = await api.patch(`/products/${modal.id}`, payload)
+        product = patchRes.data.data
+
+        // Upload new image if a new file was selected
+        if (imageFile && imagePreview) {
+          const newUrl = await uploadImageBase64(modal.id, imagePreview)
+          if (newUrl) product = { ...product, image_url: newUrl }
         }
-        
-        // Include image_url in payload to preserve or update it
-        payload.image_url = finalImageUrl
-        
-        const patchResponse = await api.patch(`/products/${modal.id}`, payload)
-        product = patchResponse.data.data // Get the updated product from response
+
         setProducts(prev => prev.map(p => p.id === modal.id ? product : p))
         showToast('✓ Product updated')
       }
@@ -561,54 +548,99 @@ export default function ProductsManagement() {
               {/* Product Image */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Product Image</label>
-                <div className="flex items-start gap-3">
-                  {/* Image Preview */}
-                  <div className="w-16 h-16 flex-shrink-0">
-                    {imagePreview ? (
-                      <img 
-                        src={imagePreview} 
-                        alt="Product preview"
-                        className="w-full h-full object-cover rounded-lg border border-gray-200"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center">
-                        <Image size={16} className="text-gray-400" />
+                <div
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-[#B8860B]') }}
+                  onDragLeave={e => e.currentTarget.classList.remove('border-[#B8860B]')}
+                  onDrop={e => {
+                    e.preventDefault()
+                    e.currentTarget.classList.remove('border-[#B8860B]')
+                    const file = e.dataTransfer.files[0]
+                    if (file) handleImageSelect({ target: { files: [file] } })
+                  }}
+                  className="border-2 border-dashed border-gray-200 rounded-xl p-4 transition-colors hover:border-[#B8860B]/50"
+                >
+                  {imagePreview ? (
+                    <div className="flex items-center gap-4">
+                      {/* Preview */}
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={imagePreview}
+                          alt="Product preview"
+                          className="w-20 h-20 object-cover rounded-xl border border-gray-200 shadow-sm"
+                        />
+                        {/* Quick-remove X on the image */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (modal !== 'add' && modal?.id && !imageFile) {
+                              // Remove from DB (was a saved image)
+                              removeImage(modal.id)
+                              if (modal !== 'add') setModal(m => ({ ...m, image_url: null }))
+                            } else {
+                              // Just discard the pending local file
+                              setImageFile(null)
+                              setImagePreview(modal !== 'add' ? (modal?.image_url || null) : null)
+                              if (fileInputRef.current) fileInputRef.current.value = ''
+                            }
+                          }}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow"
+                          title="Remove image"
+                        >
+                          <X size={10} />
+                        </button>
                       </div>
-                    )}
-                  </div>
-                  
-                  {/* Upload Controls */}
-                  <div className="flex-1 min-w-0">
-                    <input 
-                      ref={fileInputRef}
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleImageSelect}
-                      className="hidden" 
-                    />
+                      {/* Controls */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-[#1A1A2E] truncate">
+                          {imageFile ? imageFile.name : 'Current image'}
+                        </p>
+                        {imageFile && (
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {(imageFile.size / 1024).toFixed(0)} KB
+                          </p>
+                        )}
+                        <div className="flex gap-2 mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#B8860B] border border-[#B8860B]/40 rounded-lg hover:bg-[#B8860B]/5 transition-colors"
+                          >
+                            <Upload size={11} /> Change
+                          </button>
+                          {modal !== 'add' && modal?.id && (
+                            <button
+                              type="button"
+                              onClick={() => removeImage(modal.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              <X size={11} /> Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-[#B8860B] hover:text-[#B8860B] transition-colors"
+                      className="w-full flex flex-col items-center gap-2 py-4 text-center"
                     >
-                      <Upload size={14} />
-                      {imagePreview ? 'Change' : 'Upload'}
+                      <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                        <Image size={20} className="text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-600">Click to upload or drag & drop</p>
+                        <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, GIF — max 5 MB</p>
+                      </div>
                     </button>
-                    {imagePreview && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFile(null)
-                          setImagePreview(null)
-                          if (fileInputRef.current) fileInputRef.current.value = ''
-                        }}
-                        className="w-full mt-2 px-3 py-2 text-xs text-red-500 hover:text-red-600 transition-colors border border-red-200 hover:border-red-300 rounded-lg"
-                      >
-                        Remove Image
-                      </button>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1.5">Max 5MB • JPG, PNG, GIF</p>
-                  </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
                 </div>
               </div>
 
