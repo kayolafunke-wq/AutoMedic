@@ -1902,7 +1902,7 @@ function CustomersView() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Last Visit</div>
-                  <span className="text-xs text-gray-400">{c.last_visit}</span>
+                  <span className="text-xs text-gray-400">{c.last_visit ? fmtApptDate(null, null, c.last_visit) : 'Never'}</span>
                 </div>
               </div>
               
@@ -1940,7 +1940,7 @@ function CustomersView() {
                 <td className="px-4 py-3.5 text-gray-500">{c.phone}</td>
                 <td className="px-4 py-3.5 text-center font-medium text-[#B8860B]">{c.vehicle_count}</td>
                 <td className="px-4 py-3.5 text-center font-medium text-[#B8860B]">{c.total_services}</td>
-                <td className="px-4 py-3.5 text-gray-500 text-xs">{c.last_visit}</td>
+                <td className="px-4 py-3.5 text-gray-500 text-xs">{c.last_visit ? fmtApptDate(null, null, c.last_visit) : 'Never'}</td>
                 <td className="px-4 py-3.5">
                   <div className="flex gap-1.5">
                     <button className="text-[10px] font-semibold text-[#B8860B] border border-[#B8860B]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#B8860B]/5 transition-colors">View</button>

@@ -13,7 +13,7 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
       FROM users u
       LEFT JOIN vehicles v ON v.customer_id = u.id
       LEFT JOIN appointments a ON a.customer_id = u.id
-      WHERE u.role='customer' AND u.is_active=1
+      WHERE u.role='customer' AND (u.is_active=1 OR u.is_active IS NULL)
       GROUP BY u.id ORDER BY u.created_at DESC
     `)
     res.json({ success:true, data:r.rows })
