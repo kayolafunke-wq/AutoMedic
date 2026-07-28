@@ -12,7 +12,7 @@ router.get('/', authenticate, authorize('admin'), async (req, res) => {
         COUNT(CASE WHEN jc.status = 'completed' THEN 1 END)                  AS completed_jobs
       FROM users u
       LEFT JOIN job_cards jc ON jc.technician_id = u.id
-      WHERE u.role = 'technician' AND u.is_active = true
+      WHERE u.role = 'technician' AND (u.is_active = 1 OR u.is_active IS NULL)
       GROUP BY u.id ORDER BY u.name
     `)
     res.json({ success: true, data: r.rows })
