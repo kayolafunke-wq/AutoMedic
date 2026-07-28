@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Plus, Edit2, X, Save, Wrench, ToggleLeft, ToggleRight, Trash2, Search, ChevronLeft, ChevronRight, Clock, DollarSign, AlertCircle, CheckCircle, Settings, Upload, Image } from 'lucide-react'
 import api from '../../services/api'
+import { useGarageSettings } from '../../hooks/useGarageSettings'
+
 
 const CATEGORIES = ['general', 'engine', 'transmission', 'brakes', 'suspension', 'electrical', 'bodywork', 'tyres', 'ac', 'diagnostics', 'other']
 const EMPTY = { name: '', description: '', category: 'general', base_price: '', duration_hours: '', image_url: '' }
@@ -16,6 +18,8 @@ const fmtHours = (h) => {
 }
 
 export default function ServicesManagement() {
+  const { settings } = useGarageSettings()
+  const vatPct       = Number(settings?.vat_rate ?? 16.5)
   const [services,  setServices]  = useState([])
   const [loading,   setLoading]   = useState(true)
   const [search,    setSearch]    = useState('')
@@ -713,7 +717,7 @@ export default function ServicesManagement() {
                         <span className="flex items-center gap-1 text-gray-600">
                           <DollarSign size={11} /> Base: <strong className="text-[#B8860B]">{fmt(form.base_price)}</strong>
                         </span>
-                        <span className="text-gray-500">+ VAT: <strong>{fmt(Math.round(Number(form.base_price) * 0.165))}</strong></span>
+                        <span className="text-gray-500">+ VAT ({vatPct}%): <strong>{fmt(Math.round(Number(form.base_price) * (vatPct / 100)))}</strong></span>
                       </>
                     )}
                   </div>

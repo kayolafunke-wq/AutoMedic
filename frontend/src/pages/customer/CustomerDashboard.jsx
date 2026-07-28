@@ -971,7 +971,7 @@ export default function CustomerDashboard() {
                             </div>
                             <div className="text-right">
                               <p className="font-black text-[#B8860B] text-xl">MK {total.toLocaleString()}</p>
-                              <p className="text-[10px] text-gray-400">incl. 16.5% VAT</p>
+                              <p className="text-[10px] text-gray-400">incl. {safeSettings?.vat_rate || 16.5}% VAT</p>
                             </div>
                           </div>
 

@@ -136,6 +136,9 @@ function ReceiptModal({ receipt, onClose }) {
 
 // ── CHECKOUT SECTION ─────────────────────────────────────────────────────────
 function CheckoutSection() {
+  const { settings } = useGarageSettings()
+  const vatPct       = Number(settings?.vat_rate ?? 16.5)
+  const vatRate      = vatPct / 100
   const [mode, setMode]           = useState('job_card') // 'job_card' | 'walkin'
   const [jobCards, setJobCards]   = useState([])
   const [customers, setCustomers] = useState([])
@@ -196,7 +199,7 @@ function CheckoutSection() {
   }
 
   const subtotal = cart.reduce((s, i) => s + i.unit_price * i.qty, 0)
-  const tax      = Math.round(subtotal * 0.165)
+  const tax      = Math.round(subtotal * vatRate)
   const total    = subtotal + tax
 
   const reset = () => {
@@ -496,7 +499,7 @@ function CheckoutSection() {
                 <span className="font-semibold text-dark">{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between text-gray-400">
-                <span>VAT Tax (16.5%):</span>
+                <span>VAT Tax ({vatPct}%):</span>
                 <span className="font-semibold text-dark">{fmt(tax)}</span>
               </div>
               <div className="flex justify-between text-sm font-black text-dark pt-2 border-t border-gray-100">

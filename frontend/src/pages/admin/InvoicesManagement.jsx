@@ -204,7 +204,7 @@ function InvoiceModal({ invoice, onClose, onStatusChange }) {
           {/* Totals */}
           <div className="ml-auto w-full sm:w-60 space-y-2 mb-6">
             <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="font-semibold">MK {subtotal.toLocaleString()}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500">VAT (16.5%)</span><span className="font-semibold">MK {tax.toLocaleString()}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500">VAT ({vatPct}%)</span><span className="font-semibold">MK {tax.toLocaleString()}</span></div>
             <div className="flex justify-between text-base font-black border-t-2 border-[#1A1A2E] pt-2.5">
               <span>TOTAL DUE</span><span className="text-[#B8860B]">MK {total.toLocaleString()}</span>
             </div>
