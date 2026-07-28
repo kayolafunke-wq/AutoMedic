@@ -8,6 +8,8 @@ import {
   Menu, Bell
 } from 'lucide-react'
 import Logo from '../../components/Logo'
+import { useGarageSettings } from '../../hooks/useGarageSettings'
+
 
 const fmt = (n) => `MK ${Number(n || 0).toLocaleString()}`
 
@@ -15,8 +17,11 @@ const fmt = (n) => `MK ${Number(n || 0).toLocaleString()}`
 function ReceiptModal({ receipt, onClose }) {
   if (!receipt) return null
 
+  const { settings } = useGarageSettings()
   const checkout = receipt.data || receipt
   const items = typeof checkout.items === 'string' ? JSON.parse(checkout.items) : (checkout.items || [])
+  const vatPct = Number(settings?.vat_rate ?? 16.5)
+
 
   const handlePrint = () => {
     window.print()
@@ -43,9 +48,12 @@ function ReceiptModal({ receipt, onClose }) {
         <div className="flex-1 overflow-y-auto space-y-4 px-6 py-4 print:overflow-visible">
           {/* Brand header */}
           <div className="text-center pb-4 border-b border-dashed border-gray-200">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white font-black text-sm mx-auto mb-2">AM</div>
-            <h2 className="text-base font-black tracking-tight text-dark uppercase">AutoMedic Garage</h2>
-            <p className="text-[10px] text-gray-400">Blantyre, Malawi · Phone: +265 999 123 456</p>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <img src="/logo.jpg" alt="AutoMedic" className="h-10 w-auto object-contain mix-blend-multiply" />
+              <span className="font-black text-[#1A1A2E] text-base">Auto<span className="text-[#B8860B]">Medic</span></span>
+            </div>
+            <h2 className="text-xs font-black tracking-tight text-dark uppercase">{settings?.garage_name || 'AutoMedic Garage'}</h2>
+            <p className="text-[10px] text-gray-400">{settings?.address || 'Area 47, Lilongwe, Malawi'} · Phone: {settings?.phone || '+265 994 040 900'}</p>
           </div>
 
           {/* Details */}
@@ -101,7 +109,7 @@ function ReceiptModal({ receipt, onClose }) {
               <span>{fmt(checkout.subtotal)}</span>
             </div>
             <div className="flex justify-between text-xs text-gray-500">
-              <span>VAT (16.5%):</span>
+              <span>VAT ({vatPct}%):</span>
               <span>{fmt(checkout.tax)}</span>
             </div>
             <div className="flex justify-between text-sm font-black text-dark pt-1.5 border-t border-gray-100">
