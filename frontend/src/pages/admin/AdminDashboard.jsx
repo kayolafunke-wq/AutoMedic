@@ -897,9 +897,9 @@ function ReportsView() {
       if (dash)     setDashStats(dash.data.data)
       if (techs) setTechPerf((techs.data.data || []).map(t => ({
         name:   t.name,
-        jobs:   (t.active_jobs || 0) + (t.completed_jobs || 0),
-        active: t.active_jobs || 0,
-        done:   t.completed_jobs || 0,
+        jobs:   Number(t.total_jobs   || 0),
+        active: Number(t.active_jobs  || 0),
+        done:   Number(t.completed_jobs || 0),
       })))
       if (svcs)     setServiceStats(svcs.data.data || [])
       if (rev)      setMonthlyData(rev.data.data || [])
@@ -2643,12 +2643,12 @@ const fmtApptDate = (dateVal, timeVal, createdAtVal) => {
   if (!tStr && createdAtVal) {
     const cObj = new Date(createdAtVal)
     if (!isNaN(cObj.getTime())) {
-      tStr = cObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      tStr = cObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
     }
   } else if (!tStr && dateVal && String(dateVal).includes('T')) {
     const dObj = new Date(dateVal)
     if (!isNaN(dObj.getTime()) && (dObj.getHours() !== 0 || dObj.getMinutes() !== 0)) {
-      tStr = dObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      tStr = dObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
     }
   }
   return tStr ? `${dStr} at ${tStr}` : dStr
