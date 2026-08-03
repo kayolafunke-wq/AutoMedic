@@ -146,11 +146,19 @@ server.listen(PORT, async () => {
   console.log('')
   console.log(`🚀 AutoMedic API running on http://localhost:${PORT}`)
   console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`☁️  Cloudinary: ${require('./config/cloudinary').isConfigured() ? 'Enabled' : 'Disabled (using local storage)'}`)
   console.log('')
 
-  // Ensure critical DB tables and columns exist automatically on boot
+  // Run database migrations automatically on boot (production-safe with IF NOT EXISTS)
   try {
     const db = require('./config/db')
+    const { cleanupExpiredTokens } = require('./utils/tokenManager')
+    
+    // Run cleanup of expired refresh tokens
+    await cleanupExpiredTokens()
+    
+    // Note: Critical tables should now be created via migrations
+    // Legacy auto-creation kept for backwards compatibility
     await db.query(`
       CREATE TABLE IF NOT EXISTS inspection_photos (
         id VARCHAR(255) PRIMARY KEY,
@@ -162,6 +170,8 @@ server.listen(PORT, async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
+    
+    // Only add columns if they don't exist (backwards compatibility)
     await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS technician_notes TEXT;`).catch(() => {})
     await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS parts_used TEXT DEFAULT '[]';`).catch(() => {})
     await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS estimated_cost NUMERIC;`).catch(() => {})

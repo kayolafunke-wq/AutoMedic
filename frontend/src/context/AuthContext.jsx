@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const idToken = await firebaseUser.getIdToken()
           localStorage.setItem('am_fb_token', idToken)
-          // Sync with backend — creates user in SQLite if needed
+          // Sync with backend — creates user in PostgreSQL if needed
           const res = await api.post('/auth/firebase-sync', { idToken })
           const appUser = {
             ...res.data.user,
@@ -41,6 +41,9 @@ export const AuthProvider = ({ children }) => {
           setUser(appUser)
           localStorage.setItem('am_user', JSON.stringify(appUser))
           localStorage.setItem('am_token', res.data.token) // store backend JWT
+          if (res.data.refreshToken) {
+            localStorage.setItem('am_refresh_token', res.data.refreshToken)
+          }
         } catch {
           // Backend not available — use Firebase user directly
           const appUser = {
@@ -69,8 +72,9 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   // Direct backend login (admin / technician — bypasses Firebase)
-  const loginWithBackend = (userData, token) => {
+  const loginWithBackend = (userData, token, refreshToken) => {
     localStorage.setItem('am_token', token)
+    localStorage.setItem('am_refresh_token', refreshToken || token) // fallback to token if no refresh
     localStorage.setItem('am_user', JSON.stringify(userData))
     setUser(userData)
   }
@@ -108,9 +112,21 @@ export const AuthProvider = ({ children }) => {
 
   // Logout
   const logout = async () => {
+    const refreshToken = localStorage.getItem('am_refresh_token')
+    
+    // Revoke refresh token on backend
+    if (refreshToken) {
+      try {
+        await api.post('/auth/logout', { refreshToken })
+      } catch (err) {
+        console.error('Logout error:', err)
+      }
+    }
+
     await signOut(auth)
     localStorage.removeItem('am_user')
     localStorage.removeItem('am_token')
+    localStorage.removeItem('am_refresh_token')
     localStorage.removeItem('am_fb_token')
     setUser(null)
   }

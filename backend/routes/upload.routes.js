@@ -5,10 +5,11 @@ const multer  = require('multer')
 const path    = require('path')
 const db      = require('../config/db')
 const { authenticate, authorize } = require('../middleware/auth')
+const { uploadInspectionPhoto, uploadAvatar, isConfigured } = require('../config/cloudinary')
 
 const fs = require('fs')
 
-// ── STORAGE CONFIGS ───────────────────────────────────────────────────────────
+// ── STORAGE CONFIGS (Fallback to local if Cloudinary not configured) ──────────
 const makeStorage = (folder) => multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, `../uploads/${folder}`)
@@ -24,10 +25,11 @@ const makeStorage = (folder) => multer.diskStorage({
   },
 })
 
-const repairUpload   = multer({ storage: makeStorage('repair-photos'),   limits: { fileSize: 10 * 1024 * 1024 } })
-const vehicleUpload  = multer({ storage: makeStorage('vehicle-photos'),  limits: { fileSize: 10 * 1024 * 1024 } })
-const serviceUpload  = multer({ storage: makeStorage('service-photos'),  limits: { fileSize: 5 * 1024 * 1024 } })
-const productUpload  = multer({ storage: makeStorage('product-photos'),  limits: { fileSize: 5 * 1024 * 1024 } })
+// Use Cloudinary if configured, otherwise fallback to local storage
+const repairUpload   = isConfigured() ? uploadInspectionPhoto : multer({ storage: makeStorage('repair-photos'),   limits: { fileSize: 10 * 1024 * 1024 } })
+const vehicleUpload  = isConfigured() ? uploadInspectionPhoto : multer({ storage: makeStorage('vehicle-photos'),  limits: { fileSize: 10 * 1024 * 1024 } })
+const serviceUpload  = isConfigured() ? uploadAvatar : multer({ storage: makeStorage('service-photos'),  limits: { fileSize: 5 * 1024 * 1024 } })
+const productUpload  = isConfigured() ? uploadAvatar : multer({ storage: makeStorage('product-photos'),  limits: { fileSize: 5 * 1024 * 1024 } })
 
 // ── REPAIR PHOTOS ─────────────────────────────────────────────────────────────
 // POST /api/upload/repair/:job_card_id
@@ -45,7 +47,8 @@ router.post('/repair/:job_card_id', authenticate, authorize('technician', 'admin
     const inserted = []
     for (const f of req.files) {
       const id  = crypto.randomBytes(16).toString('hex')
-      const url = `/uploads/repair-photos/${f.filename}`
+      // Use Cloudinary URL if configured, otherwise local path
+      const url = isConfigured() ? f.path : `/uploads/repair-photos/${f.filename}`
       // Store in a simple JSON column on the job card, or use inspection_photos with type
       // We'll store as inspection_photos linked to the appointment's inspection
       const apptRow = await db.query('SELECT appointment_id FROM job_cards WHERE id = ?', [job_card_id])
@@ -78,7 +81,7 @@ router.post('/vehicle/:vehicle_id', authenticate, vehicleUpload.array('photos', 
 
     const uploaded = req.files.map(f => ({
       id:       crypto.randomBytes(16).toString('hex'),
-      file_url: `/uploads/vehicle-photos/${f.filename}`,
+      file_url: isConfigured() ? f.path : `/uploads/vehicle-photos/${f.filename}`,
     }))
 
     res.status(201).json({ success: true, data: uploaded, count: uploaded.length })
@@ -97,7 +100,7 @@ router.post('/service/:service_id', authenticate, authorize('admin'), serviceUpl
     const service = await db.query('SELECT id, image_url FROM services WHERE id = ?', [service_id])
     if (!service.rows.length) return res.status(404).json({ success: false, message: 'Service not found' })
 
-    const imageUrl = `/uploads/service-photos/${req.file.filename}`
+    const imageUrl = isConfigured() ? req.file.path : `/uploads/service-photos/${req.file.filename}`
     
     // DON'T update database here - let frontend handle it
     // await db.query('UPDATE services SET image_url = ? WHERE id = ?', [imageUrl, service_id])
@@ -107,7 +110,7 @@ router.post('/service/:service_id', authenticate, authorize('admin'), serviceUpl
       data: { 
         service_id,
         image_url: imageUrl,
-        filename: req.file.filename
+        filename: req.file.filename || req.file.path
       }
     })
   } catch (err) {
@@ -127,7 +130,7 @@ router.post('/product/:product_id', authenticate, authorize('admin'), productUpl
       return res.status(404).json({ success: false, message: 'Product not found' })
     }
 
-    const imageUrl = `/uploads/product-photos/${req.file.filename}`
+    const imageUrl = isConfigured() ? req.file.path : `/uploads/product-photos/${req.file.filename}`
     
     // DON'T update database here - let frontend handle it
     // await db.query('UPDATE products SET image_url = ? WHERE id = ?', [imageUrl, product_id])
@@ -137,7 +140,7 @@ router.post('/product/:product_id', authenticate, authorize('admin'), productUpl
       data: { 
         product_id,
         image_url: imageUrl,
-        filename: req.file.filename
+        filename: req.file.filename || req.file.path
       }
     }
     res.status(201).json(response)

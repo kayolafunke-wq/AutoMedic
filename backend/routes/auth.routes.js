@@ -9,6 +9,7 @@ const { authenticate } = require('../middleware/auth')
 const { registerRules, loginRules, changePasswordRules } = require('../middleware/validate')
 const { body, validationResult } = require('express-validator')
 const emailService = require('../services/email.service')
+const { generateTokens, verifyRefreshToken, revokeRefreshToken, revokeAllRefreshTokens } = require('../utils/tokenManager')
 
 // In-memory store for reset tokens: { token -> { userId, expires } }
 // For a production app swap this for a DB table; fine for SQLite single-server use.
@@ -95,7 +96,16 @@ router.post('/register', registerRules, async (req, res) => {
     const user = { id, name, email, phone, role:'customer' }
     // Send welcome email (non-blocking)
     emailService.sendWelcome({ name, email }).catch(() => {})
-    res.status(201).json({ success:true, user, token: sign(user) })
+    
+    // Generate both access and refresh tokens
+    const { accessToken, refreshToken } = await generateTokens(user)
+    
+    res.status(201).json({ 
+      success: true, 
+      user, 
+      token: accessToken,
+      refreshToken: refreshToken 
+    })
   } catch (err) {
     res.status(500).json({ success:false, message:err.message })
   }
@@ -175,7 +185,16 @@ router.post('/login', loginRules, async (req, res) => {
 
     await db.query('UPDATE users SET last_login = $1 WHERE id = $2', [new Date().toISOString(), user.id])
     const { password_hash, ...safe } = user
-    res.json({ success:true, user:safe, token: sign(safe) })
+    
+    // Generate both access and refresh tokens
+    const { accessToken, refreshToken } = await generateTokens(safe)
+    
+    res.json({ 
+      success: true, 
+      user: safe, 
+      token: accessToken,
+      refreshToken: refreshToken 
+    })
   } catch (err) {
     res.status(500).json({ success:false, message:err.message })
   }
@@ -280,8 +299,9 @@ router.post('/firebase-sync', async (req, res) => {
     }
 
     const { password_hash, ...safe } = user
+    const { accessToken, refreshToken } = await generateTokens(safe)
     const token = sign({ ...safe, id: user.id })
-    res.json({ success:true, user:safe, token })
+    res.json({ success:true, user:safe, token: accessToken, refreshToken })
   } catch (err) {
     console.error('Firebase sync error:', err.message, err.stack)
     res.status(500).json({ success:false, message:err.message })
@@ -363,3 +383,65 @@ router.get('/google/callback',
 )
 
 module.exports = router
+
+// POST /api/auth/refresh - Refresh access token using refresh token
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+    
+    if (!refreshToken) {
+      return res.status(400).json({ success: false, message: 'Refresh token required' })
+    }
+
+    // Verify refresh token
+    const decoded = await verifyRefreshToken(refreshToken)
+    
+    // Get user data
+    const result = await db.query('SELECT * FROM users WHERE id = $1 AND is_active = 1', [decoded.id])
+    if (!result.rows.length) {
+      return res.status(401).json({ success: false, message: 'User not found' })
+    }
+
+    const { password_hash, ...user } = result.rows[0]
+    
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = await generateTokens(user)
+    
+    // Revoke old refresh token
+    await revokeRefreshToken(refreshToken)
+    
+    res.json({ 
+      success: true, 
+      token: accessToken,
+      refreshToken: newRefreshToken,
+      user 
+    })
+  } catch (err) {
+    res.status(401).json({ success: false, message: err.message })
+  }
+})
+
+// POST /api/auth/logout - Logout and revoke refresh token
+router.post('/logout', authenticate, async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+    
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken)
+    }
+    
+    res.json({ success: true, message: 'Logged out successfully' })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
+
+// POST /api/auth/logout-all - Logout from all devices
+router.post('/logout-all', authenticate, async (req, res) => {
+  try {
+    await revokeAllRefreshTokens(req.user.id)
+    res.json({ success: true, message: 'Logged out from all devices' })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
+  }
+})
