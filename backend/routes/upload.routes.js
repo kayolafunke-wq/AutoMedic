@@ -39,7 +39,7 @@ router.post('/repair/:job_card_id', authenticate, authorize('technician', 'admin
     const { photo_type = 'during' } = req.body
 
     // Verify job card exists
-    const jc = await db.query('SELECT id FROM job_cards WHERE id = ?', [job_card_id])
+    const jc = await db.query('SELECT id FROM job_cards WHERE id = $1', [job_card_id])
     if (!jc.rows.length) return res.status(404).json({ success: false, message: 'Job card not found' })
 
     // Store in inspection_photos table under a 'repair' photo_type
@@ -51,12 +51,12 @@ router.post('/repair/:job_card_id', authenticate, authorize('technician', 'admin
       const url = isConfigured() ? f.path : `/uploads/repair-photos/${f.filename}`
       // Store in a simple JSON column on the job card, or use inspection_photos with type
       // We'll store as inspection_photos linked to the appointment's inspection
-      const apptRow = await db.query('SELECT appointment_id FROM job_cards WHERE id = ?', [job_card_id])
+      const apptRow = await db.query('SELECT appointment_id FROM job_cards WHERE id = $1', [job_card_id])
       if (apptRow.rows.length) {
-        const inspRow = await db.query('SELECT id FROM inspections WHERE appointment_id = ?', [apptRow.rows[0].appointment_id])
+        const inspRow = await db.query('SELECT id FROM inspections WHERE appointment_id = $1', [apptRow.rows[0].appointment_id])
         if (inspRow.rows.length) {
           await db.query(
-            'INSERT INTO inspection_photos (id,inspection_id,photo_type,file_url,uploaded_by) VALUES (?,?,?,?,?)',
+            'INSERT INTO inspection_photos (id,inspection_id,photo_type,file_url,uploaded_by) VALUES ($1,$2,$3,$4,$5)',
             [id, inspRow.rows[0].id, photo_type === 'after' ? 'after' : 'during', url, req.user.id]
           )
         }
@@ -76,7 +76,7 @@ router.post('/vehicle/:vehicle_id', authenticate, vehicleUpload.array('photos', 
   try {
     const { vehicle_id } = req.params
 
-    const veh = await db.query('SELECT id FROM vehicles WHERE id = ?', [vehicle_id])
+    const veh = await db.query('SELECT id FROM vehicles WHERE id = $1', [vehicle_id])
     if (!veh.rows.length) return res.status(404).json({ success: false, message: 'Vehicle not found' })
 
     const uploaded = req.files.map(f => ({
@@ -97,14 +97,11 @@ router.post('/service/:service_id', authenticate, authorize('admin'), serviceUpl
     const { service_id } = req.params
 
     // Verify service exists
-    const service = await db.query('SELECT id, image_url FROM services WHERE id = ?', [service_id])
+    const service = await db.query('SELECT id, image_url FROM services WHERE id = $1', [service_id])
     if (!service.rows.length) return res.status(404).json({ success: false, message: 'Service not found' })
 
     const imageUrl = isConfigured() ? req.file.path : `/uploads/service-photos/${req.file.filename}`
     
-    // DON'T update database here - let frontend handle it
-    // await db.query('UPDATE services SET image_url = ? WHERE id = ?', [imageUrl, service_id])
-
     res.status(201).json({ 
       success: true, 
       data: { 
@@ -125,7 +122,7 @@ router.post('/product/:product_id', authenticate, authorize('admin'), productUpl
     const { product_id } = req.params
 
     // Verify product exists
-    const product = await db.query('SELECT id, image_url FROM products WHERE id = ?', [product_id])
+    const product = await db.query('SELECT id, image_url FROM products WHERE id = $1', [product_id])
     if (!product.rows.length) {
       return res.status(404).json({ success: false, message: 'Product not found' })
     }

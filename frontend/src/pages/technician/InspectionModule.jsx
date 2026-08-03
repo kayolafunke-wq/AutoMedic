@@ -602,7 +602,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
       })
 
       // Upload photos if any — send as base64 JSON (survives Railway redeploys)
-      const toUpload = photos.filter(p => p.file && p.url)
+      const toUpload = photos.filter(p => p.url)
       console.log(`📸 Uploading ${toUpload.length} photos for inspection ${id}`)
       
       if (toUpload.length > 0) {

@@ -326,47 +326,66 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
               </div>
             ) : (
               <div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {['before', 'damage', 'dashboard'].map(type => {
-                    const mine = photos.filter(p => p.photo_type === type)
-                    if (mine.length === 0) return null
-                    return (
-                      <div key={type} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
-                        <h4 className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-3 capitalize">
-                          📸 {type === 'before' ? 'Before Repairs' : type === 'damage' ? 'Damages' : 'Dashboard & Odometer'}
-                        </h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          {mine.map((photo, pi) => {
-                            const rawUrl = photo.file_url || ''
-                            const fullUrl = rawUrl.startsWith('data:') || rawUrl.startsWith('http')
-                              ? rawUrl
-                              : `${backendBase}${rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl}`
-                            return (
-                              <div
-                                key={pi}
-                                onClick={() => setSelectedPhoto(fullUrl)}
-                                className="relative aspect-video rounded-lg overflow-hidden border border-gray-200 cursor-pointer group hover:border-[#B8860B] transition-all"
-                              >
-                                <img
-                                  src={fullUrl}
-                                  alt={type}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
-                                  onError={(e) => {
-                                    e.target.onerror = null
-                                    e.target.style.display = 'none'
-                                    e.target.parentNode.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:11px;gap:4px"><span style="font-size:24px">📷</span><span>Photo unavailable</span></div>'
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                                  <Eye size={16} className="text-white" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {(() => {
+                    const knownOrder = ['before', 'damage', 'dashboard', 'during', 'after', 'repair']
+                    const presentTypes = Array.from(new Set(photos.map(p => p.photo_type || 'other')))
+                    const sortedTypes = [
+                      ...knownOrder.filter(t => presentTypes.includes(t)),
+                      ...presentTypes.filter(t => !knownOrder.includes(t))
+                    ]
+                    const labels = {
+                      before: 'Before Repairs',
+                      damage: 'Damages & Issues',
+                      dashboard: 'Dashboard & Odometer',
+                      during: 'During Repairs / In Progress',
+                      after: 'After Repairs / Completed',
+                      repair: 'Repair Work Photos',
+                      other: 'Inspection Photos',
+                    }
+
+                    return sortedTypes.map(type => {
+                      const mine = photos.filter(p => (p.photo_type || 'other') === type)
+                      if (mine.length === 0) return null
+                      const sectionLabel = labels[type] || (type.charAt(0).toUpperCase() + type.slice(1) + ' Photos')
+                      return (
+                        <div key={type} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
+                          <h4 className="font-bold text-xs uppercase tracking-widest text-gray-500 mb-3 flex items-center gap-1.5">
+                            <span>📸</span> {sectionLabel}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            {mine.map((photo, pi) => {
+                              const rawUrl = photo.file_url || photo.url || ''
+                              const fullUrl = rawUrl.startsWith('data:') || rawUrl.startsWith('http')
+                                ? rawUrl
+                                : `${backendBase}${rawUrl.startsWith('/') ? rawUrl : '/' + rawUrl}`
+                              return (
+                                <div
+                                  key={pi}
+                                  onClick={() => setSelectedPhoto(fullUrl)}
+                                  className="relative aspect-video rounded-lg overflow-hidden border border-gray-200 cursor-pointer group hover:border-[#B8860B] transition-all"
+                                >
+                                  <img
+                                    src={fullUrl}
+                                    alt={type}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                                    onError={(e) => {
+                                      e.target.onerror = null
+                                      e.target.style.display = 'none'
+                                      e.target.parentNode.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:11px;gap:4px"><span style="font-size:24px">📷</span><span>Photo unavailable</span></div>'
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                                    <Eye size={16} className="text-white" />
+                                  </div>
                                 </div>
-                              </div>
-                            )
-                          })}
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  })()}
                 </div>
               </div>
             )}

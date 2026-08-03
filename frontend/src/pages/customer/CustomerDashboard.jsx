@@ -321,7 +321,7 @@ export default function CustomerDashboard() {
       setNotifs(n.data.data || [])
 
       const list = insp.data.data || []
-      const latest = list.find(i => i.advisor_signature && ['pending','customer_signed','completed'].includes(i.status)) || null
+      const latest = list.find(i => ['pending','customer_signed','completed'].includes(i.status)) || list[0] || null
 
       if (latest) {
         try {
