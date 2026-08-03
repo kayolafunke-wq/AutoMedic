@@ -35,9 +35,9 @@ const authenticate = async (req, res, next) => {
 
         const db  = require('../config/db')
         const uid = verified.uid || verified.sub
-        let r     = await db.query('SELECT * FROM users WHERE google_id = ?', [uid])
+        let r     = await db.query('SELECT * FROM users WHERE google_id = $1', [uid])
         if (!r.rows.length && verified.email) {
-          r = await db.query('SELECT * FROM users WHERE email = ?', [verified.email])
+          r = await db.query('SELECT * FROM users WHERE email = $1', [verified.email])
         }
         if (r.rows.length) {
           req.user = r.rows[0]
