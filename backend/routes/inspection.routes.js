@@ -329,8 +329,10 @@ router.post('/:id/photos', authenticate, async (req, res) => {
 
     console.log(`📸 Photo upload request for inspection ${req.params.id}`)
     console.log(`   Type: ${photo_type}, File: ${file_name}, URL length: ${file_url?.length}`)
+    console.log(`   User: ${req.user?.id}, Role: ${req.user?.role}`)
 
     if (!file_url) {
+      console.log(`   ❌ Rejected: No file_url provided`)
       return res.status(400).json({ success: false, message: 'No photo data provided' })
     }
 
@@ -354,10 +356,11 @@ router.post('/:id/photos', authenticate, async (req, res) => {
     )
 
     console.log(`✅ Photo saved successfully: ${id}`)
-    res.status(201).json({ success: true, data: { id, file_url, photo_type } })
+    res.status(201).json({ success: true, data: { id, file_url: 'saved', photo_type } })
   } catch (err) { 
     console.error(`❌ Photo upload error:`, err.message)
-    res.status(400).json({ success: false, message: err.message }) 
+    console.error(`   Stack:`, err.stack)
+    res.status(400).json({ success: false, message: err.message, error: err.toString() }) 
   }
 })
 

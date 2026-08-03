@@ -616,10 +616,13 @@ function InspectionForm({ job, existingInsp, onBack }) {
             })
             console.log(`  ✅ Photo uploaded successfully:`, res.data)
           } catch (photoErr) {
-            console.error(`  ❌ Photo upload failed:`, photoErr.response?.data || photoErr.message)
+            console.error(`  ❌ Photo upload failed for ${p.name}:`)
+            console.error(`     Status: ${photoErr.response?.status}`)
+            console.error(`     Message: ${photoErr.response?.data?.message || photoErr.message}`)
+            console.error(`     Error:`, photoErr.response?.data || photoErr)
           }
         }
-        console.log(`✅ All ${toUpload.length} photos uploaded!`)
+        console.log(`✅ All ${toUpload.length} photos processed!`)
       } else {
         console.log(`⚠️  No photos to upload - inspection will have 0 photos`)
       }
