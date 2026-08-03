@@ -82,6 +82,9 @@ export default function InspectionReportDetails({ inspection, job = {} }) {
   })()
 
   const photos = inspection.photos || []
+  
+  // Debug logging
+  console.log(`📸 Inspection Report - Received ${photos.length} photos:`, photos)
 
   // Checklist Categories
   const categories = [

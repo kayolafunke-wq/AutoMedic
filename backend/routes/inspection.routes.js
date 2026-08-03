@@ -102,6 +102,9 @@ router.get('/:id', authenticate, async (req, res) => {
     // Fetch photos
     const photosRes = await db.query('SELECT * FROM inspection_photos WHERE inspection_id = $1', [req.params.id])
     insp.photos = photosRes.rows
+    
+    // Debug logging (remove in production after fixing)
+    console.log(`📸 Inspection ${req.params.id} - Found ${photosRes.rows.length} photos`)
 
     // Customers can only view their own inspections
     if (req.user.role === 'customer' && insp.customer_id !== req.user.id) {
@@ -272,6 +275,9 @@ router.post('/:id/photos', authenticate, async (req, res) => {
   try {
     const { photo_type, file_url, file_name } = req.body
 
+    console.log(`📸 Photo upload request for inspection ${req.params.id}`)
+    console.log(`   Type: ${photo_type}, File: ${file_name}, URL length: ${file_url?.length}`)
+
     if (!file_url) {
       return res.status(400).json({ success: false, message: 'No photo data provided' })
     }
@@ -295,8 +301,12 @@ router.post('/:id/photos', authenticate, async (req, res) => {
       [id, req.params.id, photo_type || 'before', file_url, file_name || null, req.user.id]
     )
 
+    console.log(`✅ Photo saved successfully: ${id}`)
     res.status(201).json({ success: true, data: { id, file_url, photo_type } })
-  } catch (err) { res.status(400).json({ success: false, message: err.message }) }
+  } catch (err) { 
+    console.error(`❌ Photo upload error:`, err.message)
+    res.status(400).json({ success: false, message: err.message }) 
+  }
 })
 
 module.exports = router

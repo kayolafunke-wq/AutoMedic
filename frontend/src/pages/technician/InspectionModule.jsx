@@ -603,18 +603,25 @@ function InspectionForm({ job, existingInsp, onBack }) {
 
       // Upload photos if any — send as base64 JSON (survives Railway redeploys)
       const toUpload = photos.filter(p => p.file && p.url)
+      console.log(`📸 Uploading ${toUpload.length} photos for inspection ${id}`)
+      
       if (toUpload.length > 0) {
         for (const p of toUpload) {
           try {
-            await apiMod.post(`/inspections/${id}/photos`, {
+            console.log(`  Uploading: ${p.type} - ${p.name} (${Math.round(p.url.length / 1024)}KB)`)
+            const res = await apiMod.post(`/inspections/${id}/photos`, {
               photo_type: p.type,
               file_url: p.url,   // base64 data URL stored directly in DB
               file_name: p.name,
             })
+            console.log(`  ✅ Photo uploaded successfully:`, res.data)
           } catch (photoErr) {
-            console.warn('Photo upload warning:', photoErr)
+            console.error(`  ❌ Photo upload failed:`, photoErr.response?.data || photoErr.message)
           }
         }
+        console.log(`✅ All ${toUpload.length} photos uploaded!`)
+      } else {
+        console.log(`⚠️  No photos to upload - inspection will have 0 photos`)
       }
 
       // Clear local draft after successful final submission
