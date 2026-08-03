@@ -118,34 +118,61 @@ router.post('/', authenticate, authorize('admin','technician'), createInspection
   try {
     const { 
       appointment_id, 
+      vehicle_id,
+      customer_id,
       // Frontend sends these:
       fuel_level, odometer_reading, damage_notes, checklist, accessories, valuables_notes,
       // Backend schema fields:
       under_hood, under_vehicle, photos, recommendations, advisor_notes 
     } = req.body
 
+    console.log(`📝 Creating inspection - Fuel: ${fuel_level}, Odometer: ${odometer_reading}`)
+
     // Map frontend to backend schema
     const underHoodData = checklist || under_hood || null
     const underVehicleData = accessories ? JSON.stringify({ accessories, valuables_notes }) : (under_vehicle || null)
     const recommendationsData = damage_notes || recommendations || null
-    const advisorNotesData = advisor_notes || (fuel_level || odometer_reading ? 
-      `Fuel: ${fuel_level || 'N/A'}, Odometer: ${odometer_reading || 'N/A'}` : null)
+    const advisorNotesData = advisor_notes || null
 
-    const id  = crypto.randomBytes(16).toString('hex')
+    const id = crypto.randomBytes(16).toString('hex')
+    const refNum = 'INS-' + Math.floor(1000 + Math.random() * 9000)
+    
     await db.query(
-      `INSERT INTO inspections (id, appointment_id, technician_id, vehicle_health, under_hood, under_vehicle, photos, recommendations, advisor_notes, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [id, appointment_id||null, req.user.id, null, 
-       typeof underHoodData === 'object' ? JSON.stringify(underHoodData) : underHoodData,
-       underVehicleData,
-       JSON.stringify(photos||[]), 
-       typeof recommendationsData === 'object' ? JSON.stringify(recommendationsData) : recommendationsData,
-       advisorNotesData, 
-       req.body.status || 'pending']
+      `INSERT INTO inspections (
+        id, reference_number, appointment_id, vehicle_id, customer_id, technician_id, 
+        fuel_level, odometer_reading, damage_notes, checklist, accessories, valuables_notes,
+        vehicle_health, under_hood, under_vehicle, photos, recommendations, advisor_notes, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+      [
+        id, 
+        refNum,
+        appointment_id || null, 
+        vehicle_id || null,
+        customer_id || null,
+        req.user.id, 
+        fuel_level || null,
+        odometer_reading ? parseInt(odometer_reading) : null,
+        typeof damage_notes === 'object' ? JSON.stringify(damage_notes) : (damage_notes || '[]'),
+        typeof checklist === 'object' ? JSON.stringify(checklist) : (checklist || '{}'),
+        typeof accessories === 'object' ? JSON.stringify(accessories) : (accessories || '{}'),
+        valuables_notes || null,
+        null, // vehicle_health
+        typeof underHoodData === 'object' ? JSON.stringify(underHoodData) : underHoodData,
+        underVehicleData,
+        JSON.stringify(photos || []), 
+        typeof recommendationsData === 'object' ? JSON.stringify(recommendationsData) : recommendationsData,
+        advisorNotesData, 
+        req.body.status || 'draft'
+      ]
     )
+    
     const r = await db.query('SELECT * FROM inspections WHERE id = $1', [id])
-    res.status(201).json({ success:true, data:r.rows[0] })
-  } catch (err) { res.status(400).json({ success:false, message:err.message }) }
+    console.log(`✅ Inspection created: ${refNum}`)
+    res.status(201).json({ success: true, data: r.rows[0] })
+  } catch (err) { 
+    console.error(`❌ Inspection creation error:`, err.message)
+    res.status(400).json({ success: false, message: err.message }) 
+  }
 })
 
 router.patch('/:id/sign', authenticate, authorize('customer'), signInspectionRules, async (req, res) => {
@@ -198,6 +225,8 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
       vehicle_health, under_hood, under_vehicle, photos, recommendations, advisor_notes
     } = req.body
 
+    console.log(`📝 Updating inspection ${req.params.id} - Fuel: ${fuel_level}, Odometer: ${odometer_reading}`)
+
     const existing = await db.query('SELECT * FROM inspections WHERE id = $1', [req.params.id])
     if (!existing.rows.length) return res.status(404).json({ success: false, message: 'Not found' })
 
@@ -208,15 +237,33 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
     const underHoodData = checklist || under_hood || insp.under_hood
     const underVehicleData = accessories ? JSON.stringify({ accessories, valuables_notes }) : (under_vehicle || insp.under_vehicle)
     const recommendationsData = damage_notes || recommendations || insp.recommendations
-    const advisorNotesData = advisor_notes || (fuel_level || odometer_reading ? 
-      `Fuel: ${fuel_level || 'N/A'}, Odometer: ${odometer_reading || 'N/A'}` : insp.advisor_notes)
+    const advisorNotesData = advisor_notes || insp.advisor_notes
 
     await db.query(
       `UPDATE inspections SET
-        vehicle_health=$1, under_hood=$2, under_vehicle=$3, photos=$4,
-        recommendations=$5, advisor_notes=$6, advisor_signature=$7, status=$8, updated_at=$9
-       WHERE id=$10`,
+        fuel_level=$1,
+        odometer_reading=$2,
+        damage_notes=$3,
+        checklist=$4,
+        accessories=$5,
+        valuables_notes=$6,
+        vehicle_health=$7, 
+        under_hood=$8, 
+        under_vehicle=$9, 
+        photos=$10,
+        recommendations=$11, 
+        advisor_notes=$12, 
+        advisor_signature=$13, 
+        status=$14, 
+        updated_at=$15
+       WHERE id=$16`,
       [
+        fuel_level || insp.fuel_level,
+        odometer_reading ? parseInt(odometer_reading) : insp.odometer_reading,
+        typeof damage_notes === 'object' ? JSON.stringify(damage_notes) : (damage_notes || insp.damage_notes),
+        typeof checklist === 'object' ? JSON.stringify(checklist) : (checklist || insp.checklist),
+        typeof accessories === 'object' ? JSON.stringify(accessories) : (accessories || insp.accessories),
+        valuables_notes !== undefined ? valuables_notes : insp.valuables_notes,
         vehicle_health ?? insp.vehicle_health,
         typeof underHoodData === 'object' ? JSON.stringify(underHoodData) : underHoodData,
         underVehicleData,
@@ -229,6 +276,8 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
         req.params.id,
       ]
     )
+
+    console.log(`✅ Inspection ${req.params.id} updated to status: ${newStatus}`)
 
     // Notify customer if inspection is ready
     if (newStatus === 'pending') {
@@ -268,7 +317,10 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
 
     const r = await db.query('SELECT * FROM inspections WHERE id = $1', [req.params.id])
     res.json({ success: true, data: r.rows[0] })
-  } catch (err) { res.status(400).json({ success: false, message: err.message }) }
+  } catch (err) { 
+    console.error(`❌ Inspection update error:`, err.message)
+    res.status(400).json({ success: false, message: err.message }) 
+  }
 })
 
 router.post('/:id/photos', authenticate, async (req, res) => {
