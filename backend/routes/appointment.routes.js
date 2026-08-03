@@ -118,31 +118,58 @@ router.get('/my', authenticate, authorize('customer'), async (req, res) => {
       ORDER BY a.created_at DESC
     `, [req.user.id])
 
+    console.log(`📋 Fetching appointments for customer ${req.user.id}: ${r.rows.length} rows returned`)
+
     // Deduplicate by appointment ID
     const seen = new Set()
     const unique = r.rows.filter(item => {
-      if (seen.has(item.id)) return false
+      if (seen.has(item.id)) {
+        console.log(`   ⚠️  Duplicate found: ${item.tracking_number} (ID: ${item.id})`)
+        return false
+      }
       seen.add(item.id)
       return true
     })
 
+    if (unique.length !== r.rows.length) {
+      console.log(`   ⚠️  Removed ${r.rows.length - unique.length} duplicates`)
+    }
+
+    console.log(`   ✅ Returning ${unique.length} unique appointments`)
+
     res.json({ success: true, data: unique })
-  } catch (err) { res.status(500).json({ success: false, message: err.message }) }
+  } catch (err) { 
+    console.error(`❌ Fetch appointments error:`, err.message)
+    res.status(500).json({ success: false, message: err.message }) 
+  }
 })
 
 // POST create (customer)
 router.post('/', authenticate, authorize('customer'), createAppointmentRules, async (req, res) => {
   try {
     const { vehicle_id, service_id, preferred_date, problem_description } = req.body
+    
+    console.log(`📅 Creating appointment for customer ${req.user.id}:`)
+    console.log(`   Vehicle ID: ${vehicle_id}`)
+    console.log(`   Service ID: ${service_id}`)
+    console.log(`   Date: ${preferred_date}`)
+    
     const id = crypto.randomBytes(16).toString('hex')
     const tracking = genTracking()
+    
     await db.query(
       'INSERT INTO appointments (id,tracking_number,customer_id,vehicle_id,service_id,preferred_date,problem_description) VALUES ($1,$2,$3,$4,$5,$6,$7)',
       [id, tracking, req.user.id, vehicle_id||null, service_id||null, preferred_date, problem_description||null]
     )
+    
     const r = await db.query('SELECT * FROM appointments WHERE id = $1', [id])
+    console.log(`✅ Appointment created: ${tracking}`)
+    
     res.status(201).json({ success:true, data:r.rows[0] })
-  } catch (err) { res.status(400).json({ success:false, message:err.message }) }
+  } catch (err) { 
+    console.error(`❌ Appointment creation error:`, err.message)
+    res.status(400).json({ success:false, message:err.message }) 
+  }
 })
 
 // POST create on behalf of customer (admin)
