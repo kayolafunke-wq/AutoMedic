@@ -131,9 +131,8 @@ export default function LoginPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-[#0d1117]/70 via-[#1A1A2E]/50 to-[#0F3460]/40 pointer-events-none" />
         </div>
         <div className="relative z-10 flex items-center justify-between h-full px-6">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#B8860B] rounded-2xl flex items-center justify-center text-white font-black text-base shadow-xl shadow-[#B8860B]/40">AM</div>
-            <span className="font-black text-lg text-white tracking-tight">AutoMedic</span>
+          <Link to="/" className="flex items-center">
+            <Logo size="sm" theme="light" />
           </Link>
           <p className="text-white/70 text-sm font-medium">Lilongwe's Premier <span className="text-[#B8860B]">Garage</span></p>
         </div>
