@@ -231,7 +231,9 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
     if (!existing.rows.length) return res.status(404).json({ success: false, message: 'Not found' })
 
     const insp = existing.rows[0]
-    const newStatus = status || (advisor_signature ? 'pending' : insp.status)
+    // Only set to 'pending' if technician actually signed (not just sent advisor_signature field)
+    const techSigned = advisor_signature && advisor_signature !== 'null' && advisor_signature !== ''
+    const newStatus = status || (techSigned ? 'pending' : insp.status)
 
     // Map frontend to backend
     const underHoodData = checklist || under_hood || insp.under_hood

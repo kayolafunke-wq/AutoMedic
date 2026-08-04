@@ -280,6 +280,7 @@ export default function CustomerDashboard() {
   const [signedAt, setSignedAt]     = useState('')
   const [pendingInspection, setPendingInspection] = useState(null)
   const [activeInspection, setActiveInspection]   = useState(null)
+  const [allInspections, setAllInspections]       = useState([]) // All pending/signed inspections
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const sigRef = useRef(null)
 
@@ -321,54 +322,50 @@ export default function CustomerDashboard() {
       setNotifs(n.data.data || [])
 
       const list = insp.data.data || []
-      const latest = list.find(i => ['pending','customer_signed','completed'].includes(i.status)) || list[0] || null
-
-      if (latest) {
-        try {
-          const detailRes = await api.get(`/inspections/${latest.id}`)
-          const fullInsp = detailRes.data.data
-          setActiveInspection(fullInsp)
-          if (fullInsp.status === 'pending') {
-            setPendingInspection(fullInsp)
-            setSigned(false)
-            setSignedAt('')
-          } else if ((fullInsp.status === 'customer_signed' || fullInsp.status === 'completed') && fullInsp.customer_signed_at) {
-            setPendingInspection(null)
-            setSigned(true)
-            setSignedAt(new Date(fullInsp.customer_signed_at).toLocaleString('en-GB', {
-              day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            }))
-          } else {
-            setPendingInspection(null)
-            setSigned(false)
-            setSignedAt('')
-            setActiveInspection(null)
+      
+      // Filter all pending and signed inspections
+      const relevantInspections = list.filter(i => 
+        ['pending', 'customer_signed', 'completed'].includes(i.status)
+      )
+      
+      // Fetch full details for each relevant inspection
+      const inspectionsWithDetails = await Promise.all(
+        relevantInspections.map(async (inspection) => {
+          try {
+            const detailRes = await api.get(`/inspections/${inspection.id}`)
+            return detailRes.data.data
+          } catch {
+            return inspection // Fallback to basic data if detail fetch fails
           }
-        } catch {
-          // Fallback if detail load fails
-          setActiveInspection(latest)
-          if (latest.status === 'pending') {
-            setPendingInspection(latest)
-            setSigned(false)
-            setSignedAt('')
-          } else if ((latest.status === 'customer_signed' || latest.status === 'completed') && latest.customer_signed_at) {
-            setPendingInspection(null)
-            setSigned(true)
-            setSignedAt(new Date(latest.customer_signed_at).toLocaleString('en-GB', {
-              day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            }))
-          } else {
-            setPendingInspection(null)
-            setSigned(false)
-            setSignedAt('')
-            setActiveInspection(null)
-          }
-        }
-      } else {
-        setActiveInspection(null)
-        setPendingInspection(null)
+        })
+      )
+      
+      setAllInspections(inspectionsWithDetails)
+      
+      // For backward compatibility, set the first pending inspection as activeInspection
+      const firstPending = inspectionsWithDetails.find(i => i.status === 'pending')
+      if (firstPending) {
+        setActiveInspection(firstPending)
+        setPendingInspection(firstPending)
         setSigned(false)
         setSignedAt('')
+      } else {
+        const firstSigned = inspectionsWithDetails.find(i => 
+          (i.status === 'customer_signed' || i.status === 'completed') && i.customer_signed_at
+        )
+        if (firstSigned) {
+          setActiveInspection(firstSigned)
+          setPendingInspection(null)
+          setSigned(true)
+          setSignedAt(new Date(firstSigned.customer_signed_at).toLocaleString('en-GB', {
+            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          }))
+        } else {
+          setActiveInspection(null)
+          setPendingInspection(null)
+          setSigned(false)
+          setSignedAt('')
+        }
       }
     }).catch(() => {}).finally(() => { setLoading(false); setRefreshing(false) })
   }
@@ -745,7 +742,12 @@ export default function CustomerDashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">Inspection Sign-Off</h1>
-                  <p className="text-gray-400 text-sm">Review the full inspection report — your signature authorises AutoMedic to begin repair work</p>
+                  <p className="text-gray-400 text-sm">
+                    {allInspections.length === 0 ? 'Review inspection reports and sign to authorize repairs' :
+                     allInspections.filter(i => i.status === 'pending').length === 0 ? 'All inspections signed' :
+                     allInspections.filter(i => i.status === 'pending').length === 1 ? '1 inspection awaiting signature' :
+                     `${allInspections.filter(i => i.status === 'pending').length} inspections awaiting signature`}
+                  </p>
                 </div>
                 <button onClick={() => loadData(true)} disabled={refreshing}
                   className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:border-[#B8860B] hover:text-[#B8860B] transition-colors disabled:opacity-60">
@@ -756,94 +758,133 @@ export default function CustomerDashboard() {
                   )}
                 </button>
               </div>
+              
               {/* No inspection yet — tech hasn't submitted a report */}
-              {!activeInspection && (
+              {allInspections.length === 0 ? (
                 <div className="bg-white rounded-2xl p-14 text-center shadow-sm border border-gray-50">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><ClipboardCheck size={28} className="text-gray-400"/></div>
-                  <h3 className="font-bold text-[#1A1A2E] mb-2">No Inspection Report Yet</h3>
-                  <p className="text-gray-400 text-sm max-w-sm mx-auto">Once your vehicle is checked in and inspected by our technician, the full report will appear here. You'll also receive a notification to review and sign it.</p>
+                  <h3 className="font-bold text-[#1A1A2E] mb-2">No Inspection Reports Yet</h3>
+                  <p className="text-gray-400 text-sm max-w-sm mx-auto">Once your vehicles are checked in and inspected by our technicians, the full reports will appear here. You'll also receive notifications to review and sign them.</p>
                 </div>
-              )}
-
-              {/* Pending — customer needs to review and sign */}
-              {activeInspection && !signed && (
+              ) : (
                 <div className="space-y-5">
-                  <div className="flex items-start gap-4 bg-amber-50 border-2 border-amber-300 rounded-2xl px-5 py-5">
-                    <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0"><AlertTriangle size={20} className="text-amber-600"/></div>
-                    <div className="flex-1">
-                      <p className="font-bold text-amber-800 text-sm">Action Required — Your Signature Is Needed</p>
-                      <p className="text-xs text-amber-700 mt-1 leading-relaxed">AutoMedic has completed the vehicle inspection. Please review the full report carefully, then sign digitally to authorise repair work. <strong>Work will not begin until you sign.</strong></p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <InspectionReportDetails inspection={activeInspection} job={activeInspection} />
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-50 p-6 space-y-5">
-                    {/* Declaration */}
-                    <div className="bg-[#B8860B]/5 border border-[#B8860B]/15 rounded-xl p-5">
-                      <p className="text-sm text-gray-700 font-semibold mb-3">By signing below, <strong className="text-[#1A1A2E]">{user?.displayName||user?.name}</strong>, you confirm:</p>
-                      <ul className="space-y-2">
-                        {['The vehicle inspection report above is accurate','The damages recorded existed before handover to AutoMedic','The fuel level shown is correct','You authorise AutoMedic to proceed with the requested service','Work on your vehicle will begin after this signature'].map((t,i)=>(
-                          <li key={i} className="flex items-start gap-2 text-xs text-gray-600"><span className="text-[#B8860B] font-bold mt-0.5 flex-shrink-0">✓</span>{t}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Signature pad */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center"><PenLine size={13} className="text-purple-400"/></div>
-                        <p className="font-bold text-[#1A1A2E] text-sm">Your Digital Signature</p>
-                        <span className="text-xs text-gray-400">— finger on mobile or mouse on desktop</span>
-                      </div>
-                      <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 hover:border-[#B8860B] transition-colors overflow-hidden relative">
-                        <canvas ref={sigRef} width={580} height={150} className="w-full cursor-crosshair touch-none block" style={{height:150}}/>
-                        <p className="absolute bottom-2 left-3 text-[10px] text-gray-300 pointer-events-none select-none">Sign here ✍</p>
-                      </div>
-                      <div className="flex gap-3 mt-4">
-                        <button onClick={()=>{const c=sigRef.current;if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-50"><X size={12}/>Clear</button>
-                        <button onClick={confirmSign} className="flex items-center gap-2 px-6 py-2.5 bg-[#B8860B] text-white rounded-full text-sm font-semibold hover:bg-[#8B6508] transition-colors shadow-lg shadow-[#B8860B]/20"><CheckCircle size={14}/>Confirm &amp; Authorise Repairs</button>
-                        <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2.5 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"><MessageCircle size={12}/>Ask a Question</a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Signed — show confirmation + next steps */}
-              {activeInspection && signed && (
-                <div className="space-y-5">
-                  <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 flex items-start gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center flex-shrink-0"><CheckCircle size={24} className="text-green-600"/></div>
-                    <div>
-                      <p className="font-bold text-green-700 text-base">Inspection Confirmed &amp; Signed ✓</p>
-                      <p className="text-sm text-green-600 mt-0.5">Signed by <strong>{user?.displayName||user?.name}</strong> on {signedAt}</p>
-                      <p className="text-xs text-green-600/80 mt-2">✅ AutoMedic technicians have been notified — repair work is now authorised to begin.</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <InspectionReportDetails inspection={activeInspection} job={activeInspection} />
-                  </div>
-
-                  <div className="bg-[#1A1A2E] rounded-2xl p-5">
-                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-4">What Happens Next</p>
-                    <div className="space-y-3">
-                      {[
-                        ['🔧','Repairs Begin','Your assigned technician has been notified and will start work immediately'],
-                        ['📊','Track Progress','Monitor your vehicle\'s repair progress in real-time from "My Repairs"'],
-                        ['📱','WhatsApp Updates','You\'ll receive updates at each stage of the repair process'],
-                        ['🚗','Collection','You\'ll be notified when your vehicle is ready for collection'],
-                      ].map(([icon,title,desc],i)=>(
-                        <div key={i} className="flex items-start gap-3">
-                          <span className="text-lg flex-shrink-0">{icon}</span>
-                          <div><p className="text-white text-xs font-semibold">{title}</p><p className="text-white/50 text-[11px]">{desc}</p></div>
+                  {allInspections.map((inspection, idx) => {
+                    const isPending = inspection.status === 'pending'
+                    const isSigned = ['customer_signed', 'completed'].includes(inspection.status) && inspection.customer_signed_at
+                    const signedDate = isSigned ? new Date(inspection.customer_signed_at).toLocaleString('en-GB', {
+                      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    }) : ''
+                    
+                    return (
+                      <div key={inspection.id} className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+                        {/* Header */}
+                        <div className="flex justify-between items-center px-6 pt-5 pb-3 border-b border-gray-100">
+                          <div>
+                            <h2 className="font-bold text-[#1A1A2E]">
+                              {allInspections.length > 1 && <span className="text-[#B8860B] mr-2">#{idx + 1}</span>}
+                              {inspection.make} {inspection.model} ({inspection.registration_number})
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-1">Ref: {inspection.reference_number} • Tracking: {inspection.tracking_number}</p>
+                          </div>
+                          <span className={`text-xs font-bold px-3 py-1.5 rounded-full capitalize ${
+                            isPending ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                            isSigned ? 'bg-green-50 text-green-600 border border-green-200' :
+                            'bg-gray-50 text-gray-500 border border-gray-200'
+                          }`}>
+                            {inspection.status?.replace('_', ' ')}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        <div className="p-5">
+                          {/* Pending — customer needs to review and sign */}
+                          {isPending && (
+                            <div className="space-y-5">
+                              <div className="flex items-start gap-4 bg-amber-50 border-2 border-amber-300 rounded-2xl px-5 py-5">
+                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0"><AlertTriangle size={20} className="text-amber-600"/></div>
+                                <div className="flex-1">
+                                  <p className="font-bold text-amber-800 text-sm">Action Required — Your Signature Is Needed</p>
+                                  <p className="text-xs text-amber-700 mt-1 leading-relaxed">AutoMedic has completed the vehicle inspection. Please review the full report carefully, then sign digitally to authorise repair work. <strong>Work will not begin until you sign.</strong></p>
+                                </div>
+                              </div>
+
+                              <div className="mt-4">
+                                <InspectionReportDetails inspection={inspection} job={inspection} />
+                              </div>
+
+                              <div className="bg-white rounded-2xl shadow-sm border border-gray-50 p-6 space-y-5">
+                                {/* Declaration */}
+                                <div className="bg-[#B8860B]/5 border border-[#B8860B]/15 rounded-xl p-5">
+                                  <p className="text-sm text-gray-700 font-semibold mb-3">By signing below, <strong className="text-[#1A1A2E]">{user?.displayName||user?.name}</strong>, you confirm:</p>
+                                  <ul className="space-y-2">
+                                    {['The vehicle inspection report above is accurate','The damages recorded existed before handover to AutoMedic','The fuel level shown is correct','You authorise AutoMedic to proceed with the requested service','Work on your vehicle will begin after this signature'].map((t,i)=>(
+                                      <li key={i} className="flex items-start gap-2 text-xs text-gray-600"><span className="text-[#B8860B] font-bold mt-0.5 flex-shrink-0">✓</span>{t}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+
+                                {/* Signature pad */}
+                                <div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center"><PenLine size={13} className="text-purple-400"/></div>
+                                    <p className="font-bold text-[#1A1A2E] text-sm">Your Digital Signature</p>
+                                    <span className="text-xs text-gray-400">— finger on mobile or mouse on desktop</span>
+                                  </div>
+                                  <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 hover:border-[#B8860B] transition-colors overflow-hidden relative">
+                                    <canvas ref={inspection.id === pendingInspection?.id ? sigRef : null} width={580} height={150} className="w-full cursor-crosshair touch-none block" style={{height:150}}/>
+                                    <p className="absolute bottom-2 left-3 text-[10px] text-gray-300 pointer-events-none select-none">Sign here ✍</p>
+                                  </div>
+                                  <div className="flex gap-3 mt-4">
+                                    <button onClick={()=>{const c=sigRef.current;if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-50"><X size={12}/>Clear</button>
+                                    <button onClick={() => {
+                                      setPendingInspection(inspection)
+                                      setActiveInspection(inspection)
+                                      setTimeout(() => confirmSign(), 100)
+                                    }} className="flex items-center gap-2 px-6 py-2.5 bg-[#B8860B] text-white rounded-full text-sm font-semibold hover:bg-[#8B6508] transition-colors shadow-lg shadow-[#B8860B]/20"><CheckCircle size={14}/>Confirm &amp; Authorise Repairs</button>
+                                    <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2.5 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"><MessageCircle size={12}/>Ask a Question</a>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Signed — show confirmation + next steps */}
+                          {isSigned && (
+                            <div className="space-y-5">
+                              <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 flex items-start gap-4">
+                                <div className="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center flex-shrink-0"><CheckCircle size={24} className="text-green-600"/></div>
+                                <div>
+                                  <p className="font-bold text-green-700 text-base">Inspection Confirmed &amp; Signed ✓</p>
+                                  <p className="text-sm text-green-600 mt-0.5">Signed by <strong>{user?.displayName||user?.name}</strong> on {signedDate}</p>
+                                  <p className="text-xs text-green-600/80 mt-2">✅ AutoMedic technicians have been notified — repair work is now authorised to begin.</p>
+                                </div>
+                              </div>
+
+                              <div className="mt-4">
+                                <InspectionReportDetails inspection={inspection} job={inspection} />
+                              </div>
+
+                              <div className="bg-[#1A1A2E] rounded-2xl p-5">
+                                <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-4">What Happens Next</p>
+                                <div className="space-y-3">
+                                  {[
+                                    ['🔧','Repairs Begin','Your assigned technician has been notified and will start work immediately'],
+                                    ['📊','Track Progress','Monitor your vehicle\'s repair progress in real-time from "My Repairs"'],
+                                    ['📱','WhatsApp Updates','You\'ll receive updates at each stage of the repair process'],
+                                    ['🚗','Collection','You\'ll be notified when your vehicle is ready for collection'],
+                                  ].map(([icon,title,desc],i)=>(
+                                    <div key={i} className="flex items-start gap-3">
+                                      <span className="text-lg flex-shrink-0">{icon}</span>
+                                      <div><p className="text-white text-xs font-semibold">{title}</p><p className="text-white/50 text-[11px]">{desc}</p></div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
