@@ -822,7 +822,7 @@ export default function CustomerDashboard() {
                     const signedDate = isSigned ? new Date(inspection.customer_signed_at).toLocaleString('en-GB', {
                       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     }) : ''
-                    const isExpanded = expandedInspections[inspection.id] !== false // Default to expanded
+                    const isExpanded = expandedInspections[inspection.id] ?? true // Default to expanded (undefined = true)
                     
                     return (
                       <div key={inspection.id} className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
@@ -830,7 +830,7 @@ export default function CustomerDashboard() {
                         <button 
                           onClick={() => setExpandedInspections(prev => ({ 
                             ...prev, 
-                            [inspection.id]: !prev[inspection.id] 
+                            [inspection.id]: !(prev[inspection.id] ?? true) // Toggle from current state (default true)
                           }))}
                           className="w-full flex justify-between items-center px-6 pt-5 pb-3 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
                         >
