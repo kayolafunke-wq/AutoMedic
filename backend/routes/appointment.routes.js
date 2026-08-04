@@ -258,6 +258,8 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
       }
 
       // Auto-create inspection record so technician can start immediately
+      // Status 'draft' = technician working on it (not visible to customer yet)
+      // Status 'pending' = technician signed, waiting for customer signature
       const apptDetail = await db.query(
         'SELECT id FROM appointments WHERE id = $1',
         [req.params.id]
@@ -272,7 +274,7 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
           await db.query(
             `INSERT INTO inspections (id, appointment_id, technician_id, status)
              VALUES ($1, $2, $3, $4)`,
-            [inspId, req.params.id, technician_id, 'pending']
+            [inspId, req.params.id, technician_id, 'draft']
           )
         }
       }
