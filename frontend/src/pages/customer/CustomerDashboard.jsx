@@ -387,6 +387,7 @@ export default function CustomerDashboard() {
   useTrackingSocket({ customerId: user?.id, onUpdate: handleLiveUpdate })
 
   const current  = appointments.find(a=>a.status==='in_progress')||appointments.find(a=>a.status==='confirmed')
+  const activeRepairs = appointments.filter(a=>['in_progress','confirmed'].includes(a.status)) // All active repairs
   const unread   = notifications.filter(n=>!n.is_read).length
   const total    = appointments.length
   const done     = appointments.filter(a=>a.status==='completed').length
@@ -577,8 +578,16 @@ export default function CustomerDashboard() {
           {/* ── MY REPAIRS ── */}
           {section==='repairs'&&(
             <div>
-              <div className="mb-6"><h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">My Repairs</h1><p className="text-gray-400 text-sm">Current and recent repair jobs</p></div>
-              {!current?(
+              <div className="mb-6">
+                <h1 className="font-display text-xl lg:text-2xl font-bold text-[#1A1A2E]">My Repairs</h1>
+                <p className="text-gray-400 text-sm">
+                  {activeRepairs.length === 0 ? 'Current and recent repair jobs' : 
+                   activeRepairs.length === 1 ? '1 active repair' : 
+                   `${activeRepairs.length} active repairs`}
+                </p>
+              </div>
+              
+              {activeRepairs.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><Settings size={28} className="text-gray-400"/></div>
                   <h3 className="font-bold text-[#1A1A2E] mb-2">No active repairs</h3>
@@ -587,31 +596,36 @@ export default function CustomerDashboard() {
                     Book a Service
                   </Link>
                 </div>
-              ):(
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-                  <div className="flex justify-between items-center px-6 pt-5 pb-0">
-                    <h2 className="font-bold text-[#1A1A2E]">Current Repair — {current.make} {current.model} ({current.registration_number})</h2>
-                    <span className="bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100 capitalize">{current.status?.replace('_',' ')}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-5 md:gap-6 p-5 md:p-6">
-                    <div className="w-full sm:w-56 h-36 sm:h-40 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(184,134,11,0.2),transparent_70%)]"/>
-                      <span className="text-6xl relative z-10">🚗</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 mb-4">
-                        {[['TRACKING #',current.tracking_number],['SERVICE',current.service_name],['TECHNICIAN',current.technician_name||'Assigned'],['STARTED',current.preferred_date],['EST. COMPLETE','TBD'],['EST. COST',current.estimated_cost?`MK ${Number(current.estimated_cost).toLocaleString()}`:'TBD']].map(([k,v],i)=>(
-                          <div key={i}><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{k}</p>
-                          <p className={`text-sm font-bold ${k==='EST. COST'?'text-[#B8860B]':'text-[#1A1A2E]'}`}>{v}</p></div>
-                        ))}
+              ) : (
+                <div className="space-y-4">
+                  {activeRepairs.map((current, idx) => (
+                    <div key={current.id} className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
+                      <div className="flex justify-between items-center px-6 pt-5 pb-0">
+                        <h2 className="font-bold text-[#1A1A2E]">
+                          {activeRepairs.length > 1 && <span className="text-[#B8860B] mr-2">#{idx + 1}</span>}
+                          {current.make} {current.model} ({current.registration_number})
+                        </h2>
+                        <span className="bg-orange-50 text-orange-500 text-xs font-bold px-3 py-1.5 rounded-full border border-orange-100 capitalize">{current.status?.replace('_',' ')}</span>
                       </div>
-                      <div className="mb-4">
-                        <div className="flex justify-between text-xs font-semibold mb-1.5">
-                          <span className="text-gray-600">Repair Progress</span>
-                          <span className="text-[#B8860B] font-bold">{current.progress||0}%</span>
+                      <div className="flex flex-col sm:flex-row gap-5 md:gap-6 p-5 md:p-6">
+                        <div className="w-full sm:w-56 h-36 sm:h-40 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_60%,rgba(184,134,11,0.2),transparent_70%)]"/>
+                          <span className="text-6xl relative z-10">🚗</span>
                         </div>
-                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-[#B8860B] to-yellow-400 rounded-full" style={{width:`${current.progress||0}%`}}/></div>
-                      </div>
+                        <div className="flex-1">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 mb-4">
+                            {[['TRACKING #',current.tracking_number],['SERVICE',current.service_name],['TECHNICIAN',current.technician_name||'Assigned'],['STARTED',current.preferred_date],['EST. COMPLETE','TBD'],['EST. COST',current.estimated_cost?`MK ${Number(current.estimated_cost).toLocaleString()}`:'TBD']].map(([k,v],i)=>(
+                              <div key={i}><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">{k}</p>
+                              <p className={`text-sm font-bold ${k==='EST. COST'?'text-[#B8860B]':'text-[#1A1A2E]'}`}>{v}</p></div>
+                            ))}
+                          </div>
+                          <div className="mb-4">
+                            <div className="flex justify-between text-xs font-semibold mb-1.5">
+                              <span className="text-gray-600">Repair Progress</span>
+                              <span className="text-[#B8860B] font-bold">{current.progress||0}%</span>
+                            </div>
+                            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-[#B8860B] to-yellow-400 rounded-full" style={{width:`${current.progress||0}%`}}/></div>
+                          </div>
                       {(() => {
                         const isInspectionDone = !!current.inspection_advisor_sig
                         const jStatus = current.job_status || 'pending'
@@ -709,6 +723,17 @@ export default function CustomerDashboard() {
                       </div>
                     </div>
                   </div>
+                    </div>
+                  ))}
+                  
+                  {/* View More Button - Shows when more than 5 active repairs */}
+                  {activeRepairs.length > 5 && (
+                    <div className="text-center pt-2">
+                      <button className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-[#B8860B] text-[#B8860B] font-semibold rounded-full hover:bg-[#B8860B] hover:text-white transition-all shadow-sm">
+                        <ChevronRight size={16}/>View All {activeRepairs.length} Repairs
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
