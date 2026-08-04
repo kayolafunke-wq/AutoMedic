@@ -433,6 +433,53 @@ export default function CustomerDashboard() {
     c.addEventListener('touchend',u)
     return()=>{c.removeEventListener('mousedown',d);c.removeEventListener('mousemove',m)}
   }, [section])
+  
+  // Setup signature canvases for all inspections
+  useEffect(() => {
+    if (section !== 'inspection' || allInspections.length === 0) return
+    
+    const cleanupFns = []
+    allInspections.forEach(inspection => {
+      if (inspection.status !== 'pending') return
+      
+      const canvas = document.getElementById(`sig-canvas-${inspection.id}`)
+      if (!canvas) return
+      
+      const ctx = canvas.getContext('2d')
+      ctx.strokeStyle = '#1A1A2E'
+      ctx.lineWidth = 2.5
+      ctx.lineCap = 'round'
+      
+      let drawing = false
+      const pos = (e) => {
+        const r = canvas.getBoundingClientRect()
+        const sx = canvas.width / r.width
+        const sy = canvas.height / r.height
+        const s = e.touches?.[0] || e
+        return { x: (s.clientX - r.left) * sx, y: (s.clientY - r.top) * sy }
+      }
+      const d = (e) => { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y) }
+      const m = (e) => { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke() }
+      const u = () => { drawing = false }
+      
+      canvas.addEventListener('mousedown', d)
+      canvas.addEventListener('mousemove', m)
+      canvas.addEventListener('mouseup', u)
+      canvas.addEventListener('mouseleave', u)
+      canvas.addEventListener('touchstart', (e) => { e.preventDefault(); d(e) }, { passive: false })
+      canvas.addEventListener('touchmove', (e) => { e.preventDefault(); m(e) }, { passive: false })
+      canvas.addEventListener('touchend', u)
+      
+      cleanupFns.push(() => {
+        canvas.removeEventListener('mousedown', d)
+        canvas.removeEventListener('mousemove', m)
+        canvas.removeEventListener('mouseup', u)
+        canvas.removeEventListener('mouseleave', u)
+      })
+    })
+    
+    return () => cleanupFns.forEach(fn => fn())
+  }, [section, allInspections])
 
   if (loading) return (
     <div className="min-h-screen bg-[#F0F2F5] flex items-center justify-center">
@@ -830,15 +877,40 @@ export default function CustomerDashboard() {
                                     <span className="text-xs text-gray-400">— finger on mobile or mouse on desktop</span>
                                   </div>
                                   <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 hover:border-[#B8860B] transition-colors overflow-hidden relative">
-                                    <canvas ref={inspection.id === pendingInspection?.id ? sigRef : null} width={580} height={150} className="w-full cursor-crosshair touch-none block" style={{height:150}}/>
+                                    <canvas id={`sig-canvas-${inspection.id}`} width={580} height={150} className="w-full cursor-crosshair touch-none block" style={{height:150}}/>
                                     <p className="absolute bottom-2 left-3 text-[10px] text-gray-300 pointer-events-none select-none">Sign here ✍</p>
                                   </div>
                                   <div className="flex gap-3 mt-4">
-                                    <button onClick={()=>{const c=sigRef.current;if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-50"><X size={12}/>Clear</button>
-                                    <button onClick={() => {
-                                      setPendingInspection(inspection)
-                                      setActiveInspection(inspection)
-                                      setTimeout(() => confirmSign(), 100)
+                                    <button onClick={()=>{const c=document.getElementById(`sig-canvas-${inspection.id}`);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-50"><X size={12}/>Clear</button>
+                                    <button onClick={async () => {
+                                      const canvas = document.getElementById(`sig-canvas-${inspection.id}`)
+                                      if (!canvas) {
+                                        alert('Signature canvas not found. Please refresh the page.')
+                                        return
+                                      }
+                                      
+                                      // Validate signature
+                                      const ctx = canvas.getContext('2d')
+                                      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+                                      const ok = Array.from(data).some((v, i) => i % 4 === 3 && v > 0)
+                                      if (!ok) {
+                                        alert('Please sign first.')
+                                        return
+                                      }
+                                      
+                                      // Save signature
+                                      try {
+                                        const signatureData = canvas.toDataURL('image/png')
+                                        await api.patch(`/inspections/${inspection.id}/sign`, {
+                                          customer_signature: signatureData
+                                        })
+                                        // Reload data to refresh inspection status
+                                        await loadData(true)
+                                        alert('✅ Inspection signed successfully! Work will begin shortly.')
+                                      } catch (err) {
+                                        console.error('Failed to save signature:', err)
+                                        alert('Failed to save signature: ' + (err.response?.data?.message || err.message))
+                                      }
                                     }} className="flex items-center gap-2 px-6 py-2.5 bg-[#B8860B] text-white rounded-full text-sm font-semibold hover:bg-[#8B6508] transition-colors shadow-lg shadow-[#B8860B]/20"><CheckCircle size={14}/>Confirm &amp; Authorise Repairs</button>
                                     <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2.5 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"><MessageCircle size={12}/>Ask a Question</a>
                                   </div>
