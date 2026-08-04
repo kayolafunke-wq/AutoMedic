@@ -56,11 +56,12 @@ router.get('/assigned', authenticate, authorize('technician'), async (req, res) 
 router.get('/my', authenticate, authorize('customer'), async (req, res) => {
   try {
     const r = await db.query(`
-      SELECT i.*, a.tracking_number, a.vehicle_id, a.customer_id, v.make, v.model, v.registration_number
+      SELECT DISTINCT ON (i.id) i.*, a.tracking_number, a.vehicle_id, a.customer_id, v.make, v.model, v.registration_number
       FROM inspections i
       LEFT JOIN appointments a ON i.appointment_id = a.id
       LEFT JOIN vehicles v ON a.vehicle_id = v.id
-      WHERE a.customer_id = $1 ORDER BY i.created_at DESC
+      WHERE a.customer_id = $1 
+      ORDER BY i.id, i.created_at DESC
     `, [req.user.id])
     res.json({ success:true, data:r.rows })
   } catch (err) { res.status(500).json({ success:false, message:err.message }) }

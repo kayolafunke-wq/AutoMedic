@@ -324,8 +324,11 @@ export default function CustomerDashboard() {
 
       const list = insp.data.data || []
       
+      // Remove duplicates by ID (same as appointments)
+      const uniqueInspections = Array.from(new Map(list.map(item => [item.id, item])).values())
+      
       // Filter all pending and signed inspections
-      const relevantInspections = list.filter(i => 
+      const relevantInspections = uniqueInspections.filter(i => 
         ['pending', 'customer_signed', 'completed'].includes(i.status)
       )
       
