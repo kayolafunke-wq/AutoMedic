@@ -195,8 +195,8 @@ router.patch('/:id/sign', authenticate, authorize('customer'), signInspectionRul
     const insp = existing.rows[0]
 
     await db.query(
-      'UPDATE inspections SET advisor_signature=$1, status=$2, updated_at=$3 WHERE id=$4',
-      [customer_signature, 'customer_signed', now, req.params.id]
+      'UPDATE inspections SET customer_signature=$1, customer_signed_at=$2, status=$3, updated_at=$4 WHERE id=$5',
+      [customer_signature, now, 'customer_signed', now, req.params.id]
     )
 
     // Notify the technician that the customer has signed
