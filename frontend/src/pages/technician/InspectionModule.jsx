@@ -561,6 +561,22 @@ function InspectionForm({ job, existingInsp, onBack }) {
     let advisorSig = null
     if (advisor) {
       advisorSig = advisor.toDataURL('image/png')
+      
+      // Validate that signature was actually drawn
+      const canvas = advisor
+      const ctx = canvas.getContext('2d')
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+      const hasSignature = Array.from(imageData).some((value, index) => 
+        index % 4 === 3 && value > 0 // Check alpha channel
+      )
+      
+      if (!hasSignature) {
+        alert('❌ Signature Required\n\nYou must sign the inspection report before submitting it to the customer.\n\nPlease draw your signature in the designated area at the bottom of the form.')
+        return
+      }
+    } else {
+      alert('❌ Signature Required\n\nYou must sign the inspection report before submitting it to the customer.\n\nPlease scroll down and draw your signature in the designated area.')
+      return
     }
 
     setSaving(true)

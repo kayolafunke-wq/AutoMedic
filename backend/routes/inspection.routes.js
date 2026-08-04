@@ -231,8 +231,21 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
     if (!existing.rows.length) return res.status(404).json({ success: false, message: 'Not found' })
 
     const insp = existing.rows[0]
+    
+    // Validate signature if trying to set status to 'pending'
+    const requestedStatus = status || insp.status
+    if (requestedStatus === 'pending') {
+      const techSigned = advisor_signature && advisor_signature !== 'null' && advisor_signature !== '' && advisor_signature.length > 50
+      if (!techSigned && !insp.advisor_signature) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Cannot submit inspection to customer without technician signature. Please sign the inspection report before submitting.' 
+        })
+      }
+    }
+    
     // Only set to 'pending' if technician actually signed (not just sent advisor_signature field)
-    const techSigned = advisor_signature && advisor_signature !== 'null' && advisor_signature !== ''
+    const techSigned = advisor_signature && advisor_signature !== 'null' && advisor_signature !== '' && advisor_signature.length > 50
     const newStatus = status || (techSigned ? 'pending' : insp.status)
 
     // Map frontend to backend
