@@ -281,6 +281,7 @@ export default function CustomerDashboard() {
   const [pendingInspection, setPendingInspection] = useState(null)
   const [activeInspection, setActiveInspection]   = useState(null)
   const [allInspections, setAllInspections]       = useState([]) // All pending/signed inspections
+  const [expandedInspections, setExpandedInspections] = useState({}) // Track which inspections are expanded
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const sigRef = useRef(null)
 
@@ -821,11 +822,18 @@ export default function CustomerDashboard() {
                     const signedDate = isSigned ? new Date(inspection.customer_signed_at).toLocaleString('en-GB', {
                       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     }) : ''
+                    const isExpanded = expandedInspections[inspection.id] !== false // Default to expanded
                     
                     return (
                       <div key={inspection.id} className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
-                        {/* Header */}
-                        <div className="flex justify-between items-center px-6 pt-5 pb-3 border-b border-gray-100">
+                        {/* Header - Always visible and clickable */}
+                        <button 
+                          onClick={() => setExpandedInspections(prev => ({ 
+                            ...prev, 
+                            [inspection.id]: !prev[inspection.id] 
+                          }))}
+                          className="w-full flex justify-between items-center px-6 pt-5 pb-3 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
+                        >
                           <div>
                             <h2 className="font-bold text-[#1A1A2E]">
                               {allInspections.length > 1 && <span className="text-[#B8860B] mr-2">#{idx + 1}</span>}
@@ -833,18 +841,23 @@ export default function CustomerDashboard() {
                             </h2>
                             <p className="text-xs text-gray-500 mt-1">Ref: {inspection.reference_number} • Tracking: {inspection.tracking_number}</p>
                           </div>
-                          <span className={`text-xs font-bold px-3 py-1.5 rounded-full capitalize ${
-                            isPending ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                            isSigned ? 'bg-green-50 text-green-600 border border-green-200' :
-                            'bg-gray-50 text-gray-500 border border-gray-200'
-                          }`}>
-                            {inspection.status?.replace('_', ' ')}
-                          </span>
-                        </div>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-xs font-bold px-3 py-1.5 rounded-full capitalize ${
+                              isPending ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                              isSigned ? 'bg-green-50 text-green-600 border border-green-200' :
+                              'bg-gray-50 text-gray-500 border border-gray-200'
+                            }`}>
+                              {inspection.status?.replace('_', ' ')}
+                            </span>
+                            <ChevronRight size={20} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                          </div>
+                        </button>
 
-                        <div className="p-5">
-                          {/* Pending — customer needs to review and sign */}
-                          {isPending && (
+                        {/* Content - Collapsible */}
+                        {isExpanded && (
+                          <div className="p-5">
+                            {/* Pending — customer needs to review and sign */}
+                            {isPending && (
                             <div className="space-y-5">
                               <div className="flex items-start gap-4 bg-amber-50 border-2 border-amber-300 rounded-2xl px-5 py-5">
                                 <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0"><AlertTriangle size={20} className="text-amber-600"/></div>
@@ -953,7 +966,8 @@ export default function CustomerDashboard() {
                               </div>
                             </div>
                           )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
