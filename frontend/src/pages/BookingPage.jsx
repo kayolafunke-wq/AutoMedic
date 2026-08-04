@@ -48,18 +48,8 @@ export default function BookingPage() {
     api.get('/vehicles/my').then(r => {
       const myVehicles = r.data.data || []
       setVehicles(myVehicles)
-      if (myVehicles.length > 0) {
-        const first = myVehicles[0]
-        setForm(f => ({
-          ...f,
-          make: f.make || first.make || '',
-          model: f.model || first.model || '',
-          year: f.year || first.year || '',
-          color: f.color || first.color || '',
-          registration_number: f.registration_number || first.registration_number || '',
-          chassis_number: f.chassis_number || first.chassis_number || ''
-        }))
-      }
+      // ✅ FIX: DO NOT auto-fill with first vehicle
+      // Customer must explicitly select a vehicle from the dropdown
     }).catch(() => {})
 
     const today = new Date().toISOString().split('T')[0]
