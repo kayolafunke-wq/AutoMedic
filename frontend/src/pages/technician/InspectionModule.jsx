@@ -204,8 +204,9 @@ function PhotoZone({ title, type, icon: Icon, hint, photos, setPhotos }) {
         const img = new Image()
         img.onload = () => {
           const canvas = document.createElement('canvas')
-          const MAX_WIDTH = 1200
-          const MAX_HEIGHT = 1200
+          // More aggressive compression - reduce to 800px max
+          const MAX_WIDTH = 800
+          const MAX_HEIGHT = 800
           let width = img.width
           let height = img.height
 
@@ -227,8 +228,9 @@ function PhotoZone({ title, type, icon: Icon, hint, photos, setPhotos }) {
           const ctx = canvas.getContext('2d')
           ctx.drawImage(img, 0, 0, width, height)
           
-          // Compress to JPEG with 0.7 quality (reduces size by 60-80%)
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
+          // Much more aggressive compression - 0.5 quality (reduces size by 80-90%)
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5)
+          console.log(`📸 Compressed ${file.name}: ${Math.round(e.target.result.length / 1024)}KB → ${Math.round(compressedBase64.length / 1024)}KB`)
           resolve(compressedBase64)
         }
         img.src = e.target.result
@@ -239,7 +241,22 @@ function PhotoZone({ title, type, icon: Icon, hint, photos, setPhotos }) {
 
   const handleFiles = async (e) => {
     const files = Array.from(e.target.files)
+    
+    // Warn if too many photos
+    if (files.length > 3) {
+      if (!confirm(`⚠️ You selected ${files.length} photos.\n\nUploading many photos may take a long time and could fail.\n\nRecommendation: Upload 1-3 photos at a time.\n\nContinue anyway?`)) {
+        return
+      }
+    }
+    
     for (const f of files) {
+      // Check file size before compression
+      const sizeMB = f.size / 1024 / 1024
+      if (sizeMB > 10) {
+        alert(`❌ Photo "${f.name}" is too large (${sizeMB.toFixed(1)}MB).\n\nMaximum size: 10MB per photo.\n\nPlease use your camera app to reduce the photo quality before uploading.`)
+        continue
+      }
+      
       const compressed = await compressImage(f)
       setPhotos(prev => [...prev, { type, url: compressed, name: f.name, file: f }])
     }
@@ -662,27 +679,53 @@ function InspectionForm({ job, existingInsp, onBack }) {
       const toUpload = photos.filter(p => p.url)
       console.log(`📸 Uploading ${toUpload.length} photos for inspection ${id}`)
       
+      let uploadedCount = 0
+      let failedCount = 0
+      
       if (toUpload.length > 0) {
         for (let i = 0; i < toUpload.length; i++) {
           const p = toUpload[i]
           try {
-            setUploadProgress(`Uploading photo ${i + 1} of ${toUpload.length}...`)
+            setUploadProgress(`Uploading photo ${i + 1} of ${toUpload.length}... (${Math.round(p.url.length / 1024)}KB)`)
             console.log(`  Uploading: ${p.type} - ${p.name} (${Math.round(p.url.length / 1024)}KB)`)
-            const res = await apiMod.post(`/inspections/${id}/photos`, {
+            
+            // Add timeout to prevent hanging
+            const uploadPromise = apiMod.post(`/inspections/${id}/photos`, {
               photo_type: p.type,
               file_url: p.url,   // base64 data URL stored directly in DB
               file_name: p.name,
+            }, {
+              timeout: 30000  // 30 second timeout per photo
             })
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Upload timeout - photo too large')), 30000)
+            )
+            
+            const res = await Promise.race([uploadPromise, timeoutPromise])
             console.log(`  ✅ Photo ${i + 1}/${toUpload.length} uploaded successfully:`, res.data)
+            uploadedCount++
           } catch (photoErr) {
+            failedCount++
             console.error(`  ❌ Photo upload failed for ${p.name}:`)
             console.error(`     Status: ${photoErr.response?.status}`)
             console.error(`     Message: ${photoErr.response?.data?.message || photoErr.message}`)
             console.error(`     Error:`, photoErr.response?.data || photoErr)
+            
+            // Don't stop - continue with other photos
+            if (i === toUpload.length - 1 && uploadedCount === 0) {
+              // If this was the last photo and nothing uploaded, throw error
+              throw new Error(`All ${toUpload.length} photo uploads failed. Please try again with smaller photos or fewer photos at once.`)
+            }
           }
         }
         setUploadProgress(null) // Clear progress message
-        console.log(`✅ All ${toUpload.length} photos processed!`)
+        console.log(`✅ Upload complete: ${uploadedCount} succeeded, ${failedCount} failed`)
+        
+        // Show warning if some failed
+        if (failedCount > 0 && uploadedCount > 0) {
+          alert(`⚠️ Warning: ${failedCount} photo(s) failed to upload, but ${uploadedCount} succeeded.\n\nInspection submitted successfully with ${uploadedCount} photo(s).`)
+        }
       } else {
         console.log(`⚠️  No photos to upload - inspection will have 0 photos`)
       }
