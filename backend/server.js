@@ -31,6 +31,7 @@ const checkoutRoutes     = require('./routes/checkout.routes')
 const inventoryRoutes    = require('./routes/inventory.routes')
 const settingsRoutes     = require('./routes/settings.routes')
 const adminRoutes        = require('./routes/admin.routes')
+const testEmailRoutes    = require('./routes/test-email.routes')
 
 const app    = express()
 const server = http.createServer(app)
@@ -122,6 +123,7 @@ app.use('/api/checkout',      checkoutRoutes)
 app.use('/api/inventory',     inventoryRoutes)
 app.use('/api/settings',      settingsRoutes)
 app.use('/api/admin',         adminRoutes)
+app.use('/api/test-email',    testEmailRoutes)
 
 // ─── HEALTH CHECK ───────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

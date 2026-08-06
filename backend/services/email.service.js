@@ -84,6 +84,34 @@ async function send(to, subject, html) {
 // ── EMAIL TEMPLATES ───────────────────────────────────────────────────────────
 
 /**
+ * Test email endpoint helper
+ */
+async function sendTestEmail({ email }) {
+  const html = baseHtml('Email Test - AutoMedic', `
+    <div class="badge">✅ Email Working!</div>
+    <h2>Success! Email is configured correctly.</h2>
+    <p>This test email was sent from your AutoMedic backend on Railway.</p>
+    <div class="card">
+      <div class="row">
+        <span class="row-label">Test Time</span>
+        <span class="row-value">${new Date().toLocaleString()}</span>
+      </div>
+      <div class="row">
+        <span class="row-label">Email Provider</span>
+        <span class="row-value">${process.env.EMAIL_HOST}</span>
+      </div>
+      <div class="row">
+        <span class="row-label">From Email</span>
+        <span class="row-value">${FROM}</span>
+      </div>
+    </div>
+    <p>If you received this email, your email configuration is working perfectly! 🎉</p>
+    <p style="font-size:13px;color:#9CA3AF;margin-top:20px">Customers will now receive appointment confirmations, inspection reports, and invoice notifications.</p>
+  `)
+  await send(email, '✅ Email Test - AutoMedic', html)
+}
+
+/**
  * Welcome email after registration
  */
 async function sendWelcome({ name, email }) {
@@ -250,6 +278,7 @@ async function sendPasswordReset({ name, email, resetUrl, role }) {
 }
 
 module.exports = {
+  sendTestEmail,
   sendWelcome,
   sendAppointmentConfirmed,
   sendInspectionReady,
