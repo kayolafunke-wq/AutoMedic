@@ -125,14 +125,6 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
       partsJson = JSON.stringify(partsArray)
     }
 
-    // ── Auto-ensure columns exist ─────────────────────────────────────────────
-    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS technician_notes TEXT`).catch(() => {})
-    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS parts_used TEXT DEFAULT '[]'`).catch(() => {})
-    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS estimated_cost NUMERIC`).catch(() => {})
-    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS final_cost NUMERIC`).catch(() => {})
-    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS started_at TIMESTAMP`).catch(() => {})
-    await db.query(`ALTER TABLE job_cards ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP`).catch(() => {})
-
     // ── Auto-set final_cost when job completes ───────────────────────────────
     const targetStatus  = status || jc.status
     const isCompleting  = targetStatus === 'completed' && jc.status !== 'completed'
