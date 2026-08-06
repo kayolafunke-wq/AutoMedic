@@ -825,7 +825,7 @@ export default function CustomerDashboard() {
                     const signedDate = isSigned ? new Date(inspection.customer_signed_at).toLocaleString('en-GB', {
                       day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     }) : ''
-                    const isExpanded = expandedInspections[inspection.id] ?? true // Default to expanded (undefined = true)
+                    const isExpanded = expandedInspections[inspection.id] ?? false // Default to collapsed
                     
                     return (
                       <div key={inspection.id} className="bg-white rounded-2xl shadow-sm border border-gray-50 overflow-hidden">
@@ -833,7 +833,7 @@ export default function CustomerDashboard() {
                         <button 
                           onClick={() => setExpandedInspections(prev => ({ 
                             ...prev, 
-                            [inspection.id]: !(prev[inspection.id] ?? true) // Toggle from current state (default true)
+                            [inspection.id]: !(prev[inspection.id] ?? false) // Toggle from current state (default false)
                           }))}
                           className="w-full flex justify-between items-center px-6 pt-5 pb-3 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
                         >
@@ -914,14 +914,20 @@ export default function CustomerDashboard() {
                                         return
                                       }
                                       
-                                      // Save signature
+                                      // Save signature (optimized - no full reload)
                                       try {
                                         const signatureData = canvas.toDataURL('image/png')
                                         await api.patch(`/inspections/${inspection.id}/sign`, {
                                           customer_signature: signatureData
                                         })
-                                        // Reload data to refresh inspection status
-                                        await loadData(true)
+                                        
+                                        // Update just this inspection in state (fast!)
+                                        setAllInspections(prev => prev.map(i => 
+                                          i.id === inspection.id 
+                                            ? { ...i, status: 'customer_signed', customer_signed_at: new Date().toISOString() }
+                                            : i
+                                        ))
+                                        
                                         alert('✅ Inspection signed successfully! Work will begin shortly.')
                                       } catch (err) {
                                         console.error('Failed to save signature:', err)
