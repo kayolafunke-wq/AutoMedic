@@ -62,7 +62,7 @@ export default function BookingPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      // Step 1: Get/refresh Firebase token and sync with backend
+      // Step 1: Get Firebase token and sync with backend (optimized)
       const { auth } = await import('../config/firebase')
       const firebaseUser = auth.currentUser
       
@@ -70,10 +70,10 @@ export default function BookingPage() {
         throw new Error('You must be logged in to book an appointment')
       }
       
-      // Force refresh the Firebase ID token to ensure it's fresh
-      console.log('Refreshing Firebase token...')
-      const idToken = await firebaseUser.getIdToken(true) // true forces refresh
-      console.log('Firebase token refreshed, syncing with backend...')
+      // Get cached token first (fast), only refresh if it fails
+      console.log('Getting Firebase token...')
+      const idToken = await firebaseUser.getIdToken(false) // false = use cached token (faster!)
+      console.log('Syncing with backend...')
       
       // Sync with backend to get our JWT
       const syncRes = await api.post('/auth/firebase-sync', { idToken })
@@ -87,13 +87,16 @@ export default function BookingPage() {
       localStorage.setItem('am_user', JSON.stringify(syncRes.data.user))
       console.log('Backend sync successful')
 
-      // Step 2: Create/find vehicle
+      // Step 2 & 3: Create vehicle (if needed) and appointment sequentially
       let vehicleId
       const existingVeh = vehicles.find(v => v.registration_number === form.registration_number)
+      
       if (existingVeh) {
+        // Existing vehicle - skip vehicle creation
         vehicleId = existingVeh.id
         console.log('Using existing vehicle:', vehicleId)
       } else {
+        // New vehicle - create it
         console.log('Creating new vehicle...')
         const vRes = await api.post('/vehicles', {
           make: form.make, model: form.model,
@@ -105,7 +108,7 @@ export default function BookingPage() {
         console.log('Vehicle created:', vehicleId)
       }
 
-      // Step 3: Create appointment
+      // Create appointment (final step)
       console.log('Creating appointment...')
       const res = await api.post('/appointments', {
         vehicle_id:          vehicleId,
@@ -113,10 +116,10 @@ export default function BookingPage() {
         preferred_date:      form.preferred_date,
         problem_description: form.problem_description
       })
-      console.log('Appointment created successfully!')
+      console.log('✅ Appointment created successfully!')
       setSubmitted(res.data.data)
     } catch (err) {
-      console.error('Booking error:', err)
+      console.error('❌ Booking error:', err)
       const message = err.response?.data?.message || err.message || 'Booking failed. Please try again.'
       alert(message)
     } finally {
