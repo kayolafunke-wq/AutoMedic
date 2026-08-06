@@ -197,12 +197,52 @@ function DamageMap({ damages, onChange }) {
 
 /* ─── PHOTO UPLOAD ZONE ─────────────────────────────────────────── */
 function PhotoZone({ title, type, icon: Icon, hint, photos, setPhotos }) {
-  const handleFiles = (e) => {
-    Array.from(e.target.files).forEach(f => {
-      const r = new FileReader()
-      r.onload = ev => setPhotos(prev => [...prev, { type, url: ev.target.result, name: f.name, file: f }])
-      r.readAsDataURL(f)
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const MAX_WIDTH = 1200
+          const MAX_HEIGHT = 1200
+          let width = img.width
+          let height = img.height
+
+          // Calculate new dimensions while maintaining aspect ratio
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width)
+              width = MAX_WIDTH
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height)
+              height = MAX_HEIGHT
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0, width, height)
+          
+          // Compress to JPEG with 0.7 quality (reduces size by 60-80%)
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7)
+          resolve(compressedBase64)
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
     })
+  }
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files)
+    for (const f of files) {
+      const compressed = await compressImage(f)
+      setPhotos(prev => [...prev, { type, url: compressed, name: f.name, file: f }])
+    }
   }
   const mine = photos.filter(p => p.type === type)
   const inputId = `photo-${type}`
@@ -394,6 +434,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
   const [photos, setPhotos] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(null) // "Uploading photo 1 of 3..."
   const [fuelLevel, setFuelLevel] = useState(existingInsp?.fuel_level || '1/2')
   const [inspRef, setInspRef] = useState(existingInsp?.reference_number || `INS-${Math.floor(1000 + Math.random() * 9000)}`)
   const [inspId, setInspId] = useState(existingInsp?.id || null)
@@ -622,15 +663,17 @@ function InspectionForm({ job, existingInsp, onBack }) {
       console.log(`📸 Uploading ${toUpload.length} photos for inspection ${id}`)
       
       if (toUpload.length > 0) {
-        for (const p of toUpload) {
+        for (let i = 0; i < toUpload.length; i++) {
+          const p = toUpload[i]
           try {
+            setUploadProgress(`Uploading photo ${i + 1} of ${toUpload.length}...`)
             console.log(`  Uploading: ${p.type} - ${p.name} (${Math.round(p.url.length / 1024)}KB)`)
             const res = await apiMod.post(`/inspections/${id}/photos`, {
               photo_type: p.type,
               file_url: p.url,   // base64 data URL stored directly in DB
               file_name: p.name,
             })
-            console.log(`  ✅ Photo uploaded successfully:`, res.data)
+            console.log(`  ✅ Photo ${i + 1}/${toUpload.length} uploaded successfully:`, res.data)
           } catch (photoErr) {
             console.error(`  ❌ Photo upload failed for ${p.name}:`)
             console.error(`     Status: ${photoErr.response?.status}`)
@@ -638,6 +681,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
             console.error(`     Error:`, photoErr.response?.data || photoErr)
           }
         }
+        setUploadProgress(null) // Clear progress message
         console.log(`✅ All ${toUpload.length} photos processed!`)
       } else {
         console.log(`⚠️  No photos to upload - inspection will have 0 photos`)
@@ -648,6 +692,7 @@ function InspectionForm({ job, existingInsp, onBack }) {
       setSubmitted(true)
       window.scrollTo(0, 0)
     } catch (err) {
+      setUploadProgress(null) // Clear progress on error
       alert('Failed to save inspection: ' + (err.response?.data?.message || err.message))
     } finally { setSaving(false) }
   }
@@ -1066,9 +1111,22 @@ function InspectionForm({ job, existingInsp, onBack }) {
               </button>
               <button onClick={submit} disabled={saving || stepSaving}
                 className="flex items-center justify-center gap-2 px-7 py-3 bg-[#B8860B] text-white font-semibold rounded-full hover:bg-[#8B6508] transition-all text-sm disabled:opacity-60 whitespace-nowrap">
-                <ClipboardCheck size={15} /> {saving ? 'Submitting...' : 'Submit to Customer Portal'}
+                <ClipboardCheck size={15} /> {uploadProgress || (saving ? 'Submitting...' : 'Submit to Customer Portal')}
               </button>
             </>
+          )}
+          
+          {/* Upload progress indicator */}
+          {uploadProgress && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                <div>
+                  <p className="text-sm font-semibold text-blue-700">{uploadProgress}</p>
+                  <p className="text-xs text-blue-600 mt-0.5">Please wait, this may take a few moments...</p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
