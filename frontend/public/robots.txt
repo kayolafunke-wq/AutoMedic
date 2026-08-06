@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Block private/dashboard areas from indexing
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /technician
+Disallow: /stockkeeper
+Disallow: /booking
+Disallow: /inspection/
+Disallow: /auth/
+
+# Sitemap location
+Sitemap: https://automedic-mw.up.railway.app/sitemap.xml

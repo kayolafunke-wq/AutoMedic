@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import api from '../../services/api'
+import api, { testEmailApi } from '../../services/api'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { LayoutDashboard, Calendar, Car, Users, BarChart2, TrendingUp, Settings, LogOut, Plus, Trash2, Edit2, Globe, ClipboardCheck, X, Search, DollarSign, Package, Save, AlertCircle, FileText, ChevronDown, ChevronRight as ChevronR, Wrench, ShoppingCart, History, Eye, Printer, CheckCircle, ChevronLeft, ChevronRight, Zap, Snail, PartyPopper, AlertTriangle, Archive, UserCheck, Clock, Star, MonitorSpeaker } from 'lucide-react'
+import { LayoutDashboard, Calendar, Car, Users, BarChart2, TrendingUp, Settings, LogOut, Plus, Trash2, Edit2, Globe, ClipboardCheck, X, Search, DollarSign, Package, Save, AlertCircle, FileText, ChevronDown, ChevronRight as ChevronR, Wrench, ShoppingCart, History, Eye, Printer, CheckCircle, ChevronLeft, ChevronRight, Zap, Snail, PartyPopper, AlertTriangle, Archive, UserCheck, Clock, Star, MonitorSpeaker, Mail, Send } from 'lucide-react'
 import InspectionModule from '../technician/InspectionModule'
 import UserManagement from './UserManagement'
 import { useGarageSettings } from '../../hooks/useGarageSettings'
@@ -1968,13 +1968,31 @@ function SettingsView() {
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
-  // Load settings from backend
+  // Email diagnostics & test state
+  const [emailConfig, setEmailConfig] = useState(null)
+  const [checkingEmailConfig, setCheckingEmailConfig] = useState(true)
+  const [testRecipient, setTestRecipient] = useState('')
+  const [testingEmail, setTestingEmail] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+
+  const fetchEmailConfig = async () => {
+    setCheckingEmailConfig(true)
+    try {
+      const res = await testEmailApi.getConfig()
+      setEmailConfig(res.data)
+    } catch (e) {
+      console.warn('Failed to load email config:', e)
+    } finally {
+      setCheckingEmailConfig(false)
+    }
+  }
+
+  // Load settings & email config from backend
   useEffect(() => {
     const loadSettings = async () => {
       try {
         const response = await api.get('/settings/garage')
         const raw = response.data.data || {}
-        // Normalize: handle both old (garage_*) and new column names
         setForm({
           garage_name:  raw.garage_name   || 'AutoMedic Garage',
           phone:        raw.phone         || raw.garage_phone    || '',
@@ -1985,6 +2003,7 @@ function SettingsView() {
           vat_rate:     raw.vat_rate      || raw.tax_rate        || 16.5,
           currency:     raw.currency      || 'MWK',
         })
+        if (raw.email) setTestRecipient(raw.email)
       } catch (err) {
         console.error('Failed to load settings:', err)
         setError('Failed to load settings')
@@ -1993,15 +2012,32 @@ function SettingsView() {
       }
     }
     loadSettings()
+    fetchEmailConfig()
   }, [])
+
+  const handleSendTestEmail = async (e) => {
+    e.preventDefault()
+    if (!testRecipient) return
+    setTestingEmail(true)
+    setTestResult(null)
+    try {
+      const res = await testEmailApi.sendTest(testRecipient)
+      setTestResult({ success: true, message: res.data.message || 'Test email sent successfully!' })
+      fetchEmailConfig()
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to send test email'
+      setTestResult({ success: false, message: errMsg })
+    } finally {
+      setTestingEmail(false)
+    }
+  }
 
   const save = async () => {
     setSaving(true)
     setError('')
     try {
-      const response = await api.put('/settings/garage', form)
+      await api.put('/settings/garage', form)
       setSaved(true)
-      // Refresh the global settings context
       refreshSettings()
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
@@ -2061,18 +2097,113 @@ function SettingsView() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Garage Info */}
-        <div className="col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
-          <h2 className="font-bold text-dark text-base mb-5 flex items-center gap-2">
-            <span className="w-8 h-8 bg-[#B8860B]/10 text-[#B8860B] rounded-lg flex items-center justify-center text-sm">🏪</span>
-            Garage Information
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {field('garage_name',   'Garage Name',    'text', 'AutoMedic Garage')}
-            {field('phone',         'Phone Number',   'text', '+265 999 000 000')}
-            {field('address',       'Address',        'text', 'Area 47, Lilongwe, Malawi')}
-            {field('email',         'Contact Email',  'email','info@automedic.mw')}
-            {field('whatsapp',      'WhatsApp Number','text', '+265994040900')}
-            {field('working_hours', 'Working Hours',  'text', 'Mon–Sat: 7am – 6pm')}
+        <div className="col-span-2 space-y-6">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+            <h2 className="font-bold text-dark text-base mb-5 flex items-center gap-2">
+              <span className="w-8 h-8 bg-[#B8860B]/10 text-[#B8860B] rounded-lg flex items-center justify-center text-sm">🏪</span>
+              Garage Information
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {field('garage_name',   'Garage Name',    'text', 'AutoMedic Garage')}
+              {field('phone',         'Phone Number',   'text', '+265 999 000 000')}
+              {field('address',       'Address',        'text', 'Area 47, Lilongwe, Malawi')}
+              {field('email',         'Contact Email',  'email','info@automedic.mw')}
+              {field('whatsapp',      'WhatsApp Number','text', '+265994040900')}
+              {field('working_hours', 'Working Hours',  'text', 'Mon–Sat: 7am – 6pm')}
+            </div>
+          </div>
+
+          {/* Email Integration & Diagnostics */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-dark text-base flex items-center gap-2">
+                <span className="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center text-sm">
+                  <Mail size={16} />
+                </span>
+                Google Email & SMTP Integration
+              </h2>
+              {emailConfig && (
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  emailConfig.configured 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {emailConfig.configured ? '✓ SMTP Configured' : '⚠ Email Unconfigured'}
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+              AutoMedic uses Nodemailer SMTP to send real emails to customers when booking appointments, repair status changes, inspection reports, and invoices.
+            </p>
+
+            {emailConfig && (
+              <div className="bg-gray-50 rounded-xl p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs border border-gray-100">
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Host</span>
+                  <span className="font-semibold text-gray-800">{emailConfig.config?.EMAIL_HOST || 'smtp.gmail.com'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">Port</span>
+                  <span className="font-semibold text-gray-800">{emailConfig.config?.EMAIL_PORT || '587'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">From Email</span>
+                  <span className="font-semibold text-gray-800 truncate block">{emailConfig.config?.EMAIL_FROM || 'NOT SET'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 block text-[10px] uppercase font-bold">User</span>
+                  <span className="font-semibold text-gray-800 truncate block">{emailConfig.config?.EMAIL_USER || 'NOT SET'}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Test Email Form */}
+            <form onSubmit={handleSendTestEmail} className="mt-4 pt-4 border-t border-gray-100">
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">Test Live Email Delivery</label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={testRecipient}
+                  onChange={e => setTestRecipient(e.target.value)}
+                  placeholder="Enter email to receive test message..."
+                  className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-primary"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={testingEmail || !testRecipient}
+                  className="px-4 py-2.5 bg-[#B8860B] text-white font-bold text-xs rounded-xl hover:bg-[#966d09] transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {testingEmail ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={13} /> Send Test Email
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {testResult && (
+              <div className={`mt-3 p-3 rounded-xl text-xs flex items-start gap-2 ${
+                testResult.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {testResult.success ? <CheckCircle size={15} className="text-green-600 flex-shrink-0 mt-0.5" /> : <AlertCircle size={15} className="text-red-600 flex-shrink-0 mt-0.5" />}
+                <div className="flex-1">
+                  <p className="font-semibold">{testResult.message}</p>
+                  {!testResult.success && testResult.message.includes('Invalid login') && (
+                    <p className="mt-1 text-[11px] text-red-700">
+                      💡 <strong>Gmail Tip:</strong> Google requires a 16-character <strong>App Password</strong> instead of your regular password. Enable 2FA on your Google Account and create an App Password at <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="underline font-bold">myaccount.google.com/apppasswords</a>.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2095,14 +2226,16 @@ function SettingsView() {
             <div className="flex items-start gap-3">
               <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-amber-800">Email Notifications</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  Configure SMTP credentials in <code className="bg-amber-100 px-1 rounded">backend/.env</code> to enable automatic email notifications.
+                <p className="text-sm font-bold text-amber-800">Email Configuration Setup</p>
+                <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                  Update environment variables in <code className="bg-amber-100 px-1 rounded font-mono">backend/.env</code> or Railway variables:
                 </p>
-                <div className="mt-3 space-y-1 text-xs font-mono text-amber-700 bg-amber-100 rounded-lg p-2">
+                <div className="mt-2.5 space-y-1 text-[11px] font-mono text-amber-800 bg-amber-100/80 rounded-lg p-2.5 border border-amber-200">
                   <div>EMAIL_HOST=smtp.gmail.com</div>
-                  <div>EMAIL_USER=your@email.com</div>
-                  <div>EMAIL_PASS=app_password</div>
+                  <div>EMAIL_PORT=587</div>
+                  <div>EMAIL_USER=your_email@gmail.com</div>
+                  <div>EMAIL_PASS=abcd efgh ijkl mnop</div>
+                  <div>EMAIL_FROM=AutoMedic &lt;your_email@gmail.com&gt;</div>
                 </div>
               </div>
             </div>

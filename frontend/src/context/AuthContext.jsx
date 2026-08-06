@@ -13,6 +13,9 @@ import api from '../services/api'
 
 const AuthContext = createContext(null)
 
+// Prevents duplicate firebase-sync when loginWithGoogle handles its own backend call
+let _googleSyncInProgress = false
+
 export const AuthProvider = ({ children }) => {
   const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
@@ -28,6 +31,11 @@ export const AuthProvider = ({ children }) => {
 
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Skip sync if loginWithGoogle() is already handling it (prevents double-sync)
+        if (_googleSyncInProgress) {
+          setLoading(false)
+          return
+        }
         try {
           const idToken = await firebaseUser.getIdToken()
           localStorage.setItem('am_fb_token', idToken)
@@ -79,10 +87,48 @@ export const AuthProvider = ({ children }) => {
     setUser(userData)
   }
 
-  // Sign in with Google
+  // Sign in with Google (1-click sync with backend — blocks onAuthStateChanged from double-syncing)
   const loginWithGoogle = async () => {
-    const result = await signInWithPopup(auth, googleProvider)
-    return result.user
+    _googleSyncInProgress = true
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      const firebaseUser = result.user
+
+      const idToken = await firebaseUser.getIdToken()
+      localStorage.setItem('am_fb_token', idToken)
+
+      try {
+        // Sync with backend to get backend JWT & user record
+        const res = await api.post('/auth/firebase-sync', { idToken })
+        const appUser = {
+          ...res.data.user,
+          photoURL:    firebaseUser.photoURL,
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+        }
+        setUser(appUser)
+        localStorage.setItem('am_user', JSON.stringify(appUser))
+        localStorage.setItem('am_token', res.data.token)
+        if (res.data.refreshToken) {
+          localStorage.setItem('am_refresh_token', res.data.refreshToken)
+        }
+        return appUser
+      } catch (syncErr) {
+        console.warn('Backend sync warning, using Firebase fallback:', syncErr.message)
+        const appUser = {
+          id:       firebaseUser.uid,
+          name:     firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+          email:    firebaseUser.email,
+          role:     'customer',
+          photoURL: firebaseUser.photoURL,
+        }
+        setUser(appUser)
+        localStorage.setItem('am_user', JSON.stringify(appUser))
+        return appUser
+      }
+    } finally {
+      // Release flag after a brief delay so onAuthStateChanged fires normally on future sessions
+      setTimeout(() => { _googleSyncInProgress = false }, 2000)
+    }
   }
 
   // Sign in with email + password

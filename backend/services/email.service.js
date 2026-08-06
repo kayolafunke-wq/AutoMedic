@@ -1,17 +1,26 @@
 const nodemailer = require('nodemailer')
 
 // ── TRANSPORT ─────────────────────────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
-  port:   Number(process.env.EMAIL_PORT || 587),
-  secure: process.env.EMAIL_SECURE === 'true',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
+const isGmail = (process.env.EMAIL_HOST || 'smtp.gmail.com').includes('gmail')
 
-const FROM    = process.env.EMAIL_FROM    || 'AutoMedic <noreply@automedic.mw>'
+function getTransporter() {
+  const user = (process.env.EMAIL_USER || '').trim()
+  const pass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
+  return nodemailer.createTransport({
+    host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
+    port:   Number(process.env.EMAIL_PORT || 587),
+    secure: process.env.EMAIL_SECURE === 'true',
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }
+  })
+}
+
+function getFromEmail() {
+  const user = (process.env.EMAIL_USER || '').trim()
+  return process.env.EMAIL_FROM || `AutoMedic <${user || 'noreply@automedic.mw'}>`
+}
+
+
 const GARAGE  = process.env.GARAGE_NAME   || 'AutoMedic Garage'
 const PHONE   = process.env.GARAGE_PHONE  || '+265 999 000 000'
 const ADDRESS = process.env.GARAGE_ADDRESS|| 'Area 47, Lilongwe, Malawi'
@@ -27,21 +36,17 @@ function baseHtml(title, bodyHtml) {
   <title>${title}</title>
   <style>
     body{margin:0;padding:0;background:#F0F2F5;font-family:'Segoe UI',Arial,sans-serif;color:#1A1A2E}
-    .wrap{max-width:580px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-    .header{background:#1A1A2E;padding:28px 32px;display:flex;align-items:center;gap:12px}
-    .logo{width:36px;height:36px;background:#B8860B;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:13px}
-    .brand{color:#fff;font-weight:900;font-size:18px}
-    .brand span{color:#B8860B}
+    .wrap{max-width:580px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}
     .body{padding:32px}
-    .badge{display:inline-block;background:#B8860B;color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;margin-bottom:20px}
-    h2{font-size:22px;font-weight:900;margin:0 0 8px}
+    .badge{display:inline-block;background:#B8860B;color:#ffffff;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;margin-bottom:20px}
+    h2{font-size:22px;font-weight:900;margin:0 0 8px;color:#1A1A2E}
     p{font-size:15px;line-height:1.6;color:#374151;margin:0 0 16px}
     .card{background:#F8F9FA;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #E5E7EB}
     .row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #E5E7EB}
     .row:last-child{border-bottom:none}
     .row-label{font-size:13px;color:#6B7280}
     .row-value{font-size:13px;font-weight:600;color:#1A1A2E}
-    .btn{display:inline-block;background:#B8860B;color:#fff;padding:12px 28px;border-radius:100px;font-weight:700;font-size:14px;text-decoration:none;margin-top:8px}
+    .btn{display:inline-block;background:#B8860B;color:#ffffff !important;padding:12px 28px;border-radius:100px;font-weight:700;font-size:14px;text-decoration:none;margin-top:8px}
     .footer{background:#F8F9FA;padding:20px 32px;border-top:1px solid #E5E7EB;text-align:center}
     .footer p{font-size:12px;color:#9CA3AF;margin:0}
     .progress-bar{background:#E5E7EB;border-radius:100px;height:10px;overflow:hidden;margin:12px 0}
@@ -50,15 +55,39 @@ function baseHtml(title, bodyHtml) {
 </head>
 <body>
   <div class="wrap">
-    <div class="header">
-      <span class="logo">AM</span>
-      <span class="brand">Auto<span>Medic</span></span>
-    </div>
+    <!-- BULLETPROOF HEADER TABLE -->
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#1A1A2E;border-collapse:collapse;">
+      <tr>
+        <td style="padding:22px 28px;vertical-align:middle;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+              <!-- Logo Badge -->
+              <td style="vertical-align:middle;padding-right:12px;">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td style="background-color:#B8860B;border-radius:10px;width:40px;height:40px;text-align:center;vertical-align:middle;color:#FFFFFF;font-family:'Segoe UI',Arial,sans-serif;font-weight:900;font-size:15px;line-height:40px;mso-line-height-rule:exactly;">
+                      AM
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <!-- Brand Name -->
+              <td style="vertical-align:middle;color:#FFFFFF;font-family:'Segoe UI',Arial,sans-serif;font-weight:900;font-size:22px;line-height:1;letter-spacing:-0.5px;">
+                Auto<span style="color:#B8860B;">Medic</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
     <div class="body">${bodyHtml}</div>
+
+    <!-- FOOTER -->
     <div class="footer">
       <p>${GARAGE} · ${ADDRESS}</p>
-      <p>📞 ${PHONE} · WhatsApp: <a href="https://wa.me/${WA.replace(/\D/g,'')}" style="color:#B8860B">${PHONE}</a></p>
-      <p style="margin-top:8px">© ${new Date().getFullYear()} AutoMedic. All rights reserved.</p>
+      <p style="margin-top:4px;">📞 ${PHONE} · WhatsApp: <a href="https://wa.me/${WA.replace(/\D/g,'')}" style="color:#B8860B;text-decoration:none;">${PHONE}</a></p>
+      <p style="margin-top:8px;">© ${new Date().getFullYear()} AutoMedic. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -70,14 +99,20 @@ async function send(to, subject, html) {
   if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
     // Email not configured — log instead of crashing
     console.log(`[EMAIL] (not configured) To: ${to} | Subject: ${subject}`)
-    return
+    return { success: false, reason: 'Email not configured in process.env.EMAIL_USER' }
   }
   try {
-    await transporter.sendMail({ from: FROM, to, subject, html })
-    console.log(`[EMAIL] Sent to ${to}: ${subject}`)
+    const transporter = getTransporter()
+    const from = getFromEmail()
+    const info = await transporter.sendMail({ from, to, subject, html })
+    console.log(`[EMAIL] Sent to ${to}: ${subject} (Message ID: ${info.messageId})`)
+    return { success: true, messageId: info.messageId }
   } catch (err) {
     console.error(`[EMAIL] Failed to send to ${to}:`, err.message)
-    // Non-fatal — never crash the request
+    if (err.message && err.message.includes('Invalid login')) {
+      console.error(`[EMAIL DIAGNOSTIC] Gmail credentials rejected. Please make sure you are using a 16-character App Password from https://myaccount.google.com/apppasswords rather than your regular Google password.`)
+    }
+    return { success: false, error: err.message }
   }
 }
 
@@ -90,7 +125,7 @@ async function sendTestEmail({ email }) {
   const html = baseHtml('Email Test - AutoMedic', `
     <div class="badge">✅ Email Working!</div>
     <h2>Success! Email is configured correctly.</h2>
-    <p>This test email was sent from your AutoMedic backend on Railway.</p>
+    <p>This test email was sent from your AutoMedic backend.</p>
     <div class="card">
       <div class="row">
         <span class="row-label">Test Time</span>
@@ -98,17 +133,17 @@ async function sendTestEmail({ email }) {
       </div>
       <div class="row">
         <span class="row-label">Email Provider</span>
-        <span class="row-value">${process.env.EMAIL_HOST}</span>
+        <span class="row-value">${process.env.EMAIL_HOST || 'smtp.gmail.com'}</span>
       </div>
       <div class="row">
         <span class="row-label">From Email</span>
-        <span class="row-value">${FROM}</span>
+        <span class="row-value">${getFromEmail()}</span>
       </div>
     </div>
     <p>If you received this email, your email configuration is working perfectly! 🎉</p>
-    <p style="font-size:13px;color:#9CA3AF;margin-top:20px">Customers will now receive appointment confirmations, inspection reports, and invoice notifications.</p>
+    <p style="font-size:13px;color:#9CA3AF;margin-top:20px">Customers will now receive real email notifications for appointment bookings, repair updates, inspection reports, and invoices.</p>
   `)
-  await send(email, '✅ Email Test - AutoMedic', html)
+  return await send(email, '✅ Email Test - AutoMedic', html)
 }
 
 /**
@@ -119,10 +154,31 @@ async function sendWelcome({ name, email }) {
     <div class="badge">Welcome 🎉</div>
     <h2>Hi ${name}, welcome to AutoMedic!</h2>
     <p>Your account is ready. You can now book appointments, track your vehicle's repair progress in real-time, and view your service history — all from your dashboard.</p>
-    <a href="${process.env.FRONTEND_URL}/dashboard" class="btn">Go to Dashboard →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">Go to Dashboard →</a>
     <p style="margin-top:24px;font-size:13px;color:#9CA3AF">If you didn't create this account, please ignore this email.</p>
   `)
   await send(email, `Welcome to ${GARAGE}!`, html)
+}
+
+/**
+ * Appointment Created email (sent to customer upon booking request)
+ */
+async function sendAppointmentCreated({ name, email, tracking, date, vehicle, service }) {
+  const html = baseHtml('Booking Received', `
+    <div class="badge">📋 Booking Received</div>
+    <h2>Thank you for your booking request</h2>
+    <p>Hi ${name}, we have received your service request at ${GARAGE}. Our service team will review it shortly.</p>
+    <div class="card">
+      <div class="row"><span class="row-label">Tracking #</span><span class="row-value" style="color:#B8860B;font-size:16px;font-weight:700">${tracking}</span></div>
+      <div class="row"><span class="row-label">Vehicle</span><span class="row-value">${vehicle}</span></div>
+      <div class="row"><span class="row-label">Requested Service</span><span class="row-value">${service || 'General Service'}</span></div>
+      <div class="row"><span class="row-label">Preferred Date</span><span class="row-value">${date}</span></div>
+      <div class="row"><span class="row-label">Status</span><span class="row-value" style="color:#D97706;font-weight:700">Pending Review</span></div>
+    </div>
+    <p>You can check the live status of your booking anytime using your tracking number.</p>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/track/${tracking}" class="btn">Track My Booking →</a>
+  `)
+  await send(email, `Booking Received — ${tracking}`, html)
 }
 
 /**
@@ -137,13 +193,40 @@ async function sendAppointmentConfirmed({ name, email, tracking, date, vehicle, 
       <div class="row"><span class="row-label">Tracking #</span><span class="row-value" style="color:#B8860B;font-size:16px">${tracking}</span></div>
       <div class="row"><span class="row-label">Vehicle</span><span class="row-value">${vehicle}</span></div>
       <div class="row"><span class="row-label">Service</span><span class="row-value">${service || 'General Service'}</span></div>
-      <div class="row"><span class="row-label">Preferred Date</span><span class="row-value">${date}</span></div>
+      <div class="row"><span class="row-label">Scheduled Date</span><span class="row-value">${date}</span></div>
       ${technicianName ? `<div class="row"><span class="row-label">Assigned Technician</span><span class="row-value">${technicianName}</span></div>` : ''}
     </div>
     <p>You can track your vehicle's repair progress at any time using your tracking number.</p>
-    <a href="${process.env.FRONTEND_URL}/track/${tracking}" class="btn">Track My Vehicle →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/track/${tracking}" class="btn">Track My Vehicle →</a>
   `)
   await send(email, `Booking Confirmed — ${tracking}`, html)
+}
+
+/**
+ * Appointment status update email (e.g. cancelled, in progress, completed)
+ */
+async function sendAppointmentStatusUpdate({ name, email, tracking, vehicle, status }) {
+  const statusLabels = {
+    confirmed:   { label: 'Booking Confirmed', desc: 'Your appointment has been confirmed by our service team.' },
+    in_progress: { label: 'Repair Started',    desc: 'Work on your vehicle has officially begun.' },
+    completed:   { label: 'Vehicle Ready',     desc: 'Your vehicle service is completed and ready for collection.' },
+    cancelled:   { label: 'Booking Cancelled', desc: 'Your appointment booking has been cancelled.' },
+  }
+  const info = statusLabels[status] || { label: `Status Update: ${status}`, desc: 'Your appointment status has been updated.' }
+
+  const html = baseHtml('Appointment Update', `
+    <div class="badge">${info.label}</div>
+    <h2>${info.label}</h2>
+    <p>Hi ${name}, here is an update regarding your booking for <strong>${vehicle}</strong>.</p>
+    <p>${info.desc}</p>
+    <div class="card">
+      <div class="row"><span class="row-label">Booking #</span><span class="row-value">${tracking}</span></div>
+      <div class="row"><span class="row-label">Vehicle</span><span class="row-value">${vehicle}</span></div>
+      <div class="row"><span class="row-label">Current Status</span><span class="row-value" style="font-weight:700">${info.label}</span></div>
+    </div>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/track/${tracking}" class="btn">View Live Status →</a>
+  `)
+  await send(email, `Appointment Update: ${info.label} — ${tracking}`, html)
 }
 
 /**
@@ -161,7 +244,7 @@ async function sendInspectionReady({ name, email, vehicle, tracking, inspectionR
       <div class="row"><span class="row-label">Booking #</span><span class="row-value">${tracking}</span></div>
     </div>
     <p>Repair work cannot begin until you sign off on the inspection.</p>
-    <a href="${process.env.FRONTEND_URL}/dashboard" class="btn">Review & Sign →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">Review & Sign →</a>
   `)
   await send(email, `Inspection Ready — Sign-off Required (${tracking})`, html)
 }
@@ -191,7 +274,7 @@ async function sendRepairUpdate({ name, email, tracking, vehicle, status, progre
       <div class="row"><span class="row-label">Progress</span><span class="row-value">${progress}%</span></div>
     </div>
     <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
-    <a href="${process.env.FRONTEND_URL}/track/${tracking}" class="btn">View Live Tracking →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/track/${tracking}" class="btn">View Live Tracking →</a>
   `)
   await send(email, `Repair Update: ${info.label} — ${tracking}`, html)
 }
@@ -212,7 +295,7 @@ async function sendInvoiceReady({ name, email, tracking, vehicle, invoiceNumber,
       <div class="row"><span class="row-label">Total Amount</span><span class="row-value" style="color:#B8860B;font-size:18px;font-weight:900">${fmt(total)}</span></div>
     </div>
     <p>You can view and print your full invoice from your dashboard.</p>
-    <a href="${process.env.FRONTEND_URL}/dashboard" class="btn">View Invoice →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">View Invoice →</a>
     <p style="margin-top:20px;font-size:13px;color:#6B7280">Payment is due upon vehicle collection. Please bring this reference when collecting your vehicle.</p>
   `)
   await send(email, `Invoice ${invoiceNumber} — ${fmt(total)} Due`, html)
@@ -233,7 +316,7 @@ async function sendNewAccountCredentials({ name, email, password, role }) {
       <div class="row"><span class="row-label">Role</span><span class="row-value">${roleLabel}</span></div>
     </div>
     <p>Please log in and change your password immediately.</p>
-    <a href="${process.env.FRONTEND_URL}/login" class="btn">Login Now →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" class="btn">Login Now →</a>
     <p style="margin-top:20px;font-size:12px;color:#9CA3AF">If you did not expect this email, please contact ${GARAGE} at ${PHONE}.</p>
   `)
   await send(email, `Your AutoMedic ${roleLabel} Account`, html)
@@ -253,13 +336,13 @@ async function sendJobAssigned({ name, email, tracking, vehicle, service }) {
       <div class="row"><span class="row-label">Service</span><span class="row-value">${service}</span></div>
     </div>
     <p>Please log in to view job details and begin the inspection process.</p>
-    <a href="${process.env.FRONTEND_URL}/technician" class="btn">View Job Details →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/technician" class="btn">View Job Details →</a>
   `)
   await send(email, `New Job Assignment — ${tracking}`, html)
 }
 
 /**
- * Password reset email (for backend-only users: admin, technician, stockkeeper)
+ * Password reset email
  */
 async function sendPasswordReset({ name, email, resetUrl, role }) {
   const roleLabel = role === 'admin' ? 'Administrator' : role === 'technician' ? 'Technician' : role === 'stockkeeper' ? 'Stock Keeper' : 'Customer'
@@ -277,14 +360,35 @@ async function sendPasswordReset({ name, email, resetUrl, role }) {
   await send(email, `Password Reset — ${GARAGE}`, html)
 }
 
+/**
+ * Custom email notification sent directly by admin/staff to customer
+ */
+async function sendCustomNotification({ name, email, subject, message }) {
+  const html = baseHtml(subject || 'Update from AutoMedic', `
+    <div class="badge">📩 Garage Notification</div>
+    <h2>Update regarding your vehicle service</h2>
+    <p>Hi ${name},</p>
+    <div class="card">
+      <p style="margin:0;font-size:15px;line-height:1.6;white-space:pre-wrap;color:#1A1A2E">${message}</p>
+    </div>
+    <p>If you have any questions, please feel free to reply or call us at ${PHONE}.</p>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">Go to Dashboard →</a>
+  `)
+  await send(email, subject || `Update from ${GARAGE}`, html)
+}
+
 module.exports = {
   sendTestEmail,
   sendWelcome,
+  sendAppointmentCreated,
   sendAppointmentConfirmed,
+  sendAppointmentStatusUpdate,
   sendInspectionReady,
   sendRepairUpdate,
   sendInvoiceReady,
   sendNewAccountCredentials,
   sendPasswordReset,
   sendJobAssigned,
+  sendCustomNotification,
 }
+

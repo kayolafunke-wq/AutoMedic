@@ -23,7 +23,7 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
     if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
       return res.status(400).json({
         success: false,
-        message: 'Email is not configured. Please set EMAIL_USER and EMAIL_PASS environment variables.',
+        message: 'Email is not configured in process.env. Please set EMAIL_USER and EMAIL_PASS environment variables.',
         config: {
           EMAIL_HOST: process.env.EMAIL_HOST || 'NOT SET',
           EMAIL_PORT: process.env.EMAIL_PORT || 'NOT SET',
@@ -35,7 +35,21 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
 
     // Send test email
     console.log(`📧 Sending test email to ${email}...`)
-    await emailService.sendTestEmail({ email })
+    const result = await emailService.sendTestEmail({ email })
+
+    if (result && result.success === false) {
+      return res.status(500).json({
+        success: false,
+        message: `Failed to send email: ${result.error || result.reason}`,
+        error: result.error || result.reason,
+        config: {
+          EMAIL_HOST: process.env.EMAIL_HOST,
+          EMAIL_PORT: process.env.EMAIL_PORT,
+          EMAIL_FROM: process.env.EMAIL_FROM,
+          EMAIL_USER: process.env.EMAIL_USER
+        }
+      })
+    }
 
     res.json({
       success: true,
@@ -44,7 +58,7 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
         EMAIL_HOST: process.env.EMAIL_HOST,
         EMAIL_PORT: process.env.EMAIL_PORT,
         EMAIL_FROM: process.env.EMAIL_FROM,
-        EMAIL_USER: process.env.EMAIL_USER.substring(0, 3) + '***' // Hide most of email
+        EMAIL_USER: process.env.EMAIL_USER.substring(0, 3) + '***'
       }
     })
   } catch (err) {
@@ -54,6 +68,35 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
       message: 'Failed to send test email: ' + err.message,
       error: err.message
     })
+  }
+})
+
+/**
+ * POST /api/test-email/send-customer
+ * Send a custom email directly to a customer
+ * Admin only
+ */
+router.post('/send-customer', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body
+    if (!email || !message) {
+      return res.status(400).json({ success: false, message: 'Email and message are required' })
+    }
+
+    const result = await emailService.sendCustomNotification({
+      name: name || 'Valued Customer',
+      email,
+      subject: subject || 'Update from AutoMedic Garage',
+      message
+    })
+
+    if (result && result.success === false) {
+      return res.status(500).json({ success: false, message: result.error || result.reason })
+    }
+
+    res.json({ success: true, message: `Email notification sent to ${email}` })
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message })
   }
 })
 
@@ -69,9 +112,9 @@ router.get('/config', authenticate, authorize('admin'), (req, res) => {
     success: true,
     configured: isConfigured,
     config: {
-      EMAIL_HOST: process.env.EMAIL_HOST || 'NOT SET',
-      EMAIL_PORT: process.env.EMAIL_PORT || 'NOT SET',
-      EMAIL_USER: isConfigured ? process.env.EMAIL_USER.substring(0, 3) + '***' : 'NOT SET',
+      EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      EMAIL_PORT: process.env.EMAIL_PORT || '587',
+      EMAIL_USER: isConfigured ? process.env.EMAIL_USER : 'NOT SET',
       EMAIL_FROM: process.env.EMAIL_FROM || 'NOT SET',
       EMAIL_SECURE: process.env.EMAIL_SECURE || 'false',
     },
@@ -88,3 +131,4 @@ router.get('/config', authenticate, authorize('admin'), (req, res) => {
 })
 
 module.exports = router
+

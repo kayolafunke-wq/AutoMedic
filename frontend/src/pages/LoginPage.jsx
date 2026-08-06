@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, Mail, Lock, User, Phone, AlertCircle, CheckCircle, ArrowLeft, Car, Wrench, Settings, Zap } from 'lucide-react'
@@ -31,7 +31,7 @@ function Field({ label, icon, type, value, onChange, placeholder, required, suff
 }
 
 export default function LoginPage() {
-  const { loginWithGoogle, loginWithBackend, register, resetPassword } = useAuth()
+  const { user: currentUser, loginWithGoogle, loginWithBackend, register, resetPassword } = useAuth()
   const navigate  = useNavigate()
   const location  = useLocation()
   // Support both ?redirect= query param and location.state.from
@@ -56,6 +56,13 @@ export default function LoginPage() {
     navigate(dest, { replace: true })
   }
 
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      goAfterLogin(currentUser.role || 'customer')
+    }
+  }, [currentUser])
+
   // ── LOGIN: always use backend directly ──
   const handleLogin = async (e) => {
     e.preventDefault(); setError(''); setLoading(true)
@@ -69,6 +76,8 @@ export default function LoginPage() {
       if (isGoogleAccount) {
         setGoogleOnly(true)
         setError('')
+        // Automatically trigger Google Popup for Google-authenticated accounts!
+        handleGoogle()
       } else {
         setGoogleOnly(false)
         setError(msg)
@@ -76,18 +85,18 @@ export default function LoginPage() {
     } finally { setLoading(false) }
   }
 
-  // ── GOOGLE: customers only ──
+  // ── GOOGLE: 1-click seamless login ──
   const handleGoogle = async () => {
     setError(''); setLoading(true)
     try {
-      await loginWithGoogle()
-      setTimeout(() => {
-        const stored = JSON.parse(localStorage.getItem('am_user') || '{}')
-        goAfterLogin(stored.role || 'customer')
-      }, 1200)
+      const loggedUser = await loginWithGoogle()
+      if (loggedUser) {
+        goAfterLogin(loggedUser.role || 'customer')
+      }
     } catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user')
+      if (err.code !== 'auth/popup-closed-by-user') {
         setError('Google sign-in failed. Please try again.')
+      }
     } finally { setLoading(false) }
   }
 

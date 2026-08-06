@@ -165,6 +165,29 @@ router.post('/', authenticate, authorize('customer'), createAppointmentRules, as
     const r = await db.query('SELECT * FROM appointments WHERE id = $1', [id])
     console.log(`✅ Appointment created: ${tracking}`)
     
+    // Email notification to customer acknowledging booking
+    try {
+      const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [req.user.id])
+      const vehRow  = vehicle_id ? await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = $1', [vehicle_id]) : { rows: [] }
+      const svcRow  = service_id ? await db.query('SELECT name FROM services WHERE id = $1', [service_id]) : { rows: [] }
+
+      if (custRow.rows.length && custRow.rows[0].email) {
+        const vehicleLabel = vehRow.rows.length
+          ? `${vehRow.rows[0].make} ${vehRow.rows[0].model} (${vehRow.rows[0].registration_number})`
+          : 'Vehicle Service'
+        emailService.sendAppointmentCreated({
+          name:     custRow.rows[0].name,
+          email:    custRow.rows[0].email,
+          tracking: tracking,
+          date:     preferred_date,
+          vehicle:  vehicleLabel,
+          service:  svcRow.rows.length ? svcRow.rows[0].name : 'General Service'
+        }).catch(() => {})
+      }
+    } catch (emailErr) {
+      console.warn('Failed to send appointment created email:', emailErr.message)
+    }
+    
     res.status(201).json({ success:true, data:r.rows[0] })
   } catch (err) { 
     console.error(`❌ Appointment creation error:`, err.message)
@@ -194,7 +217,169 @@ router.post('/admin', authenticate, authorize('admin'), adminCreateAppointmentRu
       LEFT JOIN services s ON a.service_id = s.id
       WHERE a.id = $1
     `, [id])
+
+    // Email notification to customer acknowledging booking
+    try {
+      const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [customer_id])
+      if (custRow.rows.length && custRow.rows[0].email) {
+        const apptData = r.rows[0]
+        const vehicleLabel = apptData.make && apptData.model
+          ? `${apptData.make} ${apptData.model} (${apptData.registration_number})`
+          : 'Vehicle Service'
+        emailService.sendAppointmentCreated({
+          name:     custRow.rows[0].name,
+          email:    custRow.rows[0].email,
+          tracking: tracking,
+          date:     preferred_date,
+          vehicle:  vehicleLabel,
+          service:  apptData.service_name || 'General Service'
+        }).catch(() => {})
+      }
+    } catch (emailErr) {
+      console.warn('Failed to send admin-created appointment email:', emailErr.message)
+    }
+
     res.status(201).json({ success:true, data:r.rows[0] })
+  } catch (err) { res.status(400).json({ success:false, message:err.message }) }
+})
+
+// UPDATE (admin: update details, assign technician, confirm)
+router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    const { technician_id, preferred_date, problem_description, status } = req.body
+    
+    // Check if technician changed or assigned
+    const existing = await db.query('SELECT technician_id, status FROM appointments WHERE id = $1', [req.params.id])
+    const oldTechId = existing.rows.length ? existing.rows[0].technician_id : null
+    const oldStatus = existing.rows.length ? existing.rows[0].status : null
+
+    await db.query(`
+      UPDATE appointments 
+      SET technician_id = COALESCE($1, technician_id),
+          preferred_date = COALESCE($2, preferred_date),
+          problem_description = COALESCE($3, problem_description),
+          status = COALESCE($4, status),
+          updated_at = $5
+      WHERE id = $6
+    `, [technician_id||null, preferred_date||null, problem_description||null, status||null, new Date().toISOString(), req.params.id])
+
+    // If technician was newly assigned or changed
+    if (technician_id && technician_id !== oldTechId) {
+      try {
+        const apptInfo = await db.query(`
+          SELECT a.tracking_number, v.make, v.model, v.registration_number, s.name as service_name
+          FROM appointments a
+          LEFT JOIN vehicles v ON a.vehicle_id = v.id
+          LEFT JOIN services s ON a.service_id = s.id
+          WHERE a.id = $1
+        `, [req.params.id])
+        
+        if (apptInfo.rows.length) {
+          const vehicle = apptInfo.rows[0].make && apptInfo.rows[0].model
+            ? `${apptInfo.rows[0].make} ${apptInfo.rows[0].model} (${apptInfo.rows[0].registration_number})`
+            : apptInfo.rows[0].registration_number
+          const service = apptInfo.rows[0].service_name || 'Repair Service'
+          
+          // In-app notification
+          await notify(
+            technician_id,
+            '🔧 New Job Card Assigned',
+            `You have been assigned a new job: ${service} for ${vehicle}. Ref: ${apptInfo.rows[0].tracking_number}`,
+            'info'
+          )
+          
+          // Email notification to technician
+          const techRow = await db.query('SELECT name, email FROM users WHERE id = $1', [technician_id])
+          if (techRow.rows.length && techRow.rows[0].email) {
+            emailService.sendJobAssigned({
+              name:     techRow.rows[0].name,
+              email:    techRow.rows[0].email,
+              tracking: apptInfo.rows[0].tracking_number,
+              vehicle:  vehicle,
+              service:  service,
+            }).catch(() => {})
+          }
+        }
+      } catch (e) {
+        console.error('Failed to send technician notification:', e)
+      }
+
+      const apptDetail = await db.query(
+        'SELECT id FROM appointments WHERE id = $1',
+        [req.params.id]
+      )
+      if (apptDetail.rows.length) {
+        const inspExists = await db.query(
+          'SELECT id FROM inspections WHERE appointment_id = $1',
+          [req.params.id]
+        )
+        if (!inspExists.rows.length) {
+          const inspId = crypto.randomBytes(16).toString('hex')
+          await db.query(
+            `INSERT INTO inspections (id, appointment_id, technician_id, status)
+             VALUES ($1, $2, $3, $4)`,
+            [inspId, req.params.id, technician_id, 'draft']
+          )
+        }
+      }
+    }
+    const r = await db.query('SELECT * FROM appointments WHERE id = $1', [req.params.id])
+    const appt = r.rows[0]
+
+    // Notify customer
+    if (appt.customer_id) {
+      const statusLabels = {
+        confirmed:   'Your appointment has been confirmed',
+        cancelled:   'Your appointment has been cancelled',
+        in_progress: 'Your vehicle repair has started',
+        completed:   'Your vehicle is ready for collection',
+      }
+      const label = statusLabels[status || appt.status]
+      if (label && status !== oldStatus) {
+        await notify(
+          appt.customer_id,
+          label,
+          `Booking ${appt.tracking_number} — ${label.toLowerCase()}.`,
+          status === 'cancelled' ? 'warning' : 'info'
+        )
+      }
+
+      // Send confirmation or update email when status changes
+      if (status && status !== oldStatus) {
+        try {
+          const custRow  = await db.query('SELECT name, email FROM users WHERE id = $1', [appt.customer_id])
+          const techRow  = technician_id ? await db.query('SELECT name FROM users WHERE id = $1', [technician_id]) : { rows: [] }
+          const vehRow   = await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = $1', [appt.vehicle_id])
+          const svcRow   = await db.query('SELECT name FROM services WHERE id = $1', [appt.service_id])
+          
+          if (custRow.rows.length && custRow.rows[0].email) {
+            const vehicleLabel = vehRow.rows.length ? `${vehRow.rows[0].make} ${vehRow.rows[0].model} (${vehRow.rows[0].registration_number})` : 'Your vehicle'
+            
+            if (status === 'confirmed') {
+              emailService.sendAppointmentConfirmed({
+                name:           custRow.rows[0].name,
+                email:          custRow.rows[0].email,
+                tracking:       appt.tracking_number,
+                date:           appt.preferred_date,
+                vehicle:        vehicleLabel,
+                service:        svcRow.rows.length ? svcRow.rows[0].name : 'General Service',
+                technicianName: techRow.rows.length ? techRow.rows[0].name : null,
+              }).catch(() => {})
+            } else {
+              emailService.sendAppointmentStatusUpdate({
+                name:     custRow.rows[0].name,
+                email:    custRow.rows[0].email,
+                tracking: appt.tracking_number,
+                vehicle:  vehicleLabel,
+                status:   status,
+              }).catch(() => {})
+            }
+          }
+        } catch (_) { /* email errors are non-fatal */ }
+      }
+    }
+
+    res.json({ success:true, data:appt })
   } catch (err) { res.status(400).json({ success:false, message:err.message }) }
 })
 
@@ -332,18 +517,39 @@ router.patch('/:id/status', authenticate, authorize('admin','technician'), async
       [status, new Date().toISOString(), req.params.id])
 
     // Notify customer of status change
-    const r = await db.query('SELECT customer_id, tracking_number FROM appointments WHERE id=$1', [req.params.id])
+    const r = await db.query('SELECT customer_id, tracking_number, vehicle_id FROM appointments WHERE id=$1', [req.params.id])
     if (r.rows.length && r.rows[0].customer_id) {
-      const { customer_id, tracking_number } = r.rows[0]
+      const { customer_id, tracking_number, vehicle_id } = r.rows[0]
       const statusLabels = {
         in_progress: 'Your vehicle repair has started',
         completed:   'Your vehicle is ready for collection',
         cancelled:   'Your appointment has been cancelled',
+        confirmed:   'Your appointment has been confirmed',
       }
       const label = statusLabels[status]
       if (label) {
         await notify(customer_id, label, `Booking ${tracking_number} — ${label.toLowerCase()}.`,
           status === 'cancelled' ? 'warning' : 'info')
+      }
+
+      // Send email update to customer
+      try {
+        const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [customer_id])
+        const vehRow  = vehicle_id ? await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = $1', [vehicle_id]) : { rows: [] }
+        if (custRow.rows.length && custRow.rows[0].email) {
+          const vehicleLabel = vehRow.rows.length
+            ? `${vehRow.rows[0].make} ${vehRow.rows[0].model} (${vehRow.rows[0].registration_number})`
+            : 'your vehicle'
+          emailService.sendAppointmentStatusUpdate({
+            name:     custRow.rows[0].name,
+            email:    custRow.rows[0].email,
+            tracking: tracking_number,
+            vehicle:  vehicleLabel,
+            status:   status,
+          }).catch(() => {})
+        }
+      } catch (e) {
+        console.warn('Failed to send status update email:', e.message)
       }
     }
 

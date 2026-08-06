@@ -96,4 +96,11 @@ api.interceptors.response.use(
   }
 )
 
+export const testEmailApi = {
+  getConfig: () => api.get('/test-email/config'),
+  sendTest: (email) => api.post('/test-email', { email }),
+  sendCustomerEmail: (data) => api.post('/test-email/send-customer', data),
+}
+
 export default api
+
