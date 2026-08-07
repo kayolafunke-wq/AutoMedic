@@ -490,20 +490,27 @@ router.patch('/:id/assign', authenticate, authorize('admin'), assignAppointmentR
         try {
           const custRow  = await db.query('SELECT name, email FROM users WHERE id = $1', [appt.customer_id])
           const techRow  = await db.query('SELECT name FROM users WHERE id = $1', [technician_id])
-          const vehRow   = await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = $1', [appt.vehicle_id])
-          const svcRow   = await db.query('SELECT name FROM services WHERE id = $1', [appt.service_id])
+          // Guard: only query vehicle/service if IDs exist (they are optional)
+          const vehRow   = appt.vehicle_id ? await db.query('SELECT make, model, registration_number FROM vehicles WHERE id = $1', [appt.vehicle_id]) : { rows: [] }
+          const svcRow   = appt.service_id ? await db.query('SELECT name FROM services WHERE id = $1', [appt.service_id]) : { rows: [] }
           if (custRow.rows.length && custRow.rows[0].email) {
+            const vehicleLabel = vehRow.rows.length ? `${vehRow.rows[0].make} ${vehRow.rows[0].model} (${vehRow.rows[0].registration_number})` : 'Your vehicle'
+            console.log(`[EMAIL] Sending confirmation to ${custRow.rows[0].email} for booking ${appt.tracking_number}`)
             emailService.sendAppointmentConfirmed({
               name:           custRow.rows[0].name,
               email:          custRow.rows[0].email,
               tracking:       appt.tracking_number,
               date:           appt.preferred_date,
-              vehicle:        vehRow.rows.length ? `${vehRow.rows[0].make} ${vehRow.rows[0].model} (${vehRow.rows[0].registration_number})` : 'Your vehicle',
+              vehicle:        vehicleLabel,
               service:        svcRow.rows.length ? svcRow.rows[0].name : 'General Service',
               technicianName: techRow.rows.length ? techRow.rows[0].name : null,
-            }).catch(() => {})
+            }).catch(e => console.error('[EMAIL] Failed to send confirmation:', e.message))
+          } else {
+            console.warn('[EMAIL] Customer has no email or not found, skipping confirmation email')
           }
-        } catch (_) { /* email errors are non-fatal */ }
+        } catch (emailErr) {
+          console.error('[EMAIL] Error preparing confirmation email:', emailErr.message)
+        }
       }
     }
 
