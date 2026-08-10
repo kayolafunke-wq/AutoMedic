@@ -1253,30 +1253,49 @@ export default function CustomerDashboard() {
               ):(
                 <div className="space-y-4">
                   {/* Unpaid banner */}
-                  {invoices.some(i=>i.status==='unpaid') && (
-                    <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-start gap-4">
-                      <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">⚠️</div>
-                      <div className="flex-1">
-                        <p className="font-bold text-red-700 text-sm">Payment Required</p>
-                        <p className="text-xs text-red-600 mt-1 leading-relaxed">
-                          You have <strong>{invoices.filter(i=>i.status==='unpaid').length} unpaid invoice{invoices.filter(i=>i.status==='unpaid').length!==1?'s':''}</strong> totalling <strong>MK {invoices.filter(i=>i.status==='unpaid').reduce((s,i)=>s+Number(i.total||0),0).toLocaleString()}</strong>.
+                  {invoices.some(i => i.status === 'unpaid') && (
+                    <div className="bg-red-50/90 border border-red-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start gap-3 sm:gap-4 shadow-sm">
+                      <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0 text-red-600">
+                        <AlertTriangle size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-red-800 text-sm sm:text-base">Payment Required</p>
+                        <p className="text-xs sm:text-sm text-red-700 mt-1 leading-relaxed">
+                          You have <strong className="font-extrabold text-red-900">{invoices.filter(i => i.status === 'unpaid').length} unpaid invoice{invoices.filter(i => i.status === 'unpaid').length !== 1 ? 's' : ''}</strong> totalling <strong className="font-extrabold text-red-900">MK {invoices.filter(i => i.status === 'unpaid').reduce((s, i) => s + Number(i.total || 0), 0).toLocaleString()}</strong>.
                           Please settle payment at the AutoMedic reception desk when collecting your vehicle.
                         </p>
-                        <div className="flex gap-3 mt-3">
-                          <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-green-500 hover:bg-green-600 transition-colors px-3 py-1.5 rounded-full">
-                            💬 WhatsApp Us
+                        
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <a 
+                            href={`https://wa.me/${(safeSettings.whatsapp || safeSettings.phone || '265994040900').replace(/\D/g, '')}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-green-500 hover:bg-green-600 active:scale-[0.98] transition-all px-3 py-1.5 rounded-lg shadow-sm"
+                          >
+                            <WhatsAppIcon className="w-3.5 h-3.5 fill-current" />
+                            <span>WhatsApp Reception</span>
                           </a>
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-600 bg-red-100 px-3 py-1.5 rounded-full">
-                            {safeSettings.address} · {safeSettings.phone}
-                          </span>
+                          
+                          {safeSettings.address && (
+                            <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100/80 px-2.5 py-1.5 rounded-lg border border-red-200/60 max-w-full truncate">
+                              <MapPin size={12} className="text-red-500 flex-shrink-0" />
+                              <span className="truncate">{safeSettings.address}</span>
+                            </div>
+                          )}
+                          
+                          {safeSettings.phone && (
+                            <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100/80 px-2.5 py-1.5 rounded-lg border border-red-200/60">
+                              <Phone size={12} className="text-red-500 flex-shrink-0" />
+                              <span>{safeSettings.phone}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   )}
 
                   {/* All paid banner */}
-                  {invoices.length > 0 && invoices.every(i=>i.status==='paid') && (
+                  {invoices.length > 0 && invoices.every(i => i.status === 'paid') && (
                     <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
                       <CheckCircle size={20} className="text-green-500 flex-shrink-0"/>
                       <p className="text-sm font-semibold text-green-700">All invoices paid — thank you! 🎉</p>
@@ -1285,12 +1304,12 @@ export default function CustomerDashboard() {
 
                   {/* Invoice cards */}
                   <div className="space-y-3">
-                  {invoices.map((inv,i)=>{
+                  {invoices.map((inv, i) => {
                     const isPaid = inv.status === 'paid'
                     const isPartial = inv.status === 'partial'
-                    const total = Number(inv.total||0)
+                    const total = Number(inv.total || 0)
                     return (
-                      <div key={inv.id||i}
+                      <div key={inv.id || i}
                         className={`bg-white rounded-2xl shadow-sm border-[1.5px] overflow-hidden transition-all
                           ${isPaid ? 'border-green-100' : isPartial ? 'border-amber-200' : 'border-red-200'}`}>
                         {/* Status stripe */}
@@ -1299,13 +1318,13 @@ export default function CustomerDashboard() {
                           <div className="flex justify-between items-start mb-3">
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-black text-[#1A1A2E] text-sm">#{inv.invoice_number||inv.tracking_number}</span>
+                                <span className="font-black text-[#1A1A2E] text-sm">#{inv.invoice_number || inv.tracking_number}</span>
                                 <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full capitalize
                                   ${isPaid ? 'bg-green-50 text-green-600 border border-green-200' : isPartial ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
                                   {isPaid ? '✓ Paid' : isPartial ? '⏳ Partial' : '⚠ Unpaid'}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-400 mt-1">{new Date(inv.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</p>
+                              <p className="text-xs text-gray-400 mt-1">{new Date(inv.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                             </div>
                             <div className="text-right">
                               <p className="font-black text-[#B8860B] text-xl">MK {total.toLocaleString()}</p>
@@ -1315,20 +1334,22 @@ export default function CustomerDashboard() {
 
                           <div className="bg-gray-50 rounded-xl p-3 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs">
                             <div><p className="text-gray-400 mb-0.5">Vehicle</p><p className="font-semibold text-[#1A1A2E]">{inv.make} {inv.model}</p></div>
-                            <div><p className="text-gray-400 mb-0.5">Registration</p><p className="font-semibold text-[#1A1A2E]">{inv.registration_number||'—'}</p></div>
-                            <div><p className="text-gray-400 mb-0.5">Service</p><p className="font-semibold text-[#1A1A2E] truncate">{inv.service_name||'—'}</p></div>
+                            <div><p className="text-gray-400 mb-0.5">Registration</p><p className="font-semibold text-[#1A1A2E]">{inv.registration_number || '—'}</p></div>
+                            <div><p className="text-gray-400 mb-0.5">Service</p><p className="font-semibold text-[#1A1A2E] truncate">{inv.service_name || '—'}</p></div>
                           </div>
 
                           {/* Payment status message */}
                           {!isPaid && (
                             <div className={`rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs
                               ${isPartial ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
-                              <span className="text-base">{isPartial ? '⏳' : '💳'}</span>
-                              <div>
-                                <p className={`font-bold ${isPartial ? 'text-amber-700' : 'text-red-700'}`}>
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isPartial ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+                                <CreditCard size={14} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-bold ${isPartial ? 'text-amber-800' : 'text-red-800'}`}>
                                   {isPartial ? 'Partial payment received' : 'Payment pending'}
                                 </p>
-                                <p className={`mt-0.5 ${isPartial ? 'text-amber-600' : 'text-red-600'}`}>
+                                <p className={`mt-0.5 text-xs leading-relaxed ${isPartial ? 'text-amber-700' : 'text-red-700'}`}>
                                   {isPartial
                                     ? 'A partial payment has been recorded. Please settle the remaining balance at reception.'
                                     : 'Please pay MK ' + total.toLocaleString() + ' at the AutoMedic reception when collecting your vehicle.'}
