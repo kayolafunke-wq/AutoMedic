@@ -288,16 +288,22 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
           ready:         'Your vehicle is ready for collection! 🎉',
           completed:     'Service completed. Thank you for choosing AutoMedic!',
         }
-        const newStatus = status || jc.status
-        if (statusLabels[newStatus] && newStatus !== jc.status) {
+        const newStatus   = status || jc.status
+        const newProgress = progress ?? jc.progress
+        const isStatusChange   = statusLabels[newStatus] && newStatus !== jc.status
+        const isProgressChange = progress !== undefined && Number(progress) !== Number(jc.progress)
+
+        if (isStatusChange || isProgressChange) {
+          const notifMsg = statusLabels[newStatus] || `Job ${tracking_number} — repair progress updated to ${newProgress}%`
           await notify(
             customer_id,
-            statusLabels[newStatus],
-            `Job ${tracking_number} — ${statusLabels[newStatus].toLowerCase()}`,
+            notifMsg,
+            `Job ${tracking_number} — ${notifMsg.toLowerCase()}`,
             newStatus === 'ready' || newStatus === 'completed' ? 'success' : 'info'
           )
+          console.log(`[JOB] In-app notification created for customer_id: ${customer_id}`)
 
-          // Email for key status transitions
+          // Email notification for progress / status updates
           try {
             const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [customer_id])
             const vehRow  = await db.query(`
@@ -305,20 +311,31 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
               FROM appointments a LEFT JOIN vehicles v ON a.vehicle_id = v.id
               WHERE a.id = $1
             `, [jc.appointment_id])
+
             if (custRow.rows.length && custRow.rows[0].email) {
               const vehicleLabel = vehRow.rows.length
                 ? `${vehRow.rows[0].make} ${vehRow.rows[0].model} (${vehRow.rows[0].registration_number})`
                 : 'your vehicle'
+
+              console.log(`[JOB] Sending repair update email to ${custRow.rows[0].email} (Status: ${newStatus}, Progress: ${newProgress}%)`)
               emailService.sendRepairUpdate({
                 name:     custRow.rows[0].name,
                 email:    custRow.rows[0].email,
                 tracking: tracking_number,
                 vehicle:  vehicleLabel,
                 status:   newStatus,
-                progress: progress ?? jc.progress,
-              }).catch(() => {})
+                progress: newProgress,
+              }).then((result) => {
+                console.log(`[JOB] Repair update email result for ${custRow.rows[0].email}:`, JSON.stringify(result))
+              }).catch((err) => {
+                console.error(`[JOB] Repair update email FAILED for ${custRow.rows[0].email}:`, err.message)
+              })
+            } else {
+              console.warn(`[JOB] Customer ${customer_id} has no email address — skipping email`)
             }
-          } catch (_) {}
+          } catch (emailErr) {
+            console.error(`[JOB] Error looking up customer email:`, emailErr.message)
+          }
         }
       }
     } catch (_) { /* socket errors are non-fatal */ }

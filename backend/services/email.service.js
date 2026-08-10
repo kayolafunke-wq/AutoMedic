@@ -110,19 +110,25 @@ function baseHtml(title, bodyHtml) {
 
 // ── SEND HELPER ───────────────────────────────────────────────────────────────
 async function send(to, subject, html) {
+  // Allow redirecting all outbound emails to a test inbox during development
+  const recipient = process.env.EMAIL_OVERRIDE || to
+
   // ── Resend API path (works in containers) ──
   if (USE_RESEND && resend) {
     const fromEmail = process.env.RESEND_FROM || process.env.EMAIL_FROM || `AutoMedic <onboarding@resend.dev>`
     try {
-      const { data, error } = await resend.emails.send({ from: fromEmail, to, subject, html })
+      const { data, error } = await resend.emails.send({ from: fromEmail, to: recipient, subject, html })
       if (error) {
-        console.error(`[EMAIL] Resend API error sending to ${to}:`, JSON.stringify(error))
+        console.error(`[EMAIL] Resend API error sending to ${recipient}:`, JSON.stringify(error))
+        if (error.message && error.message.includes('only send to your own email')) {
+          console.error(`[EMAIL DIAGNOSTIC] Resend free sandbox (onboarding@resend.dev) only sends to your signup email (kayolafunke@gmail.com). To send to real customer addresses like ${to}, add a domain at https://resend.com/domains or set EMAIL_OVERRIDE=kayolafunke@gmail.com in Railway variables for testing.`)
+        }
         return { success: false, error: error.message || JSON.stringify(error) }
       }
-      console.log(`[EMAIL] Resend sent to ${to}: ${subject} (id: ${data?.id})`)
+      console.log(`[EMAIL] Resend sent to ${recipient}${process.env.EMAIL_OVERRIDE ? ` (original: ${to})` : ''}: ${subject} (id: ${data?.id})`)
       return { success: true, messageId: data?.id }
     } catch (err) {
-      console.error(`[EMAIL] Resend exception sending to ${to}:`, err.message)
+      console.error(`[EMAIL] Resend exception sending to ${recipient}:`, err.message)
       return { success: false, error: err.message }
     }
   }
