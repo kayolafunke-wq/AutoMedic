@@ -83,13 +83,7 @@ function baseHtml(title, bodyHtml) {
             <tr>
               <!-- Logo Image Badge -->
               <td style="vertical-align:middle;padding-right:14px;">
-                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-                  <tr>
-                    <td style="background-color:#FFFFFF;border-radius:12px;padding:6px 10px;text-align:center;vertical-align:middle;">
-                      <img src="${logoUrl}" alt="AutoMedic" width="38" style="display:block;width:38px;height:auto;max-height:38px;object-fit:contain;border:0;" />
-                    </td>
-                  </tr>
-                </table>
+                <img src="${logoUrl}" alt="AutoMedic" width="44" height="44" style="display:block;width:44px;height:44px;border-radius:12px;object-fit:cover;border:0;" />
               </td>
               <!-- Brand Name -->
               <td style="vertical-align:middle;color:#FFFFFF;font-family:'Segoe UI',Arial,sans-serif;font-weight:900;font-size:22px;line-height:1;letter-spacing:-0.5px;">
