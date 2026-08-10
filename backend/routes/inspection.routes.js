@@ -297,37 +297,70 @@ router.patch('/:id/complete', authenticate, authorize('technician','admin'), asy
 
     // Notify customer if inspection is ready
     if (newStatus === 'pending') {
-      const apptInfo = await db.query(`
-        SELECT a.customer_id, a.tracking_number, v.make, v.model, v.registration_number
-        FROM appointments a
-        LEFT JOIN vehicles v ON a.vehicle_id = v.id
-        WHERE a.id = $1
-      `, [insp.appointment_id])
+      console.log(`[INSPECT] Status is 'pending' — looking up customer for appointment_id: ${insp.appointment_id}`)
 
-      if (apptInfo.rows.length && apptInfo.rows[0].customer_id) {
-        const { customer_id, tracking_number, make, model, registration_number } = apptInfo.rows[0]
-        const vehicleLabel = (make && model) ? `your ${make} ${model} (${registration_number})` : 'your vehicle'
+      let customer_id = insp.customer_id
+      let tracking_number = insp.reference_number
+      let vehicleLabel = 'your vehicle'
 
+      // Try to get full info from appointment
+      if (insp.appointment_id) {
+        const apptInfo = await db.query(`
+          SELECT a.customer_id, a.tracking_number, v.make, v.model, v.registration_number
+          FROM appointments a
+          LEFT JOIN vehicles v ON a.vehicle_id = v.id
+          WHERE a.id = $1
+        `, [insp.appointment_id])
+
+        if (apptInfo.rows.length && apptInfo.rows[0].customer_id) {
+          customer_id     = apptInfo.rows[0].customer_id
+          tracking_number = apptInfo.rows[0].tracking_number || tracking_number
+          const { make, model, registration_number } = apptInfo.rows[0]
+          vehicleLabel = (make && model) ? `your ${make} ${model} (${registration_number})` : 'your vehicle'
+          console.log(`[INSPECT] Found appointment — customer_id: ${customer_id}, tracking: ${tracking_number}`)
+        } else {
+          console.warn(`[INSPECT] No appointment rows found for appointment_id: ${insp.appointment_id}`)
+        }
+      } else {
+        console.warn(`[INSPECT] Inspection has no appointment_id — using inspection.customer_id: ${customer_id}`)
+      }
+
+      if (customer_id) {
+        // Send in-app notification
         await notify(
           customer_id,
           '🔍 Vehicle Inspection Ready — Your Signature Needed',
           `AutoMedic has completed the inspection of ${vehicleLabel}. Please review the inspection report on your dashboard and sign digitally to authorise repair work. Ref: ${tracking_number}`,
           'warning'
         )
+        console.log(`[INSPECT] In-app notification sent to customer_id: ${customer_id}`)
 
-        // Send email
+        // Send email notification
         try {
           const custRow = await db.query('SELECT name, email FROM users WHERE id = $1', [customer_id])
+          console.log(`[INSPECT] Customer lookup result: ${JSON.stringify(custRow.rows[0] || null)}`)
           if (custRow.rows.length && custRow.rows[0].email) {
+            const { name, email } = custRow.rows[0]
+            console.log(`[INSPECT] Sending inspection email to: ${email}`)
             emailService.sendInspectionReady({
-              name:          custRow.rows[0].name,
-              email:         custRow.rows[0].email,
+              name,
+              email,
               vehicle:       vehicleLabel,
               tracking:      tracking_number,
               inspectionRef: tracking_number,
-            }).catch(() => {})
+            }).then((result) => {
+              console.log(`[INSPECT] Email result for ${email}:`, JSON.stringify(result))
+            }).catch((err) => {
+              console.error(`[INSPECT] Email FAILED for ${email}:`, err.message)
+            })
+          } else {
+            console.warn(`[INSPECT] Customer has no email address — skipping email`)
           }
-        } catch (_) {}
+        } catch (emailErr) {
+          console.error(`[INSPECT] Error looking up customer email:`, emailErr.message)
+        }
+      } else {
+        console.warn(`[INSPECT] Cannot notify — no customer_id found for inspection ${req.params.id}`)
       }
     }
 

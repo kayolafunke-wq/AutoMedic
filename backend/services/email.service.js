@@ -1,8 +1,24 @@
 const nodemailer = require('nodemailer')
 
-// ── TRANSPORT ─────────────────────────────────────────────────────────────────
-const isGmail = (process.env.EMAIL_HOST || 'smtp.gmail.com').includes('gmail')
+// ── TRANSPORT SELECTION ────────────────────────────────────────────────────────
+// Production containers (Railway, Render, Fly.io, etc.) block SMTP ports 25/465/587.
+// If RESEND_API_KEY is set, we use Resend's HTTPS API (port 443 — never blocked).
+// Otherwise we fall back to SMTP/Nodemailer (fine for local dev).
 
+const USE_RESEND = !!process.env.RESEND_API_KEY
+
+let resend = null
+if (USE_RESEND) {
+  try {
+    const { Resend } = require('resend')
+    resend = new Resend(process.env.RESEND_API_KEY)
+    console.log('[EMAIL] Using Resend API (HTTPS) for email delivery')
+  } catch (e) {
+    console.warn('[EMAIL] resend package not found — falling back to SMTP. Run: npm install resend')
+  }
+}
+
+// ── SMTP TRANSPORT ─────────────────────────────────────────────────────────────
 function getTransporter() {
   const user = (process.env.EMAIL_USER || '').trim()
   const pass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
@@ -11,7 +27,9 @@ function getTransporter() {
     port:   Number(process.env.EMAIL_PORT || 587),
     secure: process.env.EMAIL_SECURE === 'true',
     auth: { user, pass },
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 15000,
+    greetingTimeout:   10000,
   })
 }
 
@@ -20,10 +38,10 @@ function getFromEmail() {
   return process.env.EMAIL_FROM || `AutoMedic <${user || 'noreply@automedic.mw'}>`
 }
 
-
-const GARAGE  = process.env.GARAGE_NAME   || 'AutoMedic Garage'
-const PHONE   = process.env.GARAGE_PHONE  || '+265 999 000 000'
-const ADDRESS = process.env.GARAGE_ADDRESS|| 'Area 47, Lilongwe, Malawi'
+// ── GARAGE INFO ────────────────────────────────────────────────────────────────
+const GARAGE  = process.env.GARAGE_NAME    || 'AutoMedic Garage'
+const PHONE   = process.env.GARAGE_PHONE   || '+265 999 000 000'
+const ADDRESS = process.env.GARAGE_ADDRESS || 'Area 47, Lilongwe, Malawi'
 const WA      = process.env.GARAGE_WHATSAPP || '+265999000000'
 
 // ── BASE TEMPLATE ─────────────────────────────────────────────────────────────
@@ -96,21 +114,41 @@ function baseHtml(title, bodyHtml) {
 
 // ── SEND HELPER ───────────────────────────────────────────────────────────────
 async function send(to, subject, html) {
+  // ── Resend API path (works in containers) ──
+  if (USE_RESEND && resend) {
+    const fromEmail = process.env.RESEND_FROM || process.env.EMAIL_FROM || `AutoMedic <onboarding@resend.dev>`
+    try {
+      const { data, error } = await resend.emails.send({ from: fromEmail, to, subject, html })
+      if (error) {
+        console.error(`[EMAIL] Resend API error sending to ${to}:`, JSON.stringify(error))
+        return { success: false, error: error.message || JSON.stringify(error) }
+      }
+      console.log(`[EMAIL] Resend sent to ${to}: ${subject} (id: ${data?.id})`)
+      return { success: true, messageId: data?.id }
+    } catch (err) {
+      console.error(`[EMAIL] Resend exception sending to ${to}:`, err.message)
+      return { success: false, error: err.message }
+    }
+  }
+
+  // ── SMTP/Nodemailer path (local dev) ──
   if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
-    // Email not configured — log instead of crashing
     console.log(`[EMAIL] (not configured) To: ${to} | Subject: ${subject}`)
-    return { success: false, reason: 'Email not configured in process.env.EMAIL_USER' }
+    return { success: false, reason: 'Email not configured in .env' }
   }
   try {
     const transporter = getTransporter()
     const from = getFromEmail()
     const info = await transporter.sendMail({ from, to, subject, html })
-    console.log(`[EMAIL] Sent to ${to}: ${subject} (Message ID: ${info.messageId})`)
+    console.log(`[EMAIL] SMTP sent to ${to}: ${subject} (Message ID: ${info.messageId})`)
     return { success: true, messageId: info.messageId }
   } catch (err) {
-    console.error(`[EMAIL] Failed to send to ${to}:`, err.message)
+    console.error(`[EMAIL] SMTP failed to send to ${to}:`, err.message)
     if (err.message && err.message.includes('Invalid login')) {
-      console.error(`[EMAIL DIAGNOSTIC] Gmail credentials rejected. Please make sure you are using a 16-character App Password from https://myaccount.google.com/apppasswords rather than your regular Google password.`)
+      console.error(`[EMAIL DIAGNOSTIC] Gmail credentials rejected. Use a 16-character App Password from https://myaccount.google.com/apppasswords`)
+    }
+    if (err.message && (err.message.includes('timeout') || err.message.includes('ECONNREFUSED'))) {
+      console.error(`[EMAIL DIAGNOSTIC] SMTP connection blocked — your host likely blocks port 587/465. Set RESEND_API_KEY in your environment to use the Resend API instead (free at https://resend.com).`)
     }
     return { success: false, error: err.message }
   }
@@ -133,11 +171,11 @@ async function sendTestEmail({ email }) {
       </div>
       <div class="row">
         <span class="row-label">Email Provider</span>
-        <span class="row-value">${process.env.EMAIL_HOST || 'smtp.gmail.com'}</span>
+        <span class="row-value">${USE_RESEND ? 'Resend API (HTTPS)' : (process.env.EMAIL_HOST || 'smtp.gmail.com')}</span>
       </div>
       <div class="row">
         <span class="row-label">From Email</span>
-        <span class="row-value">${getFromEmail()}</span>
+        <span class="row-value">${USE_RESEND ? (process.env.RESEND_FROM || 'onboarding@resend.dev') : getFromEmail()}</span>
       </div>
     </div>
     <p>If you received this email, your email configuration is working perfectly! 🎉</p>
@@ -244,9 +282,9 @@ async function sendInspectionReady({ name, email, vehicle, tracking, inspectionR
       <div class="row"><span class="row-label">Booking #</span><span class="row-value">${tracking}</span></div>
     </div>
     <p>Repair work cannot begin until you sign off on the inspection.</p>
-    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">Review & Sign →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">Review &amp; Sign →</a>
   `)
-  await send(email, `Inspection Ready — Sign-off Required (${tracking})`, html)
+  return await send(email, `Inspection Ready — Sign-off Required (${tracking})`, html)
 }
 
 /**
@@ -374,7 +412,7 @@ async function sendCustomNotification({ name, email, subject, message }) {
     <p>If you have any questions, please feel free to reply or call us at ${PHONE}.</p>
     <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" class="btn">Go to Dashboard →</a>
   `)
-  await send(email, subject || `Update from ${GARAGE}`, html)
+  return await send(email, subject || `Update from ${GARAGE}`, html)
 }
 
 module.exports = {
@@ -391,4 +429,3 @@ module.exports = {
   sendJobAssigned,
   sendCustomNotification,
 }
-
