@@ -281,31 +281,37 @@ async function sendInspectionReady({ name, email, vehicle, tracking, inspectionR
 /**
  * Repair progress update
  */
-async function sendRepairUpdate({ name, email, tracking, vehicle, status, progress }) {
+async function sendRepairUpdate({ name, email, tracking, vehicle, status, progress, notes }) {
   const statusMessages = {
     diagnosis:     { label: 'Diagnosis in Progress', desc: 'Our technician is currently diagnosing your vehicle.' },
-    parts_ordered: { label: 'Parts Ordered',          desc: 'Parts have been ordered and are on their way.' },
+    parts_ordered: { label: 'Parts Ordered',          desc: 'Parts have been ordered for your vehicle.' },
     in_progress:   { label: 'Repair in Progress',     desc: 'Active repair work has started on your vehicle.' },
     quality_check: { label: 'Quality Check',           desc: 'Your vehicle is undergoing a final quality inspection.' },
     ready:         { label: '🎉 Vehicle Ready!',        desc: 'Your vehicle is ready for collection. Please visit us at your earliest convenience.' },
     completed:     { label: 'Service Completed',       desc: `Thank you for choosing ${GARAGE}. Your service has been completed.` },
   }
-  const info = statusMessages[status] || { label: `Status: ${status}`, desc: 'Your repair status has been updated.' }
+  const info = statusMessages[status] || { label: `Status Update: ${status}`, desc: 'Your repair status has been updated.' }
+  const mainText = notes || info.desc
 
   const html = baseHtml('Repair Update', `
     <div class="badge">🔧 Repair Update</div>
     <h2>${info.label}</h2>
-    <p>Hi ${name}, here's an update on your vehicle <strong>${vehicle}</strong>.</p>
-    <p>${info.desc}</p>
-    <div class="card">
-      <div class="row"><span class="row-label">Booking #</span><span class="row-value">${tracking}</span></div>
-      <div class="row"><span class="row-label">Status</span><span class="row-value">${info.label}</span></div>
-      <div class="row"><span class="row-label">Progress</span><span class="row-value">${progress}%</span></div>
+    <p>Hi ${name}, here is the latest update regarding your vehicle <strong>${vehicle}</strong>:</p>
+    
+    <div class="card" style="border-left: 4px solid #B8860B; background-color: #F8F9FA; padding: 16px 20px; margin: 20px 0;">
+      <p style="margin:0; font-size:15px; font-weight:600; color:#1A1A2E; line-height:1.6;">${mainText}</p>
     </div>
+
+    <div class="card">
+      <div class="row"><span class="row-label">Booking / Tracking #</span><span class="row-value" style="color:#B8860B;font-size:15px;font-weight:700;">${tracking}</span></div>
+      <div class="row"><span class="row-label">Current Status</span><span class="row-value" style="font-weight:700;">${info.label}</span></div>
+      <div class="row"><span class="row-label">Completion Progress</span><span class="row-value" style="font-weight:700;color:#B8860B;">${progress}%</span></div>
+    </div>
+    
     <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
-    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/track/${tracking}" class="btn">View Live Tracking →</a>
+    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/track/${tracking}" class="btn">View Live Progress →</a>
   `)
-  await send(email, `Repair Update: ${info.label} — ${tracking}`, html)
+  return await send(email, `Repair Update: ${info.label} (${progress}%) — ${tracking}`, html)
 }
 
 /**

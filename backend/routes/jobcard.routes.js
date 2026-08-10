@@ -325,6 +325,7 @@ router.patch('/:id/progress', authenticate, authorize('technician','admin'), upd
                 vehicle:  vehicleLabel,
                 status:   newStatus,
                 progress: newProgress,
+                notes:    technician_notes || notifMsg,
               }).then((result) => {
                 console.log(`[JOB] Repair update email result for ${custRow.rows[0].email}:`, JSON.stringify(result))
               }).catch((err) => {
