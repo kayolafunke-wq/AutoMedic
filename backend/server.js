@@ -69,7 +69,8 @@ app.use(express.urlencoded({ extended: true, limit: '15mb' }))
 
 app.use(passport.initialize())
 
-// Static uploads
+// Static files & uploads
+app.use('/public', express.static(path.join(__dirname, 'public')))
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 // Setup Swagger API Documentation

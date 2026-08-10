@@ -46,7 +46,7 @@ const WA      = process.env.GARAGE_WHATSAPP || '+265999000000'
 
 // ── BASE TEMPLATE ─────────────────────────────────────────────────────────────
 function baseHtml(title, bodyHtml) {
-  const logoUrl = process.env.LOGO_URL || 'https://automedic-mw.up.railway.app/uploads/logo.jpg'
+  const logoUrl = process.env.LOGO_URL || 'https://automedic-mw.up.railway.app/public/logo.jpg'
 
   return `<!DOCTYPE html>
 <html>
