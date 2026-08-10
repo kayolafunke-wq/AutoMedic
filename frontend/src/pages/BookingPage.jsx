@@ -15,6 +15,7 @@ export default function BookingPage() {
 
   const [services, setServices] = useState([])
   const [vehicles, setVehicles] = useState([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [submitted, setSubmitted] = useState(null)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
@@ -198,8 +199,11 @@ export default function BookingPage() {
                         <Car size={14} /> Select From Your Saved Vehicles
                       </label>
                       <select
+                        value={selectedVehicleId}
                         onChange={(e) => {
-                          const v = vehicles.find(item => item.id === e.target.value)
+                          const val = e.target.value
+                          setSelectedVehicleId(val)
+                          const v = vehicles.find(item => item.id === val)
                           if (v) {
                             setForm(f => ({
                               ...f,
@@ -210,16 +214,22 @@ export default function BookingPage() {
                               registration_number: v.registration_number || '',
                               chassis_number: v.chassis_number || ''
                             }))
+                          } else {
+                            setForm(f => ({
+                              ...f,
+                              make: '', model: '', year: '', color: '', registration_number: '', chassis_number: ''
+                            }))
                           }
                         }}
                         className="w-full px-3.5 py-2.5 bg-white border border-amber-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:border-primary">
+                        <option value="">-- Choose a saved vehicle (or enter new below) --</option>
                         {vehicles.map(v => (
                           <option key={v.id} value={v.id}>
                             🚗 {v.make} {v.model} ({v.registration_number})
                           </option>
                         ))}
                       </select>
-                      <p className="text-[11px] text-gray-500 mt-1">Vehicle details auto-filled below! Edit if needed.</p>
+                      <p className="text-[11px] text-gray-500 mt-1">Vehicle details auto-filled below! You can change service type and problem description.</p>
                     </div>
                   )}
 
