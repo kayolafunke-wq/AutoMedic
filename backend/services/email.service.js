@@ -46,6 +46,8 @@ const WA      = process.env.GARAGE_WHATSAPP || '+265999000000'
 
 // ── BASE TEMPLATE ─────────────────────────────────────────────────────────────
 function baseHtml(title, bodyHtml) {
+  const logoUrl = process.env.LOGO_URL || 'https://automedic-mw.up.railway.app/uploads/logo.jpg'
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -76,15 +78,15 @@ function baseHtml(title, bodyHtml) {
     <!-- BULLETPROOF HEADER TABLE -->
     <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#1A1A2E;border-collapse:collapse;">
       <tr>
-        <td style="padding:22px 28px;vertical-align:middle;">
+        <td style="padding:20px 28px;vertical-align:middle;">
           <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
             <tr>
-              <!-- Logo Badge -->
-              <td style="vertical-align:middle;padding-right:12px;">
+              <!-- Logo Image Badge -->
+              <td style="vertical-align:middle;padding-right:14px;">
                 <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                   <tr>
-                    <td style="background-color:#B8860B;border-radius:10px;width:40px;height:40px;text-align:center;vertical-align:middle;color:#FFFFFF;font-family:'Segoe UI',Arial,sans-serif;font-weight:900;font-size:15px;line-height:40px;mso-line-height-rule:exactly;">
-                      AM
+                    <td style="background-color:#FFFFFF;border-radius:12px;padding:6px 10px;text-align:center;vertical-align:middle;">
+                      <img src="${logoUrl}" alt="AutoMedic" width="38" style="display:block;width:38px;height:auto;max-height:38px;object-fit:contain;border:0;" />
                     </td>
                   </tr>
                 </table>
