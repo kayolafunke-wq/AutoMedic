@@ -20,12 +20,14 @@ if (USE_RESEND) {
 
 // ── SMTP TRANSPORT ─────────────────────────────────────────────────────────────
 function getTransporter() {
-  const user = (process.env.EMAIL_USER || '').trim()
-  const pass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
+  const user = (process.env.EMAIL_USER || 'kayolafunke@gmail.com').trim()
+  const pass = (process.env.EMAIL_PASS || 'kbmdyicztybpmuln').replace(/\s+/g, '')
+  const port = Number(process.env.EMAIL_PORT || 465)
+  const secure = process.env.EMAIL_SECURE !== undefined ? process.env.EMAIL_SECURE === 'true' : (port === 465)
   return nodemailer.createTransport({
     host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
-    port:   Number(process.env.EMAIL_PORT || 587),
-    secure: process.env.EMAIL_SECURE === 'true',
+    port:   port,
+    secure: secure,
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 15000,
@@ -34,8 +36,8 @@ function getTransporter() {
 }
 
 function getFromEmail() {
-  const user = (process.env.EMAIL_USER || '').trim()
-  return process.env.EMAIL_FROM || `AutoMedic <${user || 'noreply@automedic.mw'}>`
+  const user = (process.env.EMAIL_USER || 'kayolafunke@gmail.com').trim()
+  return process.env.EMAIL_FROM || `AutoMedic <${user}>`
 }
 
 // ── GARAGE INFO ────────────────────────────────────────────────────────────────
@@ -110,22 +112,29 @@ function baseHtml(title, bodyHtml) {
 
 // ── SEND HELPER ───────────────────────────────────────────────────────────────
 async function send(to, subject, html) {
-  // Allow redirecting all outbound emails to a test inbox during development
   const recipient = process.env.EMAIL_OVERRIDE || to
 
-  // ── Resend API path (works in containers) ──
+  // 1. Try Gmail Direct SSL (Port 465) — sends directly to ANY customer Google email
+  try {
+    const transporter = getTransporter()
+    const from = getFromEmail()
+    const info = await transporter.sendMail({ from, to: recipient, subject, html })
+    console.log(`[EMAIL] Gmail SMTP (SSL 465) sent to ${recipient}: ${subject} (ID: ${info.messageId})`)
+    return { success: true, messageId: info.messageId }
+  } catch (smtpErr) {
+    console.warn(`[EMAIL] Gmail SMTP failed to send to ${recipient}: ${smtpErr.message}. Trying Resend API fallback...`)
+  }
+
+  // 2. Fallback to Resend API if SMTP is blocked by network host
   if (USE_RESEND && resend) {
     const fromEmail = process.env.RESEND_FROM || process.env.EMAIL_FROM || `AutoMedic <onboarding@resend.dev>`
     try {
       const { data, error } = await resend.emails.send({ from: fromEmail, to: recipient, subject, html })
       if (error) {
         console.error(`[EMAIL] Resend API error sending to ${recipient}:`, JSON.stringify(error))
-        if (error.message && error.message.includes('only send to your own email')) {
-          console.error(`[EMAIL DIAGNOSTIC] Resend free sandbox (onboarding@resend.dev) only sends to your signup email (kayolafunke@gmail.com). To send to real customer addresses like ${to}, add a domain at https://resend.com/domains or set EMAIL_OVERRIDE=kayolafunke@gmail.com in Railway variables for testing.`)
-        }
         return { success: false, error: error.message || JSON.stringify(error) }
       }
-      console.log(`[EMAIL] Resend sent to ${recipient}${process.env.EMAIL_OVERRIDE ? ` (original: ${to})` : ''}: ${subject} (id: ${data?.id})`)
+      console.log(`[EMAIL] Resend API sent to ${recipient}: ${subject} (id: ${data?.id})`)
       return { success: true, messageId: data?.id }
     } catch (err) {
       console.error(`[EMAIL] Resend exception sending to ${recipient}:`, err.message)
@@ -133,27 +142,7 @@ async function send(to, subject, html) {
     }
   }
 
-  // ── SMTP/Nodemailer path (local dev) ──
-  if (!process.env.EMAIL_USER || process.env.EMAIL_USER === 'your_email@gmail.com') {
-    console.log(`[EMAIL] (not configured) To: ${to} | Subject: ${subject}`)
-    return { success: false, reason: 'Email not configured in .env' }
-  }
-  try {
-    const transporter = getTransporter()
-    const from = getFromEmail()
-    const info = await transporter.sendMail({ from, to, subject, html })
-    console.log(`[EMAIL] SMTP sent to ${to}: ${subject} (Message ID: ${info.messageId})`)
-    return { success: true, messageId: info.messageId }
-  } catch (err) {
-    console.error(`[EMAIL] SMTP failed to send to ${to}:`, err.message)
-    if (err.message && err.message.includes('Invalid login')) {
-      console.error(`[EMAIL DIAGNOSTIC] Gmail credentials rejected. Use a 16-character App Password from https://myaccount.google.com/apppasswords`)
-    }
-    if (err.message && (err.message.includes('timeout') || err.message.includes('ECONNREFUSED'))) {
-      console.error(`[EMAIL DIAGNOSTIC] SMTP connection blocked — your host likely blocks port 587/465. Set RESEND_API_KEY in your environment to use the Resend API instead (free at https://resend.com).`)
-    }
-    return { success: false, error: err.message }
-  }
+  return { success: false, error: 'All email transports failed' }
 }
 
 // ── EMAIL TEMPLATES ───────────────────────────────────────────────────────────
