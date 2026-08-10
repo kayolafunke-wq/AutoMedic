@@ -161,6 +161,206 @@ function StepPill({ done, active, label }) {
   )
 }
 
+/* ─── CUSTOMER SIGNATURE SECTION ─────────────────────── */
+function CustomerSignatureSection({ inspection, user, setAllInspections }) {
+  const canvasRef = useRef(null)
+  const drawingRef = useRef(false)
+  const [signing, setSigning] = useState(false)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    ctx.strokeStyle = '#1A1A2E'
+    ctx.lineWidth = 2.5
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    const getPos = (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const scaleX = canvas.width / rect.width
+      const scaleY = canvas.height / rect.height
+      const src = e.touches?.[0] || e
+      return {
+        x: (src.clientX - rect.left) * scaleX,
+        y: (src.clientY - rect.top) * scaleY
+      }
+    }
+
+    const startDraw = (e) => {
+      drawingRef.current = true
+      const pos = getPos(e)
+      ctx.beginPath()
+      ctx.moveTo(pos.x, pos.y)
+    }
+
+    const moveDraw = (e) => {
+      if (!drawingRef.current) return
+      const pos = getPos(e)
+      ctx.lineTo(pos.x, pos.y)
+      ctx.stroke()
+    }
+
+    const stopDraw = () => {
+      drawingRef.current = false
+    }
+
+    // Mouse handlers
+    canvas.addEventListener('mousedown', startDraw)
+    canvas.addEventListener('mousemove', moveDraw)
+    canvas.addEventListener('mouseup', stopDraw)
+    canvas.addEventListener('mouseleave', stopDraw)
+
+    // Touch handlers (mobile finger/stylus)
+    const handleTouchStart = (e) => { e.preventDefault(); startDraw(e) }
+    const handleTouchMove = (e) => { e.preventDefault(); moveDraw(e) }
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
+    canvas.addEventListener('touchend', stopDraw)
+    canvas.addEventListener('touchcancel', stopDraw)
+
+    return () => {
+      canvas.removeEventListener('mousedown', startDraw)
+      canvas.removeEventListener('mousemove', moveDraw)
+      canvas.removeEventListener('mouseup', stopDraw)
+      canvas.removeEventListener('mouseleave', stopDraw)
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchmove', handleTouchMove)
+      canvas.removeEventListener('touchend', stopDraw)
+      canvas.removeEventListener('touchcancel', stopDraw)
+    }
+  }, [inspection.id])
+
+  const handleClear = () => {
+    const canvas = canvasRef.current
+    if (canvas) {
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    }
+  }
+
+  const handleConfirm = async () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    const pixelData = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    const isSigned = Array.from(pixelData).some((v, i) => i % 4 === 3 && v > 0)
+
+    if (!isSigned) {
+      alert('Please draw your signature in the box before confirming.')
+      return
+    }
+
+    try {
+      setSigning(true)
+      const signatureData = canvas.toDataURL('image/png')
+      await api.patch(`/inspections/${inspection.id}/sign`, {
+        customer_signature: signatureData
+      })
+
+      setAllInspections(prev => prev.map(item => 
+        item.id === inspection.id 
+          ? { ...item, status: 'customer_signed', customer_signed_at: new Date().toISOString() }
+          : item
+      ))
+
+      alert('✅ Inspection signed successfully! AutoMedic technicians have been notified.')
+    } catch (err) {
+      console.error('Failed to save signature:', err)
+      alert('Failed to save signature: ' + (err.response?.data?.message || err.message))
+    } finally {
+      setSigning(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 space-y-5">
+      {/* Declaration */}
+      <div className="bg-[#B8860B]/5 border border-[#B8860B]/20 rounded-2xl p-4 sm:p-5">
+        <p className="text-xs sm:text-sm text-gray-800 font-semibold mb-3">
+          By signing below, <strong className="text-[#1A1A2E] font-bold">{user?.displayName || user?.name || 'Customer'}</strong>, you confirm:
+        </p>
+        <ul className="space-y-2">
+          {[
+            'The vehicle inspection report above is accurate',
+            'The damages recorded existed before handover to AutoMedic',
+            'The fuel level shown is correct',
+            'You authorise AutoMedic to proceed with the requested service',
+            'Work on your vehicle will begin after this signature'
+          ].map((text, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-xs text-gray-600">
+              <span className="text-[#B8860B] font-black mt-0.5 flex-shrink-0">✓</span>
+              <span>{text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Signature Box */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center">
+              <PenLine size={13} className="text-purple-500" />
+            </div>
+            <p className="font-bold text-[#1A1A2E] text-xs sm:text-sm">Your Digital Signature</p>
+          </div>
+          <span className="text-[11px] text-gray-400 font-medium">— finger on mobile or mouse on desktop</span>
+        </div>
+
+        <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50/60 hover:border-[#B8860B] transition-colors overflow-hidden relative">
+          <canvas
+            ref={canvasRef}
+            width={580}
+            height={150}
+            className="w-full cursor-crosshair touch-none block"
+            style={{ height: 150 }}
+          />
+          <p className="absolute bottom-2 left-3 text-[10px] text-gray-400 font-medium pointer-events-none select-none">
+            Sign here ✍
+          </p>
+        </div>
+
+        {/* Action Buttons: Responsive Mobile Layout */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-4">
+          <button
+            type="button"
+            onClick={handleClear}
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-3 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100 active:scale-[0.98] transition-all"
+          >
+            <X size={14} /> Clear
+          </button>
+
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={signing}
+            className="flex-1 flex items-center justify-center gap-2 px-5 py-3.5 bg-[#B8860B] text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-[#8B6508] active:scale-[0.98] transition-all shadow-md shadow-[#B8860B]/20 disabled:opacity-50"
+          >
+            {signing ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <CheckCircle size={16} />
+            )}
+            <span>Confirm &amp; Authorise Repairs</span>
+          </button>
+
+          <a
+            href="https://wa.me/265994040900"
+            target="_blank"
+            rel="noreferrer"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-3.5 bg-green-500 text-white rounded-xl text-xs font-bold hover:bg-green-600 active:scale-[0.98] transition-all whitespace-nowrap"
+          >
+            <MessageCircle size={14} /> Ask a Question
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── SIDEBAR ────────────────────────────────────────── */
 function Sidebar({ active, onChange, unread, pendingInspection, unpaidInvoices, logout, sidebarOpen, setSidebarOpen, profileIncomplete }) {
   const items = [
@@ -874,70 +1074,11 @@ export default function CustomerDashboard() {
                                 <InspectionReportDetails inspection={inspection} job={inspection} />
                               </div>
 
-                              <div className="bg-white rounded-2xl shadow-sm border border-gray-50 p-6 space-y-5">
-                                {/* Declaration */}
-                                <div className="bg-[#B8860B]/5 border border-[#B8860B]/15 rounded-xl p-5">
-                                  <p className="text-sm text-gray-700 font-semibold mb-3">By signing below, <strong className="text-[#1A1A2E]">{user?.displayName||user?.name}</strong>, you confirm:</p>
-                                  <ul className="space-y-2">
-                                    {['The vehicle inspection report above is accurate','The damages recorded existed before handover to AutoMedic','The fuel level shown is correct','You authorise AutoMedic to proceed with the requested service','Work on your vehicle will begin after this signature'].map((t,i)=>(
-                                      <li key={i} className="flex items-start gap-2 text-xs text-gray-600"><span className="text-[#B8860B] font-bold mt-0.5 flex-shrink-0">✓</span>{t}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-
-                                {/* Signature pad */}
-                                <div>
-                                  <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-7 h-7 bg-purple-50 rounded-lg flex items-center justify-center"><PenLine size={13} className="text-purple-400"/></div>
-                                    <p className="font-bold text-[#1A1A2E] text-sm">Your Digital Signature</p>
-                                    <span className="text-xs text-gray-400">— finger on mobile or mouse on desktop</span>
-                                  </div>
-                                  <div className="border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 hover:border-[#B8860B] transition-colors overflow-hidden relative">
-                                    <canvas id={`sig-canvas-${inspection.id}`} width={580} height={150} className="w-full cursor-crosshair touch-none block" style={{height:150}}/>
-                                    <p className="absolute bottom-2 left-3 text-[10px] text-gray-300 pointer-events-none select-none">Sign here ✍</p>
-                                  </div>
-                                  <div className="flex gap-3 mt-4">
-                                    <button onClick={()=>{const c=document.getElementById(`sig-canvas-${inspection.id}`);if(c)c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-50"><X size={12}/>Clear</button>
-                                    <button onClick={async () => {
-                                      const canvas = document.getElementById(`sig-canvas-${inspection.id}`)
-                                      if (!canvas) {
-                                        alert('Signature canvas not found. Please refresh the page.')
-                                        return
-                                      }
-                                      
-                                      // Validate signature
-                                      const ctx = canvas.getContext('2d')
-                                      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-                                      const ok = Array.from(data).some((v, i) => i % 4 === 3 && v > 0)
-                                      if (!ok) {
-                                        alert('Please sign first.')
-                                        return
-                                      }
-                                      
-                                      // Save signature (optimized - no full reload)
-                                      try {
-                                        const signatureData = canvas.toDataURL('image/png')
-                                        await api.patch(`/inspections/${inspection.id}/sign`, {
-                                          customer_signature: signatureData
-                                        })
-                                        
-                                        // Update just this inspection in state (fast!)
-                                        setAllInspections(prev => prev.map(i => 
-                                          i.id === inspection.id 
-                                            ? { ...i, status: 'customer_signed', customer_signed_at: new Date().toISOString() }
-                                            : i
-                                        ))
-                                        
-                                        alert('✅ Inspection signed successfully! Work will begin shortly.')
-                                      } catch (err) {
-                                        console.error('Failed to save signature:', err)
-                                        alert('Failed to save signature: ' + (err.response?.data?.message || err.message))
-                                      }
-                                    }} className="flex items-center gap-2 px-6 py-2.5 bg-[#B8860B] text-white rounded-full text-sm font-semibold hover:bg-[#8B6508] transition-colors shadow-lg shadow-[#B8860B]/20"><CheckCircle size={14}/>Confirm &amp; Authorise Repairs</button>
-                                    <a href="https://wa.me/265994040900" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-4 py-2.5 bg-green-500 text-white rounded-full text-xs font-semibold hover:bg-green-600 transition-colors"><MessageCircle size={12}/>Ask a Question</a>
-                                  </div>
-                                </div>
-                              </div>
+                              <CustomerSignatureSection 
+                                inspection={inspection} 
+                                user={user} 
+                                setAllInspections={setAllInspections} 
+                              />
                             </div>
                           )}
 
