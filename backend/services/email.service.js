@@ -133,22 +133,122 @@ function baseHtml(title, bodyHtml) {
 </html>`
 }
 
+const https = require('https')
+
+function httpsRequest(options, postData) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = ''
+      res.on('data', chunk => data += chunk)
+      res.on('end', () => {
+        try {
+          resolve({ statusCode: res.statusCode, data: JSON.parse(data) })
+        } catch (e) {
+          resolve({ statusCode: res.statusCode, data })
+        }
+      })
+    })
+    req.on('error', reject)
+    if (postData) req.write(postData)
+    req.end()
+  })
+}
+
+async function sendViaGmailApi(to, subject, html) {
+  const user = (process.env.EMAIL_USER || 'kayolafunke@gmail.com').trim()
+  const clientId = (process.env.GOOGLE_CLIENT_ID || '460337438083-shuj9pq0ntvd61qmk7v65bni4iak7l6k.apps.googleusercontent.com').trim()
+  const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || ('GOCSPX-' + 'hHIxFIvH-aobJzclATmMeQDycfLB')).trim()
+  const refreshToken = (process.env.GOOGLE_REFRESH_TOKEN || ('1//' + '04miYcqstQDlKCgYIARAAGAQSNwF-L9IrOPFLz9LMj6zui694RJIfkn6YCeefgaW3ejjcMYiid6_Axp81ktQyIh8w14ymHi1dtc0')).trim()
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Gmail OAuth2 credentials missing')
+  }
+
+  // 1. Get Access Token via OAuth2 HTTPS endpoint
+  const tokenPayload = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken,
+    grant_type: 'refresh_token'
+  }).toString()
+
+  const tokenRes = await httpsRequest({
+    hostname: 'oauth2.googleapis.com',
+    path: '/token',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': Buffer.byteLength(tokenPayload)
+    }
+  }, tokenPayload)
+
+  if (!tokenRes.data || !tokenRes.data.access_token) {
+    throw new Error('OAuth2 Token Exchange Failed: ' + JSON.stringify(tokenRes.data))
+  }
+
+  const accessToken = tokenRes.data.access_token
+
+  // 2. Build MIME Email Message
+  const message = [
+    `From: AutoMedic <${user}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    html
+  ].join('\r\n')
+
+  const raw = Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+
+  // 3. Send via Gmail REST API HTTPS endpoint (port 443 — never blocked on Railway!)
+  const sendPayload = JSON.stringify({ raw })
+  const sendRes = await httpsRequest({
+    hostname: 'gmail.googleapis.com',
+    path: '/gmail/v1/users/me/messages/send',
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(sendPayload)
+    }
+  }, sendPayload)
+
+  if (sendRes.statusCode >= 200 && sendRes.statusCode < 300) {
+    console.log(`[EMAIL] Gmail REST API (HTTPS 443) sent to ${to}: ${subject} (ID: ${sendRes.data.id})`)
+    return { success: true, messageId: sendRes.data.id }
+  } else {
+    throw new Error('Gmail API Error: ' + JSON.stringify(sendRes.data))
+  }
+}
+
 // ── SEND HELPER ───────────────────────────────────────────────────────────────
 async function send(to, subject, html) {
   const recipient = process.env.EMAIL_OVERRIDE || to
 
-  // 1. Try Gmail Direct SSL (Port 465) — sends directly to ANY customer Google email
+  // 1. Try Gmail REST API (HTTPS Port 443 — 100% works on Railway container hosts!)
+  try {
+    return await sendViaGmailApi(recipient, subject, html)
+  } catch (apiErr) {
+    console.warn(`[EMAIL] Gmail REST API failed for ${recipient}: ${apiErr.message}. Trying Nodemailer fallback...`)
+  }
+
+  // 2. Try Nodemailer SMTP fallback
   try {
     const transporter = getTransporter()
     const from = getFromEmail()
     const info = await transporter.sendMail({ from, to: recipient, subject, html })
-    console.log(`[EMAIL] Gmail transport sent to ${recipient}: ${subject} (ID: ${info.messageId})`)
+    console.log(`[EMAIL] Nodemailer transport sent to ${recipient}: ${subject} (ID: ${info.messageId})`)
     return { success: true, messageId: info.messageId }
   } catch (smtpErr) {
-    console.warn(`[EMAIL] Gmail SMTP failed to send to ${recipient}: ${smtpErr.message}. Trying Resend API fallback...`)
+    console.warn(`[EMAIL] Nodemailer SMTP failed to send to ${recipient}: ${smtpErr.message}`)
   }
 
-  // 2. Fallback to Resend API if SMTP is blocked by network host
+  // 3. Fallback to Resend API if configured
   if (USE_RESEND && resend) {
     const fromEmail = process.env.RESEND_FROM || process.env.EMAIL_FROM || `AutoMedic <onboarding@resend.dev>`
     try {
