@@ -18,20 +18,42 @@ if (USE_RESEND) {
   }
 }
 
-// ── SMTP TRANSPORT ─────────────────────────────────────────────────────────────
+// ── GMAIL OAUTH2 & SMTP TRANSPORTER ─────────────────────────────────────────────
 function getTransporter() {
   const user = (process.env.EMAIL_USER || 'kayolafunke@gmail.com').trim()
-  const pass = (process.env.EMAIL_PASS || 'kbmdyicztybpmuln').replace(/\s+/g, '')
-  const port = Number(process.env.EMAIL_PORT || 465)
+  const clientId = (process.env.GOOGLE_CLIENT_ID || '').trim()
+  const clientSecret = (process.env.GOOGLE_CLIENT_SECRET || '').trim()
+  const refreshToken = (process.env.GOOGLE_REFRESH_TOKEN || '').trim()
+
+  if (clientId && clientSecret && refreshToken) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: user,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        refreshToken: refreshToken,
+      }
+    })
+  }
+
+  // Fallback to traditional App Password SMTP
+  const pass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || 'kbmdyicztybpmuln').replace(/\s+/g, '')
+  const port = Number(process.env.EMAIL_PORT || 587)
   const secure = process.env.EMAIL_SECURE !== undefined ? process.env.EMAIL_SECURE === 'true' : (port === 465)
   return nodemailer.createTransport({
-    host:   process.env.EMAIL_HOST   || 'smtp.gmail.com',
+    host:   process.env.EMAIL_HOST || 'smtp.gmail.com',
     port:   port,
     secure: secure,
     auth: { user, pass },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 15000,
-    greetingTimeout:   10000,
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2',
+    },
+    connectionTimeout: 30000,
+    greetingTimeout:   20000,
+    socketTimeout:     30000,
   })
 }
 
