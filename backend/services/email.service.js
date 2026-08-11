@@ -192,9 +192,11 @@ async function sendViaGmailApi(to, subject, html) {
   const message = [
     `From: AutoMedic <${user}>`,
     `To: ${to}`,
+    `Reply-To: ${user}`,
     `Subject: ${subject}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
+    'X-Mailer: AutoMedic Garage System',
     '',
     html
   ].join('\r\n')
