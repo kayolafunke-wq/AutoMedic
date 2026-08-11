@@ -65,9 +65,9 @@ function getFromEmail() {
 
 // ── GARAGE INFO ────────────────────────────────────────────────────────────────
 const GARAGE  = process.env.GARAGE_NAME    || 'AutoMedic Garage'
-const PHONE   = process.env.GARAGE_PHONE   || '+265 999 000 000'
-const ADDRESS = process.env.GARAGE_ADDRESS || 'Area 47, Lilongwe, Malawi'
-const WA      = process.env.GARAGE_WHATSAPP || '+265999000000'
+const PHONE   = process.env.GARAGE_PHONE   || '+265 994 040 900'
+const ADDRESS = process.env.GARAGE_ADDRESS || 'Area 5, Lilongwe, Malawi'
+const WA      = process.env.GARAGE_WHATSAPP || '+265994040900'
 
 // ── BASE TEMPLATE ─────────────────────────────────────────────────────────────
 function baseHtml(title, bodyHtml) {
@@ -188,12 +188,14 @@ async function sendViaGmailApi(to, subject, html) {
 
   const accessToken = tokenRes.data.access_token
 
-  // 2. Build MIME Email Message
+  // 2. Build MIME Email Message (RFC 2047 UTF-8 subject header encoding)
+  const encodedSubject = '=?UTF-8?B?' + Buffer.from(subject, 'utf-8').toString('base64') + '?='
+
   const message = [
     `From: AutoMedic <${user}>`,
     `To: ${to}`,
     `Reply-To: ${user}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
     'X-Mailer: AutoMedic Garage System',
@@ -201,7 +203,7 @@ async function sendViaGmailApi(to, subject, html) {
     html
   ].join('\r\n')
 
-  const raw = Buffer.from(message)
+  const raw = Buffer.from(message, 'utf-8')
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
